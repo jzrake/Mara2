@@ -1,0 +1,3 @@
+[submodule "Cow"]
+	path = Cow
+	url = git@github.com:jzrake/Cow2.git
