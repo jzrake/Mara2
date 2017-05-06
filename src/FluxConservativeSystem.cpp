@@ -82,19 +82,31 @@ intercellFluxEstimator (intercellFluxEstimator)
     F3 = Array (shapeF3);
 }
 
+Cow::Array::Reference FluxConservativeSystem::getPrimitive()
+{
+    return P[updateableRegion];
+}
+
 void FluxConservativeSystem::setInitialData (InitialDataFunction F)
 {
-    auto reg = P[updateableRegion];
+    auto request = ConservationLaw::Request();
+    auto Preg = P[updateableRegion];
+    auto Ureg = U[updateableRegion];
+    auto pit = Preg.begin();
+    auto uit = Ureg.begin();
 
-    for (auto it = reg.begin(); it != reg.end(); ++it)
+    for ( ; uit != Ureg.end(); ++uit, ++pit)
     {
-        auto index = it.relativeIndex();
+        auto index = pit.relativeIndex();
         auto coord = meshGeometry->coordinateAtIndex (index[0], index[1], index[2]);
         auto state = F (coord[0], coord[1], coord[2]);
 
+        state = conservationLaw->fromPrimitive (request, &state.P[0]);
+
         for (int q = 0; q < numConserved; ++q)
         {
-            it[q] = state.P[q];
+            pit[q] = state.P[q];
+            uit[q] = state.U[q];
         }
     }
 }
@@ -128,14 +140,14 @@ void FluxConservativeSystem::computeIntercellFluxes()
             {
                 for (int n = 0; n < schemeOrder * 2; ++n)
                 {
-                    stateVector[n] = conservationLaw->fromConserved (request, &U (i + n, j, k));                    
+                    stateVector[n] = conservationLaw->fromConserved (request, &U (i + n, j, k));
                 }
 
                 auto flux = intercellFluxEstimator->intercellFlux (stateVector);
 
                 for (int q = 0; q < numConserved; ++q)
                 {
-                    F1 (i, j, k, q) = flux.F[q];   
+                    F1 (i, j, k, q) = flux.F[q];
                 }
             }
         }
@@ -178,6 +190,26 @@ void FluxConservativeSystem::updateConserved (double dt, double rungeKuttaParame
 
     for (int n = 0; n < U.size(); ++n)
     {
-       U[n] = U[n] * b + L[n] * dt * (1 - b);
+        U[n] += U[n] * b + L[n] * dt * (1 - b);
     }
 }
+
+void FluxConservativeSystem::recoverPrimitive()
+{
+    auto request = ConservationLaw::Request();
+    auto Ureg = U[updateableRegion];
+    auto Preg = P[updateableRegion];
+    auto pit = Preg.begin();
+    auto uit = Ureg.begin();
+
+    for ( ; uit != Ureg.end(); ++uit, ++pit)
+    {
+        auto S = conservationLaw->fromConserved (request, uit);
+
+        for (int q = 0; q < numConserved; ++q)
+        {
+            pit[q] = S.P[q];
+        }
+    }
+}
+

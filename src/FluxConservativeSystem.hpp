@@ -70,13 +70,16 @@ public:
         ConservationLaw* conservationLaw,
         IntercellFluxEstimator* intercellFluxEstimator);
 
+    Cow::Array::Reference getPrimitive();
+
     void setInitialData (InitialDataFunction F);
     void computeIntercellFluxes();
     void computeTimeDerivative();
     void applyBoundaryConditions();
     void updateConserved (double dt, double rungeKuttaParameter=0);
+    void recoverPrimitive();
 
-private:    
+private:
     int numDimensions;
     int numConserved;
     int schemeOrder;
