@@ -140,7 +140,8 @@ void FluxConservativeSystem::computeIntercellFluxes()
             {
                 for (int n = 0; n < schemeOrder * 2; ++n)
                 {
-                    stateVector[n] = conservationLaw->fromConserved (request, &U (i + n, j, k));
+                    //stateVector[n] = conservationLaw->fromConserved (request, &U (i + n, j, k));
+                    stateVector[n] = conservationLaw->fromPrimitive (request, &P (i + n, j, k));
                 }
 
                 auto flux = intercellFluxEstimator->intercellFlux (stateVector);
@@ -179,7 +180,24 @@ void FluxConservativeSystem::computeTimeDerivative()
             const double dAF2 = F2 (i, j + 1, k, q) * A2R - F2 (i, j, k, q) * A2L;
             const double dAF3 = F3 (i, j, k + 1, q) * A3R - F3 (i, j, k, q) * A3L;
 
-            it[q] = (dAF1 + dAF2 + dAF3) / Vol;
+            it[q] = -(dAF1 + dAF2 + dAF3) / Vol;
+        }
+    }
+}
+
+void FluxConservativeSystem::applyBoundaryConditions()
+{
+    // Periodic BC's in serial, 1D
+
+    int n1 = domainShape[0];
+    int ng = schemeOrder;
+
+    for (int i = 0; i < schemeOrder; ++i)
+    {
+        for (int q = 0; q < numConserved; ++q)
+        {
+            P (i, 0, 0, q) = P (n1 - 2 * ng + i, 0, 0, q);
+            P (n1 - ng + i, 0, 0, q) = P (ng + i, 0, 0, q);
         }
     }
 }

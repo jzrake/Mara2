@@ -11,7 +11,7 @@ class CartesianMeshGeometry : public MeshGeometry
 public:
     CartesianMeshGeometry()
     {
-        shape = {{256, 1, 1, 1, 1}};
+        shape = {{128, 1, 1, 1, 1}};
     }
 
     Cow::Shape domainShape() const override
@@ -48,7 +48,7 @@ class ScalarAdvection : public ConservationLaw
 public:
     ScalarAdvection()
     {
-        waveSpeed = 1.0;
+        waveSpeed = -1.0;
     }
 
     State fromConserved (const Request& request, const double* U) const override
@@ -128,8 +128,6 @@ int main()
             return S;
         });
 
-    
-
     {
         auto P = system.getPrimitive();
         auto file = H5::File ("chkpt.0000.h5", "w");
@@ -137,14 +135,16 @@ int main()
     }
 
     double t = 0.0;
-    double dt = 0.0005;
+    double dt = 0.0025;
 
-    while (t < 0.05)
+    while (t < 0.5)
     {
+        std::cout << "t=" << t << std::endl;
         system.computeIntercellFluxes();
         system.computeTimeDerivative();
         system.updateConserved (dt);
         system.recoverPrimitive();
+        system.applyBoundaryConditions();
         t += dt;
     }
 
