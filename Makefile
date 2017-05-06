@@ -10,21 +10,26 @@ SRC := $(wildcard src/*.cpp)
 HDR := $(wildcard src/*.hpp)
 OBJ := $(SRC:.cpp=.o)
 EXE := mara
-COW := Cow/libcow.a
+COW := Cow/src/libcow.a
+LUA := Lua/src/liblua.a
 
 default : $(EXE)
 
 $(COW) : .FORCE
 	$(MAKE) -C Cow
 
-%.o : %.cpp $(HDR)
-	$(CXX) $(CFLAGS) -o $@ -c $< -ICow/src
+$(LUA) : .FORCE
+	$(MAKE) -C Lua generic
 
-$(EXE) : $(OBJ) $(COW)
+%.o : %.cpp $(HDR)
+	$(CXX) $(CFLAGS) -o $@ -c $< -ICow/src -ILua/src
+
+$(EXE) : $(OBJ) $(COW) $(LUA)
 	$(CXX) $(CFLAGS) -o $@ $^ $(H5L)
 
 clean :
 	$(MAKE) -C Cow clean
+	$(MAKE) -C Lua clean
 	$(RM) $(EXE) $(OBJ)
 
 .FORCE :

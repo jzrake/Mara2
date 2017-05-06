@@ -3,7 +3,7 @@
 #include "FluxConservativeSystem.hpp"
 #include "HDF5.hpp"
 
-
+#include "sol.hpp"
 
 
 class CartesianMeshGeometry : public MeshGeometry
@@ -113,20 +113,91 @@ public:
 };
 
 
+void testLua (std::string filename)
+{
+    sol::state lua;
+    lua.open_libraries (sol::lib::base);
+
+    lua.script_file (filename);
 
 
-int main()
+    for (auto entry : lua.globals())
+    {
+        std::cout << entry.first.as<std::string>() <<": " << entry.second.as<std::string>() << std::endl;
+    }
+
+
+
+    // std::cout << lua.get<std::string>("run_name") << std::endl;
+
+    // for (auto entry : lua.get<sol::table>("resolution"))
+    // {
+    //     auto F = entry.second;
+    //     std::cout << F.is<int>() << std::endl;
+    // }
+
+    // auto res = lua.get<sol::table>("resolution");
+    // std::cout << res.size() << std::endl;
+
+
+
+    //std::cout << initial_data() << std::endl;
+
+    // auto initialDataFunction = [] (double x, double y, double z)
+    // {
+    //     auto S = ConservationLaw::State();
+    //     S.P.push_back (std::exp (-x * x / 0.01));
+    //     return S;
+    // };
+}
+
+
+int main(int argc, const char* argv[])
 {
     using namespace Cow;
 
-    auto system = FluxConservativeSystem (new CartesianMeshGeometry, new ScalarAdvection, new ScalarUpwind);
+    if (argc == 1)
+    {
+        std::cout << "usage: mara config.lua\n";
+        return 0;
+    }
 
-    system.setInitialData ([] (double x, double y, double z)
+    sol::state lua;
+    lua.open_libraries (sol::lib::base);
+    lua.script_file (argv[1]);
+
+    auto makeInitialDataFunction = [] (sol::function& func)
+    {
+        auto F = [=] (double x, double y, double z)
         {
             auto S = ConservationLaw::State();
-            S.P.push_back (std::exp (-x * x / 0.01));
+            sol::table result = func();
+
+            for (int n = 0; n < result.size(); ++n)
+            {
+                S.P.push_back (result[n + 1]);
+            }
             return S;
-        });
+        };
+        return F;
+    };
+
+    sol::function initial_data = lua["initial_data"];
+    auto initialDataFunction = makeInitialDataFunction (initial_data);
+
+
+    return 0;
+
+
+    auto geometry = new CartesianMeshGeometry;
+    geometry->shape[0] = lua["resolution"][1].get_or (128);
+    geometry->shape[1] = lua["resolution"][2].get_or (1);
+    geometry->shape[2] = lua["resolution"][3].get_or (1);
+
+
+    auto system = FluxConservativeSystem (geometry, new ScalarAdvection, new ScalarUpwind);
+    system.setInitialData (initialDataFunction);
+
 
     {
         auto P = system.getPrimitive();

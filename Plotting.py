@@ -7,8 +7,8 @@ def main():
     chkpt1 = h5py.File("chkpt.0001.h5", "r")
     P0 = chkpt0["primitive"][...]
     P1 = chkpt1["primitive"][...]
-    plt.plot(P0, 'o', mfc='none')
-    plt.plot(P1, 'o', mfc='none')
+    plt.plot(P0, 'o', mec='k', mfc='none')
+    plt.plot(P1, 'o', mec='b', mfc='none')
     plt.show()
 
 
