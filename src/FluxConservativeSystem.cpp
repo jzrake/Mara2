@@ -23,19 +23,17 @@ ConservationLaw::Request::Request()
 
 
 // ============================================================================
-FluxConservativeSystem::FluxConservativeSystem (
-    MeshGeometry* meshGeometry,
-    ConservationLaw* conservationLaw,
-    IntercellFluxEstimator* intercellFluxEstimator) :
-
-meshGeometry (meshGeometry),
-conservationLaw (conservationLaw),
-intercellFluxEstimator (intercellFluxEstimator)
+FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
 {
+    meshGeometry           = setup.meshGeometry;
+    conservationLaw        = setup.conservationLaw;
+    intercellFluxScheme    = setup.intercellFluxScheme;
+    boundaryCondition      = setup.boundaryCondition;
+
     domainShape = meshGeometry->domainShape();
     numDimensions = Array::vectorFromShape (domainShape).size();
     numConserved = conservationLaw->getNumConserved();
-    schemeOrder = intercellFluxEstimator->getSchemeOrder();
+    schemeOrder = intercellFluxScheme->getSchemeOrder();
 
     // This is the shape of the updateableRegion, with space for conserved
     // quantities on the final axis.
@@ -99,7 +97,9 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F)
     {
         auto index = pit.relativeIndex();
         auto coord = meshGeometry->coordinateAtIndex (index[0], index[1], index[2]);
-        auto state = F (coord[0], coord[1], coord[2]);
+        auto state = ConservationLaw::State();
+
+        state.P = F (coord[0], coord[1], coord[2]);
 
         state = conservationLaw->fromPrimitive (request, &state.P[0]);
 
@@ -117,7 +117,7 @@ void FluxConservativeSystem::computeIntercellFluxes()
     int N2 = domainShape[1];
     int N3 = domainShape[2];
 
-    auto stateVector = IntercellFluxEstimator::StateVector (schemeOrder * 2);
+    auto stateVector = IntercellFluxScheme::StateVector (schemeOrder * 2);
     auto request = ConservationLaw::Request();
 
     request.getPrimitive = true;
@@ -140,11 +140,10 @@ void FluxConservativeSystem::computeIntercellFluxes()
             {
                 for (int n = 0; n < schemeOrder * 2; ++n)
                 {
-                    //stateVector[n] = conservationLaw->fromConserved (request, &U (i + n, j, k));
                     stateVector[n] = conservationLaw->fromPrimitive (request, &P (i + n, j, k));
                 }
 
-                auto flux = intercellFluxEstimator->intercellFlux (stateVector);
+                auto flux = intercellFluxScheme->intercellFlux (stateVector);
 
                 for (int q = 0; q < numConserved; ++q)
                 {
@@ -187,19 +186,7 @@ void FluxConservativeSystem::computeTimeDerivative()
 
 void FluxConservativeSystem::applyBoundaryConditions()
 {
-    // Periodic BC's in serial, 1D
-
-    int n1 = domainShape[0];
-    int ng = schemeOrder;
-
-    for (int i = 0; i < schemeOrder; ++i)
-    {
-        for (int q = 0; q < numConserved; ++q)
-        {
-            P (i, 0, 0, q) = P (n1 - 2 * ng + i, 0, 0, q);
-            P (n1 - ng + i, 0, 0, q) = P (ng + i, 0, 0, q);
-        }
-    }
+    boundaryCondition->apply (P, schemeOrder);
 }
 
 void FluxConservativeSystem::updateConserved (double dt, double rungeKuttaParameter)

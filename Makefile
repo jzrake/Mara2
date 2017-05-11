@@ -2,7 +2,7 @@
 
 AR ?= ar rcu
 RANLIB ?= ranlib
-CFLAGS ?= -std=c++11 -Wall -O0 -g
+CFLAGS ?= -std=c++14 -Wall -O0 -g
 CXX ?= $(HOME)/Software/mpich-3.2/bin/mpicxx
 H5I ?= -I$(HOME)/Software/hdf5-1.10.1/include
 H5L ?= -L$(HOME)/Software/hdf5-1.10.1/lib -lhdf5
