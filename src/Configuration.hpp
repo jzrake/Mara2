@@ -9,12 +9,12 @@
 class Configuration
 {
 public:
-    class LuaState;
-
     Configuration();
     ~Configuration();
     SimulationSetup fromLuaFile (std::string filename);
 
+private:
+    class LuaState;
     std::shared_ptr<LuaState> luaState;
 };
 

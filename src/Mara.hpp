@@ -198,6 +198,33 @@ public:
 
 
 // ============================================================================
+class ScalarUpwindPLM : public IntercellFluxScheme
+{
+public:
+    ConservationLaw::State intercellFlux (StateVector stateVector) const override
+    {
+        auto S = ConservationLaw::State();
+        // const auto& S0 = stateVector[0];
+        // const auto& S1 = stateVector[1];
+        // const auto& S2 = stateVector[2];
+        // const auto& S3 = stateVector[3];
+
+        // double pL[3] = {S0.P[0], S0.P[1], S0.P[2]};
+        // double pR[3] = {S0.P[1], S0.P[2], S0.P[3]};
+
+        return S;
+    }
+
+    int getSchemeOrder() const override
+    {
+        return 2;
+    }
+};
+
+
+
+
+// ============================================================================
 class PeriodicBoundaryCondition : public BoundaryCondition
 {
 public:
