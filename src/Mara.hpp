@@ -18,7 +18,7 @@ class ConservationLaw;
 class IntercellFluxScheme;
 
 using InitialDataFunction = std::function<std::vector<double> (double, double, double)>;
-
+using AreaElement = std::array<double, 3>;
 
 
 
@@ -97,7 +97,7 @@ public:
         bool getConserved;
         bool getFluxes;
         bool getEigenvalues;
-        double areaElement[3];
+        AreaElement areaElement;
     };
 
     virtual State fromConserved (const Request& request, const double* U) const = 0;
@@ -108,22 +108,67 @@ public:
 
 
 
+
+class RiemannSolver
+{
+public:
+    using State = ConservationLaw::State;
+    virtual State solve (const State& L, const State& R, AreaElement dA) = 0;
+};
+
+
+
+
 class IntercellFluxScheme
 {
 public:
-    using StateVector = std::vector<ConservationLaw::State>;
+    using StateVector = std::vector<ConservationLaw::State>; // DEP
+
+    struct FaceData
+    {
+    public:
+        Cow::Array stencilData;
+        AreaElement areaElement;
+        std::shared_ptr<ConservationLaw> conservationLaw;
+    };
+
     virtual ConservationLaw::State intercellFlux (StateVector stateVector, const ConservationLaw*) const = 0;
+    virtual ConservationLaw::State intercellFlux (const FaceData&) const { return ConservationLaw::State(); }
+
     virtual int getSchemeOrder() const = 0;
 };
 
 
 
 
-// Classes below are only here temporarily:
-#include <iostream>
-
-
+// Classes below will be moved to implementation files soon
 // ============================================================================
+
+
+
+
+class UpwindRiemannSolver : public RiemannSolver
+{
+public:
+    State solve (const State& L, const State& R, AreaElement dA) override
+    {
+        auto S = ConservationLaw::State();
+
+        if (L.A[0] > 0 && R.A[0] > 0)
+        {
+            S.F.push_back (L.F[0]);
+        }
+        else if (L.A[0] < 0 && R.A[0] < 0)
+        {
+            S.F.push_back (R.F[0]);
+        }
+        return S;
+    }
+};
+
+
+
+
 class ScalarAdvection : public ConservationLaw
 {
 public:
@@ -210,30 +255,34 @@ public:
 
     ConservationLaw::State intercellFlux (StateVector stateVector, const ConservationLaw* claw) const override
     {
+        return ConservationLaw::State();
+    }
+    
+    ConservationLaw::State intercellFlux (const FaceData& faceData) const override
+    {
         ConservationLaw::Request request;
+        request.areaElement = faceData.areaElement;
 
-        const auto& S0 = stateVector[0];
-        const auto& S1 = stateVector[1];
-        const auto& S2 = stateVector[2];
-        const auto& S3 = stateVector[3];
-        const double ps[4] = {S0.P[0], S1.P[0], S2.P[0], S3.P[0]};
+        const double* P0 = &faceData.stencilData (0);
+        const double* P1 = &faceData.stencilData (1);
+        const double* P2 = &faceData.stencilData (2);
+        const double* P3 = &faceData.stencilData (3);
+        const int nq = faceData.conservationLaw->getNumConserved();
 
-        double pL = plm.reconstruct (&ps[1], Reconstruction::PLM_C2R);
-        double pR = plm.reconstruct (&ps[2], Reconstruction::PLM_C2L);
-        auto L = claw->fromPrimitive (request, &pL);
-        auto R = claw->fromPrimitive (request, &pR);
-        auto S = ConservationLaw::State();
+        std::vector<double> PL (nq);
+        std::vector<double> PR (nq);
 
-        if (L.A[0] > 0 && R.A[0] > 0)
+        for (int q = 0; q < nq; ++q)
         {
-            S.F.push_back (L.F[0]);
+            const double ps[4] = {P0[q], P1[q], P2[q], P3[q]};
+            PL[q] = plm.reconstruct (&ps[1], Reconstruction::PLM_C2R);
+            PR[q] = plm.reconstruct (&ps[2], Reconstruction::PLM_C2L);
         }
-        else if (L.A[0] < 0 && R.A[0] < 0)
-        {
-            S.F.push_back (R.F[0]);
-        }
+        auto L = faceData.conservationLaw->fromPrimitive (request, &PL[0]);
+        auto R = faceData.conservationLaw->fromPrimitive (request, &PR[0]);
 
-        return S;
+        UpwindRiemannSolver riemannSolver;
+        return riemannSolver.solve (L, R, faceData.areaElement);
     }
 
     int getSchemeOrder() const override

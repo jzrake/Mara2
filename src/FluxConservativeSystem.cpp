@@ -117,7 +117,10 @@ void FluxConservativeSystem::computeIntercellFluxes()
     int N3 = domainShape[2];
 
     auto stateVector = IntercellFluxScheme::StateVector (schemeOrder * 2);
+    auto faceData = IntercellFluxScheme::FaceData();
     auto request = ConservationLaw::Request();
+
+
 
     request.getPrimitive = true;
     request.getConserved = false;
@@ -131,6 +134,10 @@ void FluxConservativeSystem::computeIntercellFluxes()
     request.areaElement[1] = 0.0;
     request.areaElement[2] = 0.0;
 
+    faceData.stencilData = Cow::Array (schemeOrder * 2, numConserved);
+    faceData.areaElement = request.areaElement;
+    faceData.conservationLaw = conservationLaw;
+
     for (int i = 0; i < N1 + 1; ++i)
     {
         for (int j = 0; j < N2; ++j)
@@ -140,13 +147,16 @@ void FluxConservativeSystem::computeIntercellFluxes()
                 for (int n = 0; n < schemeOrder * 2; ++n)
                 {
                     stateVector[n] = conservationLaw->fromPrimitive (request, &P (i + n, j, k));
+                    faceData.stencilData (n, 0) = P (i + n, j, k, 0);
                 }
 
+
                 auto flux = intercellFluxScheme->intercellFlux (stateVector, conservationLaw.get());
+                auto flux2 = intercellFluxScheme->intercellFlux (faceData);
 
                 for (int q = 0; q < numConserved; ++q)
                 {
-                    F1 (i, j, k, q) = flux.F[q];
+                    F1 (i, j, k, q) = flux2.F[q];
                 }
             }
         }

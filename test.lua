@@ -21,7 +21,7 @@ initial_data = function(x, y, z) return {math.exp(-x^2 / 0.025)} end
 grid_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
-resolution = {128, 1, 1}
+resolution = {512, 1, 1}
 
 -- Domain lower bounds
 domain_lower = {-1.0, 0.0, 0.0}
