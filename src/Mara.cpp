@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #include "Mara.hpp"
 #include "Configuration.hpp"
@@ -49,24 +50,30 @@ int main(int argc, const char* argv[])
     system.setInitialData (setup.initialDataFunction);
 
 
+    auto status = SimulationStatus();
     {
         auto P = system.getPrimitive();
         auto file = H5::File ("chkpt.0000.h5", "w");
         file.write ("primitive", P);
     }
 
-    double t = 0.0;
-    double dt = 0.0025;
 
-    while (t < setup.finalTime)
+    while (status.simulationTime < setup.finalTime)
     {
-        std::cout << "t=" << t << std::endl;
+        double dt = setup.cflParameter * system.getCourantTimestep();
+
+        std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
+        std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
+        std::cout << "dt=" << std::setprecision (2) << std::scientific << dt << "\n";
+
         system.computeIntercellFluxes();
         system.computeTimeDerivative();
         system.updateConserved (dt);
         system.recoverPrimitive();
         system.applyBoundaryConditions();
-        t += dt;
+
+        status.simulationTime += dt;
+        status.simulationIter += 1;
     }
 
     {

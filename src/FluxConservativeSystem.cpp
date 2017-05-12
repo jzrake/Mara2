@@ -1,7 +1,8 @@
 #include <iostream> //DEBUG
 #include <cassert>
 #include "FluxConservativeSystem.hpp"
-
+#define MIN2(a, b) ((a) < (b) ? a : b)
+#define MIN3(a, b, c) ((a) < (b) ? MIN2(a, c) : MIN2(b, c))
 using namespace Cow;
 
 
@@ -97,16 +98,13 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F)
     {
         auto index = pit.relativeIndex();
         auto coord = meshGeometry->coordinateAtIndex (index[0], index[1], index[2]);
-        auto state = ConservationLaw::State();
-
-        state.P = F (coord[0], coord[1], coord[2]);
-
-        state = conservationLaw->fromPrimitive (request, &state.P[0]);
+        auto P = F (coord[0], coord[1], coord[2]);
+        auto S = conservationLaw->fromPrimitive (request, &P[0]);
 
         for (int q = 0; q < numConserved; ++q)
         {
-            pit[q] = state.P[q];
-            uit[q] = state.U[q];
+            pit[q] = S.P[q];
+            uit[q] = S.U[q];
         }
     }
 }
@@ -218,3 +216,29 @@ void FluxConservativeSystem::recoverPrimitive()
     }
 }
 
+double FluxConservativeSystem::getCourantTimestep()
+{
+    auto request = ConservationLaw::Request();
+    auto Preg = P[updateableRegion];
+
+    double courantTimestep = std::numeric_limits<double>::max();
+
+    for (auto pit = Preg.begin(); pit != Preg.end(); ++pit)
+    {
+        const auto index = pit.relativeIndex();
+        const int i = index[0];
+        const int j = index[1];
+        const int k = index[2];
+
+        const double dx1 = meshGeometry->cellLength (i, j, k, 0);
+        const double dx2 = meshGeometry->cellLength (i, j, k, 1);
+        const double dx3 = meshGeometry->cellLength (i, j, k, 2);
+
+        auto S = conservationLaw->fromPrimitive (request, pit);
+        double maxWaveSpeed = S.A[0];
+        double minLength = MIN3(dx1, dx2, dx3);
+
+        courantTimestep = MIN2(courantTimestep, minLength / maxWaveSpeed);
+    }
+    return courantTimestep;
+}

@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 #include <functional>
 #include "Array.hpp"
 
@@ -26,10 +27,14 @@ class SimulationSetup
 public:
     SimulationSetup();
 
+    // Run description
     double finalTime;
     double checkpointInterval;
     double cflParameter;
+    std::string outputDirectory;
+    std::string runName;
 
+    // Algorithms
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;
     std::shared_ptr<IntercellFluxScheme> intercellFluxScheme;
@@ -59,6 +64,7 @@ public:
     using Coordinate = std::array<double, 3>;
     virtual Cow::Shape domainShape() const = 0;
     virtual Coordinate coordinateAtIndex (double i, double j, double k) const = 0;
+    virtual double cellLength (int i, int j, int k, int axis) const = 0;
     virtual double faceArea (int i, int j, int k, int axis) const = 0;
     virtual double cellVolume (int i, int j, int k) const = 0;
 };
@@ -121,9 +127,9 @@ public:
 class ScalarAdvection : public ConservationLaw
 {
 public:
-    ScalarAdvection()
+    ScalarAdvection(double waveSpeed) : waveSpeed (waveSpeed)
     {
-        waveSpeed = -1.0;
+
     }
 
     State fromConserved (const Request& request, const double* U) const override

@@ -32,6 +32,11 @@ public:
         return 1.0; // 1D only !!!
     }
 
+    double cellLength (int i, int j, int k, int axis) const override
+    {
+        return (upper[axis] - lower[axis]) / shape[axis]; // uniform spacing only !!!
+    }
+
     double cellVolume (int i, int j, int k) const override
     {
         return (upper[0] - lower[0]) / shape[0]; // 1D only !!!

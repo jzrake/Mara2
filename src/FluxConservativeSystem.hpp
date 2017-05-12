@@ -19,6 +19,7 @@ public:
     void applyBoundaryConditions();
     void updateConserved (double dt, double rungeKuttaParameter=0);
     void recoverPrimitive();
+    double getCourantTimestep();
 
 private:
     int numDimensions;

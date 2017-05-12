@@ -105,28 +105,40 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     }
 
 
-    // output options
+    // conservation law
     // ------------------------------------------------------------------------
-    std::string outdir = lua["outdir"];
-    std::cout << "outdir: " << outdir << std::endl;
+    std::string conservation_law = lua["conservation_law"][1];
+    std::cout << "conservation_law: " << conservation_law << std::endl;
+
+    if (conservation_law == "scalar_advection")
+    {
+        double wave_speed = lua["conservation_law"]["wave_speed"].get_or (1.0);
+        std::cout << "wave_speed: " << wave_speed << std::endl;
+
+        setup.conservationLaw.reset (new ScalarAdvection (wave_speed));
+    }
+    else
+    {
+        throw std::runtime_error ("illegal option for conservation_law");
+    }
 
 
-    // final time, etc
+    // intercell flux scheme
     // ------------------------------------------------------------------------
-    double final_time = lua["final_time"];
-    double checkpoint_interval = lua["checkpoint_interval"];
-    double cfl_parameter = lua["cfl_parameter"];
-    std::cout << "final_time: " << final_time << std::endl;
-    std::cout << "checkpoint_interval: " << checkpoint_interval << std::endl;
-    std::cout << "cfl_parameter: " << cfl_parameter << std::endl;
-
-    setup.finalTime = final_time;
-    setup.checkpointInterval = checkpoint_interval;
-    setup.cflParameter = cfl_parameter;
-
-
-    setup.conservationLaw.reset (new ScalarAdvection);
     setup.intercellFluxScheme.reset (new ScalarUpwind);
+
+
+    // Run configuration
+    // ------------------------------------------------------------------------
+    setup.outputDirectory = lua["output_directory"];
+    setup.finalTime = lua["final_time"];
+    setup.checkpointInterval = lua["checkpoint_interval"];
+    setup.cflParameter = lua["cfl_parameter"];
+
+    std::cout << "output_directory: " << setup.outputDirectory << std::endl;
+    std::cout << "final_time: " << setup.finalTime << std::endl;
+    std::cout << "checkpoint_interval: " << setup.checkpointInterval << std::endl;
+    std::cout << "cfl_parameter: " << setup.cflParameter << std::endl;
 
 
     return setup;
