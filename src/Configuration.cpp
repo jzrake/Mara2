@@ -47,11 +47,6 @@ Configuration::~Configuration()
 
 SimulationSetup Configuration::fromLuaFile (std::string filename)
 {
-    std::cout << std::string(80, '-') << std::endl;
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
-    std::cout << std::string(80, '-') << std::endl;
-
-
     auto setup = SimulationSetup();
     lua.script_file (filename);
 
@@ -62,7 +57,6 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     // grid_geometry
     // ------------------------------------------------------------------------
     std::string grid_geometry = lua["grid_geometry"];
-    std::cout << "grid geometry: " << grid_geometry << std::endl;
 
     if (grid_geometry == "cartesian")
     {
@@ -78,22 +72,17 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
         geometry->upper[1] = lua["domain_upper"][2].get_or (1.0);
         geometry->upper[2] = lua["domain_upper"][3].get_or (1.0);
 
-        std::cout << "resolution: " << PRINT_VEC3(geometry->shape) << std::endl;
-        std::cout << "domain_lower: " << PRINT_VEC3(geometry->lower) << std::endl;
-        std::cout << "domain_upper: " << PRINT_VEC3(geometry->upper) << std::endl;
-
         setup.meshGeometry.reset (geometry);
     }
     else
     {
-        throw std::runtime_error ("illegal option for grid_geometry");
+        throw std::runtime_error ("unrecognized option for grid_geometry");
     }
 
 
     // boundary condition
     // ------------------------------------------------------------------------
     std::string boundary_condition = lua["boundary_condition"];
-    std::cout << "boundary_condition: " << boundary_condition << std::endl;
 
     if (boundary_condition == "periodic")
     {
@@ -101,31 +90,42 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     }
     else
     {
-        throw std::runtime_error ("illegal option for boundary_condition");
+        throw std::runtime_error ("unrecognized option for boundary_condition");
     }
 
 
     // conservation law
     // ------------------------------------------------------------------------
     std::string conservation_law = lua["conservation_law"][1];
-    std::cout << "conservation_law: " << conservation_law << std::endl;
 
     if (conservation_law == "scalar_advection")
     {
         double wave_speed = lua["conservation_law"]["wave_speed"].get_or (1.0);
-        std::cout << "wave_speed: " << wave_speed << std::endl;
-
         setup.conservationLaw.reset (new ScalarAdvection (wave_speed));
     }
     else
     {
-        throw std::runtime_error ("illegal option for conservation_law");
+        throw std::runtime_error ("unrecognized option for conservation_law");
     }
 
 
     // intercell flux scheme
     // ------------------------------------------------------------------------
-    setup.intercellFluxScheme.reset (new ScalarUpwind);
+    std::string flux_scheme = lua["flux_scheme"][1];
+
+    if (flux_scheme == "scalar_upwind")
+    {
+        setup.intercellFluxScheme.reset (new ScalarUpwind);
+    }
+    else if (flux_scheme == "method_of_lines")
+    {
+        double plm_theta = lua["flux_scheme"]["plm_theta"].get_or (1.5);
+        setup.intercellFluxScheme.reset (new MethodOfLines (plm_theta));
+    }
+    else
+    {
+        throw std::runtime_error ("unrecognized option for flux_scheme");
+    }
 
 
     // Run configuration
@@ -134,11 +134,6 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     setup.finalTime = lua["final_time"];
     setup.checkpointInterval = lua["checkpoint_interval"];
     setup.cflParameter = lua["cfl_parameter"];
-
-    std::cout << "output_directory: " << setup.outputDirectory << std::endl;
-    std::cout << "final_time: " << setup.finalTime << std::endl;
-    std::cout << "checkpoint_interval: " << setup.checkpointInterval << std::endl;
-    std::cout << "cfl_parameter: " << setup.cflParameter << std::endl;
 
 
     return setup;

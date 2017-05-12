@@ -112,7 +112,7 @@ class IntercellFluxScheme
 {
 public:
     using StateVector = std::vector<ConservationLaw::State>;
-    virtual ConservationLaw::State intercellFlux (StateVector stateVector) const = 0;
+    virtual ConservationLaw::State intercellFlux (StateVector stateVector, const ConservationLaw*) const = 0;
     virtual int getSchemeOrder() const = 0;
 };
 
@@ -170,7 +170,7 @@ private:
 class ScalarUpwind : public IntercellFluxScheme
 {
 public:
-    ConservationLaw::State intercellFlux (StateVector stateVector) const override
+    ConservationLaw::State intercellFlux (StateVector stateVector, const ConservationLaw*) const override
     {
         auto S = ConservationLaw::State();
         const auto& L = stateVector[0];
@@ -198,19 +198,40 @@ public:
 
 
 // ============================================================================
-class ScalarUpwindPLM : public IntercellFluxScheme
+#include "Reconstruction.hpp"
+
+class MethodOfLines : public IntercellFluxScheme
 {
 public:
-    ConservationLaw::State intercellFlux (StateVector stateVector) const override
+    MethodOfLines (double plmTheta)
     {
-        auto S = ConservationLaw::State();
-        // const auto& S0 = stateVector[0];
-        // const auto& S1 = stateVector[1];
-        // const auto& S2 = stateVector[2];
-        // const auto& S3 = stateVector[3];
+        plm.setPlmTheta (plmTheta);
+    }
 
-        // double pL[3] = {S0.P[0], S0.P[1], S0.P[2]};
-        // double pR[3] = {S0.P[1], S0.P[2], S0.P[3]};
+    ConservationLaw::State intercellFlux (StateVector stateVector, const ConservationLaw* claw) const override
+    {
+        ConservationLaw::Request request;
+
+        const auto& S0 = stateVector[0];
+        const auto& S1 = stateVector[1];
+        const auto& S2 = stateVector[2];
+        const auto& S3 = stateVector[3];
+        const double ps[4] = {S0.P[0], S1.P[0], S2.P[0], S3.P[0]};
+
+        double pL = plm.reconstruct (&ps[1], Reconstruction::PLM_C2R);
+        double pR = plm.reconstruct (&ps[2], Reconstruction::PLM_C2L);
+        auto L = claw->fromPrimitive (request, &pL);
+        auto R = claw->fromPrimitive (request, &pR);
+        auto S = ConservationLaw::State();
+
+        if (L.A[0] > 0 && R.A[0] > 0)
+        {
+            S.F.push_back (L.F[0]);
+        }
+        else if (L.A[0] < 0 && R.A[0] < 0)
+        {
+            S.F.push_back (R.F[0]);
+        }
 
         return S;
     }
@@ -219,6 +240,9 @@ public:
     {
         return 2;
     }
+
+private:
+    Reconstruction plm;
 };
 
 

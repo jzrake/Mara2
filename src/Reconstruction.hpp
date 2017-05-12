@@ -24,7 +24,7 @@ public:
     };
 
     Reconstruction();
-    double reconstruct (const double* v, enum Operation type);
+    double reconstruct (const double* v, enum Operation type) const;
     void setSmoothnessIndicator (enum SmoothnessIndicator IS);
     void setPlmTheta (double theta);
     void setShenzha10A (double A);
@@ -35,8 +35,9 @@ private:
     enum SmoothnessIndicator modeIS;
 
     double minmod (double ul, double u0, double ur) const;
-    double weno5 (const double *v, const double c[3][3], const double d[3]) const;
     double plm (const double *v, double sgn) const;
+    double weno5 (const double *v, const double c[3][3], const double d[3]) const;
+
 
     static const double CeesA2C_FV[3][3];
     static const double CeesC2A_FV[3][3];

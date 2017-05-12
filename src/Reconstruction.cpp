@@ -20,7 +20,7 @@ Reconstruction::Reconstruction()
     modeIS = OriginalJiangShu96;
 }
 
-double Reconstruction::reconstruct (const double* v, enum Operation type)
+double Reconstruction::reconstruct (const double* v, enum Operation type) const
 {
     switch (type)
     {
@@ -57,6 +57,11 @@ double Reconstruction::minmod (double ul, double u0, double ur) const
     const double b =      0.5 * (ur - ul);
     const double c = plmTheta * (ur - u0);
     return 0.25 * std::fabs (SGN(a) + SGN(b)) * (SGN(a) + SGN(c)) * MIN3ABS(a, b, c);
+}
+
+double Reconstruction::plm (const double* v, double sgn) const
+{
+    return v[0] + sgn * 0.5 * minmod (v[-1], v[0], v[1]);
 }
 
 double Reconstruction::weno5 (const double* v, const double c[3][3], const double d[3]) const
@@ -116,11 +121,6 @@ double Reconstruction::weno5 (const double* v, const double c[3][3], const doubl
 
     const double wtot = w[0] + w[1] + w[2];
     return (w[0] * vs[0] + w[1] * vs[1] + w[2] * vs[2]) / wtot;
-}
-
-double Reconstruction::plm (const double* v, double sgn) const
-{
-    return v[0] + sgn * 0.5 * minmod (v[-1], v[0], v[1]);
 }
 
 const double Reconstruction::CeesA2C_FV[3][3] = {

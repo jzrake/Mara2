@@ -1,5 +1,4 @@
 
-
  -- name of the current run
 run_name = 'AdvectionTest'
 
@@ -7,7 +6,7 @@ run_name = 'AdvectionTest'
 output_directory = './'
 
 -- Time at which to terminate simulation
-final_time = 0.5
+final_time = 0.25
 
 -- How frequently to output full simulation snapshot
 checkpoint_interval = 1.0
@@ -31,7 +30,10 @@ domain_lower = {-1.0, 0.0, 0.0}
 domain_upper = { 1.0, 1.0, 1.0}
 
 -- Fluid variables
-conservation_law = {'scalar_advection', wave_speed=1}
+conservation_law = {'scalar_advection', wave_speed=-1}
+
+-- flux scheme (scalar_upwind, method_of_lines)
+flux_scheme = {'method_of_lines', plm_theta=1.5}
 
 -- Boundary condition name
 boundary_condition = 'periodic'
