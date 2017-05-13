@@ -71,11 +71,13 @@ public:
 
 
 
+
 class BoundaryCondition
 {
 public:
     virtual void apply (Cow::Array& P, int numGuard) const = 0;
 };
+
 
 
 
@@ -132,8 +134,7 @@ public:
         std::shared_ptr<ConservationLaw> conservationLaw;
     };
 
-    virtual ConservationLaw::State intercellFlux (StateVector stateVector, const ConservationLaw*) const = 0;
-    virtual ConservationLaw::State intercellFlux (const FaceData&) const { return ConservationLaw::State(); }
+    virtual ConservationLaw::State intercellFlux (const FaceData&) const = 0;
 
     virtual int getSchemeOrder() const = 0;
 };
@@ -143,7 +144,7 @@ public:
 
 // Classes below will be moved to implementation files soon
 // ============================================================================
-
+#include <iostream>
 
 
 
@@ -156,11 +157,15 @@ public:
 
         if (L.A[0] > 0 && R.A[0] > 0)
         {
-            S.F.push_back (L.F[0]);
+            S.F = L.F;
         }
         else if (L.A[0] < 0 && R.A[0] < 0)
         {
-            S.F.push_back (R.F[0]);
+            S.F = R.F;
+        }
+        else
+        {
+            S.F = std::vector<double> (L.F.size(), 0.0);
         }
         return S;
     }
@@ -181,10 +186,10 @@ public:
     {
         double u = U[0];
         State S;
-        S.P.push_back (u);
-        S.U.push_back (u);
-        S.A.push_back (waveSpeed);
-        S.F.push_back (waveSpeed * u);
+        S.P = {u, 0};
+        S.U = {u, 0};
+        S.A = {waveSpeed, 0};
+        S.F = {waveSpeed * u, 0};
         return S;
     }
 
@@ -192,16 +197,16 @@ public:
     {
         double u = P[0];
         State S;
-        S.P.push_back (u);
-        S.U.push_back (u);
-        S.A.push_back (waveSpeed);
-        S.F.push_back (waveSpeed * u);
+        S.P = {u, 0};
+        S.U = {u, 0};
+        S.A = {waveSpeed, 0};
+        S.F = {waveSpeed * u, 0};
         return S;
     }
 
     int getNumConserved() const override
     {
-        return 1;
+        return 2;
     }
 
 private:
@@ -215,22 +220,19 @@ private:
 class ScalarUpwind : public IntercellFluxScheme
 {
 public:
-    ConservationLaw::State intercellFlux (StateVector stateVector, const ConservationLaw*) const override
+    ConservationLaw::State intercellFlux (const FaceData& faceData) const override
     {
-        auto S = ConservationLaw::State();
-        const auto& L = stateVector[0];
-        const auto& R = stateVector[1];
+        ConservationLaw::Request request;
+        request.areaElement = faceData.areaElement;
 
-        if (L.A[0] > 0 && R.A[0] > 0)
-        {
-            S.F.push_back (L.F[0]);
-        }
-        else if (L.A[0] < 0 && R.A[0] < 0)
-        {
-            S.F.push_back (R.F[0]);
-        }
+        const double* PL = &faceData.stencilData (0);
+        const double* PR = &faceData.stencilData (1);
 
-        return S;
+        auto L = faceData.conservationLaw->fromPrimitive (request, PL);
+        auto R = faceData.conservationLaw->fromPrimitive (request, PR);
+
+        UpwindRiemannSolver riemannSolver;
+        return riemannSolver.solve (L, R, faceData.areaElement);
     }
 
     int getSchemeOrder() const override
@@ -253,11 +255,6 @@ public:
         plm.setPlmTheta (plmTheta);
     }
 
-    ConservationLaw::State intercellFlux (StateVector stateVector, const ConservationLaw* claw) const override
-    {
-        return ConservationLaw::State();
-    }
-    
     ConservationLaw::State intercellFlux (const FaceData& faceData) const override
     {
         ConservationLaw::Request request;

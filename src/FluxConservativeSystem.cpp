@@ -32,26 +32,28 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     intercellFluxScheme    = setup.intercellFluxScheme;
     boundaryCondition      = setup.boundaryCondition;
 
-    domainShape = meshGeometry->domainShape();
+    domainShape   = meshGeometry->domainShape();
     numDimensions = Array::vectorFromShape (domainShape).size();
-    numConserved = conservationLaw->getNumConserved();
-    schemeOrder = intercellFluxScheme->getSchemeOrder();
+    numConserved  = conservationLaw->getNumConserved();
+    schemeOrder   = intercellFluxScheme->getSchemeOrder();
 
-    // This is the shape of the updateableRegion, with space for conserved
-    // quantities on the final axis.
-    domainShapeAndState = domainShape;
-    domainShapeAndState[numDimensions] = numConserved;
-
-    Shape shapeU = domainShape;
-    Shape shapeP = domainShape;
-    Shape shapeL = domainShape;
+    Shape shapeU  = domainShape;
+    Shape shapeP  = domainShape;
+    Shape shapeL  = domainShape;
     Shape shapeF1 = domainShape;
     Shape shapeF2 = domainShape;
     Shape shapeF3 = domainShape;
 
+    shapeU [3] = numConserved;
+    shapeP [3] = numConserved;
+    shapeL [3] = numConserved;
+    shapeF1[3] = numConserved;
+    shapeF2[3] = numConserved;
+    shapeF3[3] = numConserved;
+
     for (int n = 0; n < numDimensions; ++n)
     {
-        if (domainShape[n] > 1) // We tolerate domain shapes such as (1, 1, 128)
+        if (domainShape[n] > 1) // We accommodate domain shapes such as (1, 1, 128)
         {
             shapeU[n] += 2 * schemeOrder;
             shapeP[n] += 2 * schemeOrder;
@@ -61,22 +63,15 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
         }
     }
 
-    shapeU[numDimensions] = numConserved;
-    shapeP[numDimensions] = numConserved;
-    shapeL[numDimensions] = numConserved;
-    shapeF1[numDimensions] = numConserved;
-    shapeF2[numDimensions] = numConserved;
-    shapeF3[numDimensions] = numConserved;
-
     // Each array of fluxes has one more element along its own coordinate
     // axis.
     shapeF1[0] += 1;
     shapeF2[1] += 1;
     shapeF3[2] += 1;
 
-    U = Array (shapeU);
-    P = Array (shapeP);
-    L = Array (shapeL);
+    U  = Array (shapeU);
+    P  = Array (shapeP);
+    L  = Array (shapeL);
     F1 = Array (shapeF1);
     F2 = Array (shapeF2);
     F3 = Array (shapeF3);
@@ -116,11 +111,8 @@ void FluxConservativeSystem::computeIntercellFluxes()
     int N2 = domainShape[1];
     int N3 = domainShape[2];
 
-    auto stateVector = IntercellFluxScheme::StateVector (schemeOrder * 2);
     auto faceData = IntercellFluxScheme::FaceData();
     auto request = ConservationLaw::Request();
-
-
 
     request.getPrimitive = true;
     request.getConserved = false;
@@ -144,19 +136,28 @@ void FluxConservativeSystem::computeIntercellFluxes()
         {
             for (int k = 0; k < N3; ++k)
             {
-                for (int n = 0; n < schemeOrder * 2; ++n)
-                {
-                    stateVector[n] = conservationLaw->fromPrimitive (request, &P (i + n, j, k));
-                    faceData.stencilData (n, 0) = P (i + n, j, k, 0);
-                }
-
-
-                auto flux = intercellFluxScheme->intercellFlux (stateVector, conservationLaw.get());
-                auto flux2 = intercellFluxScheme->intercellFlux (faceData);
+                // auto stencil = Region();
+                // stencil.lower[0] = i;
+                // stencil.upper[0] = i + schemeOrder * 2;
+                // stencil.lower[1] = j;
+                // stencil.upper[1] = j + 1;
+                // stencil.lower[2] = k;
+                // stencil.upper[2] = k + 1;
+                // faceData.stencilData = P[stencil];
 
                 for (int q = 0; q < numConserved; ++q)
                 {
-                    F1 (i, j, k, q) = flux2.F[q];
+                    for (int n = 0; n < schemeOrder * 2; ++n)
+                    {
+                        faceData.stencilData (n, q) = P (i + n, j, k, q);
+                    }
+                }
+
+                auto flux = intercellFluxScheme->intercellFlux (faceData);
+
+                for (int q = 0; q < numConserved; ++q)
+                {
+                    F1 (i, j, k, q) = flux.F[q];
                 }
             }
         }

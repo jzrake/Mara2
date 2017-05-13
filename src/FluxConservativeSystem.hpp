@@ -27,7 +27,6 @@ private:
     int schemeOrder;
 
     Cow::Shape domainShape;
-    Cow::Shape domainShapeAndState;
     Cow::Region updateableRegion;
 
     Cow::Array U; // Conserved quantities

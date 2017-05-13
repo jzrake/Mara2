@@ -21,7 +21,7 @@ initial_data = function(x, y, z) return {math.exp(-x^2 / 0.025)} end
 grid_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
-resolution = {512, 1, 1}
+resolution = {128, 1, 1}
 
 -- Domain lower bounds
 domain_lower = {-1.0, 0.0, 0.0}
@@ -30,7 +30,7 @@ domain_lower = {-1.0, 0.0, 0.0}
 domain_upper = { 1.0, 1.0, 1.0}
 
 -- Fluid variables
-conservation_law = {'scalar_advection', wave_speed=-1}
+conservation_law = {'scalar_advection', wave_speed=1}
 
 -- flux scheme (scalar_upwind, method_of_lines)
 flux_scheme = {'method_of_lines', plm_theta=1.5}
