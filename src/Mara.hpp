@@ -31,6 +31,7 @@ public:
     double finalTime;
     double checkpointInterval;
     double cflParameter;
+    int rungeKuttaOrder;
     std::string outputDirectory;
     std::string runName;
 
@@ -136,7 +137,7 @@ public:
 
     virtual ConservationLaw::State intercellFlux (const FaceData&) const = 0;
 
-    virtual int getSchemeOrder() const = 0;
+    virtual int getStencilSize() const = 0;
 };
 
 
@@ -235,7 +236,7 @@ public:
         return riemannSolver.solve (L, R, faceData.areaElement);
     }
 
-    int getSchemeOrder() const override
+    int getStencilSize() const override
     {
         return 1;
     }
@@ -282,13 +283,78 @@ public:
         return riemannSolver.solve (L, R, faceData.areaElement);
     }
 
-    int getSchemeOrder() const override
+    int getStencilSize() const override
     {
         return 2;
     }
 
 private:
     Reconstruction plm;
+};
+
+
+
+
+// ============================================================================
+class MethodOfLinesWeno : public IntercellFluxScheme
+{
+public:
+    MethodOfLinesWeno (double shenZhaA=50)
+    {
+        weno.setSmoothnessIndicator (Reconstruction::ImprovedShenZha10);
+    }
+
+    ConservationLaw::State intercellFlux (const FaceData& faceData) const override
+    {
+        ConservationLaw::Request request;
+        request.areaElement = faceData.areaElement;
+
+        const double* P0 = &faceData.stencilData (0);
+        const double* P1 = &faceData.stencilData (1);
+        const double* P2 = &faceData.stencilData (2);
+        const double* P3 = &faceData.stencilData (3);
+        const double* P4 = &faceData.stencilData (4);
+        const double* P5 = &faceData.stencilData (5);
+
+        const auto S0 = faceData.conservationLaw->fromPrimitive (request, P0);
+        const auto S1 = faceData.conservationLaw->fromPrimitive (request, P1);
+        const auto S2 = faceData.conservationLaw->fromPrimitive (request, P2);
+        const auto S3 = faceData.conservationLaw->fromPrimitive (request, P3);
+        const auto S4 = faceData.conservationLaw->fromPrimitive (request, P4);
+        const auto S5 = faceData.conservationLaw->fromPrimitive (request, P5);
+
+        const auto A = 1; // !!! hard-coded to 1 for now
+
+        const double fp[6] = {
+            S0.F[0] + A * S0.U[0],
+            S1.F[0] + A * S1.U[0],
+            S2.F[0] + A * S2.U[0],
+            S3.F[0] + A * S3.U[0],
+            S4.F[0] + A * S4.U[0],
+            S5.F[0] + A * S5.U[0]};
+
+        const double fm[6] = {
+            S0.F[0] - A * S0.U[0],
+            S1.F[0] - A * S1.U[0],
+            S2.F[0] - A * S2.U[0],
+            S3.F[0] - A * S3.U[0],
+            S4.F[0] - A * S4.U[0],
+            S5.F[0] - A * S5.U[0]};
+
+        double fhatp = weno.reconstruct (fp + 2, Reconstruction::WENO5_FD_C2R);
+        double fhatm = weno.reconstruct (fm + 3, Reconstruction::WENO5_FD_C2L);
+        auto S = ConservationLaw::State();
+        S.F = {0.5 * (fhatp + fhatm)};
+        return S;
+    }
+
+    int getStencilSize() const override
+    {
+        return 3;
+    }
+
+private:
+    Reconstruction weno;
 };
 
 
@@ -305,7 +371,7 @@ public:
         int n1 = P.shape()[0] - 2 * ng;
         int nq = P.shape()[3];
 
-        for (int i = 0; i < nq; ++i)
+        for (int i = 0; i < ng; ++i)
         {
             for (int q = 0; q < nq; ++q)
             {
@@ -315,5 +381,6 @@ public:
         }
     }
 };
+
 
 #endif

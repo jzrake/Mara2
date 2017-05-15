@@ -122,6 +122,10 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
         double plm_theta = lua["flux_scheme"]["plm_theta"].get_or (1.5);
         setup.intercellFluxScheme.reset (new MethodOfLines (plm_theta));
     }
+    else if (flux_scheme == "method_of_lines_weno")
+    {
+        setup.intercellFluxScheme.reset (new MethodOfLinesWeno);
+    }
     else
     {
         throw std::runtime_error ("unrecognized option for flux_scheme");
@@ -134,7 +138,15 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     setup.finalTime = lua["final_time"];
     setup.checkpointInterval = lua["checkpoint_interval"];
     setup.cflParameter = lua["cfl_parameter"];
+    setup.rungeKuttaOrder = lua["runge_kutta_order"];
 
+    if (! (
+        setup.rungeKuttaOrder == 1
+     || setup.rungeKuttaOrder == 2
+     || setup.rungeKuttaOrder == 3))
+    {
+        throw std::runtime_error ("runge_kutta_order must be 1, 2, or 3");
+    }
 
     return setup;
 }

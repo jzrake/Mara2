@@ -35,6 +35,8 @@ SimulationStatus::SimulationStatus()
 int main(int argc, const char* argv[])
 {
     using namespace Cow;
+    std::set_terminate (Cow::terminateWithBacktrace);
+
 
     if (argc == 1)
     {
@@ -66,12 +68,7 @@ int main(int argc, const char* argv[])
         std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
         std::cout << "dt=" << std::setprecision (2) << std::scientific << dt << "\n";
 
-        system.computeIntercellFluxes();
-        system.computeTimeDerivative();
-        system.updateConserved (dt);
-        system.recoverPrimitive();
-        system.applyBoundaryConditions();
-
+        system.advance (dt);
         status.simulationTime += dt;
         status.simulationIter += 1;
     }
@@ -80,7 +77,8 @@ int main(int argc, const char* argv[])
         auto P = system.getPrimitive();
         auto file = H5::File ("chkpt.0001.h5", "w");
         file.write ("primitive", P);
+        file.write ("t", status.simulationTime);
     }
 
-	return 0;
+    return 0;
 }

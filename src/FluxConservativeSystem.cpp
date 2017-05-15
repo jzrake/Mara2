@@ -31,11 +31,11 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     conservationLaw        = setup.conservationLaw;
     intercellFluxScheme    = setup.intercellFluxScheme;
     boundaryCondition      = setup.boundaryCondition;
+    rungeKuttaOrder        = setup.rungeKuttaOrder;
 
     domainShape   = meshGeometry->domainShape();
-    numDimensions = Array::vectorFromShape (domainShape).size();
     numConserved  = conservationLaw->getNumConserved();
-    schemeOrder   = intercellFluxScheme->getSchemeOrder();
+    stencilSize   = intercellFluxScheme->getStencilSize();
 
     Shape shapeU  = domainShape;
     Shape shapeP  = domainShape;
@@ -51,15 +51,15 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     shapeF2[3] = numConserved;
     shapeF3[3] = numConserved;
 
-    for (int n = 0; n < numDimensions; ++n)
+    for (int n = 0; n < 3; ++n)
     {
         if (domainShape[n] > 1) // We accommodate domain shapes such as (1, 1, 128)
         {
-            shapeU[n] += 2 * schemeOrder;
-            shapeP[n] += 2 * schemeOrder;
-            shapeL[n] += 2 * schemeOrder;
-            updateableRegion.lower[n] =  schemeOrder;
-            updateableRegion.upper[n] = -schemeOrder;
+            shapeU[n] += 2 * stencilSize;
+            shapeP[n] += 2 * stencilSize;
+            shapeL[n] += 2 * stencilSize;
+            updateableRegion.lower[n] =  stencilSize;
+            updateableRegion.upper[n] = -stencilSize;
         }
     }
 
@@ -72,6 +72,7 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     U  = Array (shapeU);
     P  = Array (shapeP);
     L  = Array (shapeL);
+    U0 = Array (shapeU);
     F1 = Array (shapeF1);
     F2 = Array (shapeF2);
     F3 = Array (shapeF3);
@@ -105,29 +106,73 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F)
     }
 }
 
+double FluxConservativeSystem::getCourantTimestep()
+{
+    auto request = ConservationLaw::Request();
+    auto Preg = P[updateableRegion];
+
+    double courantTimestep = std::numeric_limits<double>::max();
+
+    for (auto pit = Preg.begin(); pit != Preg.end(); ++pit)
+    {
+        const auto index = pit.relativeIndex();
+        const int i = index[0];
+        const int j = index[1];
+        const int k = index[2];
+
+        const double dx1 = meshGeometry->cellLength (i, j, k, 0);
+        const double dx2 = meshGeometry->cellLength (i, j, k, 1);
+        const double dx3 = meshGeometry->cellLength (i, j, k, 2);
+
+        auto S = conservationLaw->fromPrimitive (request, pit);
+        double maxWaveSpeed = std::fabs (S.A[0]);
+        double minLength = MIN3(dx1, dx2, dx3);
+
+        courantTimestep = MIN2(courantTimestep, minLength / maxWaveSpeed);
+    }
+    return courantTimestep;
+}
+
+void FluxConservativeSystem::advance (double dt)
+{
+    cacheConserved();
+
+    switch (rungeKuttaOrder)
+    {
+        case 1:
+        {
+            takeRungeKuttaSubstep (dt, 1.);
+            break;
+        }
+        case 2:
+        {
+            takeRungeKuttaSubstep (dt, 1.);
+            takeRungeKuttaSubstep (dt, 1./2);
+            break;
+        }
+        case 3:
+        {
+            takeRungeKuttaSubstep (dt, 1.);
+            takeRungeKuttaSubstep (dt, 1./4);
+            takeRungeKuttaSubstep (dt, 2./3);
+            break;
+        }
+    }
+}
+
 void FluxConservativeSystem::computeIntercellFluxes()
 {
     int N1 = domainShape[0];
     int N2 = domainShape[1];
     int N3 = domainShape[2];
 
-    auto faceData = IntercellFluxScheme::FaceData();
-    auto request = ConservationLaw::Request();
-
-    request.getPrimitive = true;
-    request.getConserved = false;
-    request.getFluxes = false;
-    request.getEigenvalues = false;
-
-
     // Flux sweep along axis 1
     // ------------------------------------------------------------------------
-    request.areaElement[0] = 1.0;
-    request.areaElement[1] = 0.0;
-    request.areaElement[2] = 0.0;
-
-    faceData.stencilData = Cow::Array (schemeOrder * 2, numConserved);
-    faceData.areaElement = request.areaElement;
+    auto faceData = IntercellFluxScheme::FaceData();
+    faceData.stencilData = Cow::Array (stencilSize * 2, numConserved);
+    faceData.areaElement[0] = 1.0;
+    faceData.areaElement[1] = 0.0;
+    faceData.areaElement[2] = 0.0;
     faceData.conservationLaw = conservationLaw;
 
     for (int i = 0; i < N1 + 1; ++i)
@@ -136,18 +181,9 @@ void FluxConservativeSystem::computeIntercellFluxes()
         {
             for (int k = 0; k < N3; ++k)
             {
-                // auto stencil = Region();
-                // stencil.lower[0] = i;
-                // stencil.upper[0] = i + schemeOrder * 2;
-                // stencil.lower[1] = j;
-                // stencil.upper[1] = j + 1;
-                // stencil.lower[2] = k;
-                // stencil.upper[2] = k + 1;
-                // faceData.stencilData = P[stencil];
-
                 for (int q = 0; q < numConserved; ++q)
                 {
-                    for (int n = 0; n < schemeOrder * 2; ++n)
+                    for (int n = 0; n < stencilSize * 2; ++n)
                     {
                         faceData.stencilData (n, q) = P (i + n, j, k, q);
                     }
@@ -194,18 +230,32 @@ void FluxConservativeSystem::computeTimeDerivative()
     }
 }
 
-void FluxConservativeSystem::applyBoundaryConditions()
+void FluxConservativeSystem::applyBoundaryCondition()
 {
-    boundaryCondition->apply (P, schemeOrder);
+    boundaryCondition->apply (P, stencilSize);
 }
 
-void FluxConservativeSystem::updateConserved (double dt, double rungeKuttaParameter)
+void FluxConservativeSystem::cacheConserved()
 {
-    double b = rungeKuttaParameter;
-
     for (int n = 0; n < U.size(); ++n)
     {
-        U[n] += U[n] * b + L[n] * dt * (1 - b);
+        U0[n] = U[n];
+    }
+}
+
+void FluxConservativeSystem::updateConserved (double dt)
+{
+    for (int n = 0; n < U.size(); ++n)
+    {
+        U[n] += dt * L[n];
+    }
+}
+
+void FluxConservativeSystem::averageRungeKutta (double b)
+{
+    for (int n = 0; n < U.size(); ++n)
+    {
+        U[n] = U0[n] * (1 - b) + U[n] * b;
     }
 }
 
@@ -228,29 +278,12 @@ void FluxConservativeSystem::recoverPrimitive()
     }
 }
 
-double FluxConservativeSystem::getCourantTimestep()
+void FluxConservativeSystem::takeRungeKuttaSubstep (double dt, double b)
 {
-    auto request = ConservationLaw::Request();
-    auto Preg = P[updateableRegion];
-
-    double courantTimestep = std::numeric_limits<double>::max();
-
-    for (auto pit = Preg.begin(); pit != Preg.end(); ++pit)
-    {
-        const auto index = pit.relativeIndex();
-        const int i = index[0];
-        const int j = index[1];
-        const int k = index[2];
-
-        const double dx1 = meshGeometry->cellLength (i, j, k, 0);
-        const double dx2 = meshGeometry->cellLength (i, j, k, 1);
-        const double dx3 = meshGeometry->cellLength (i, j, k, 2);
-
-        auto S = conservationLaw->fromPrimitive (request, pit);
-        double maxWaveSpeed = std::fabs (S.A[0]);
-        double minLength = MIN3(dx1, dx2, dx3);
-
-        courantTimestep = MIN2(courantTimestep, minLength / maxWaveSpeed);
-    }
-    return courantTimestep;
+    computeIntercellFluxes();
+    computeTimeDerivative();
+    updateConserved (dt);
+    averageRungeKutta (b);
+    recoverPrimitive();
+    applyBoundaryCondition();
 }
