@@ -63,6 +63,8 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
         }
     }
 
+    updateableRegion.stride[3] = numConserved;
+
     // Each array of fluxes has one more element along its own coordinate
     // axis.
     shapeF1[0] += 1;
@@ -80,7 +82,9 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
 
 Cow::Array::Reference FluxConservativeSystem::getPrimitive()
 {
-    return P[updateableRegion];
+    Region R = updateableRegion;
+    R.stride[3] = 1; // return the whole array of primitives
+    return P[R];
 }
 
 void FluxConservativeSystem::setInitialData (InitialDataFunction F)
@@ -96,6 +100,12 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F)
         auto index = pit.relativeIndex();
         auto coord = meshGeometry->coordinateAtIndex (index[0], index[1], index[2]);
         auto P = F (coord[0], coord[1], coord[2]);
+
+        if (P.size() != numConserved)
+        {
+            throw std::runtime_error ("initial data function returned vector of length != nq");
+        }
+
         auto S = conservationLaw->fromPrimitive (request, &P[0]);
 
         for (int q = 0; q < numConserved; ++q)
@@ -104,6 +114,8 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F)
             uit[q] = S.U[q];
         }
     }
+
+    applyBoundaryCondition();
 }
 
 double FluxConservativeSystem::getCourantTimestep()

@@ -6,7 +6,7 @@ run_name = 'AdvectionTest'
 output_directory = './'
 
 -- Time at which to terminate simulation
-final_time = 2.
+final_time = 0.25
 
 -- How frequently to output full simulation snapshot
 checkpoint_interval = 1.0
@@ -15,7 +15,7 @@ checkpoint_interval = 1.0
 cfl_parameter = 0.5
 
 -- A callback to supply simple initial data
-initial_data = function(x, y, z) return {math.exp(-x^2 / 0.025)} end
+initial_data = function(x, y, z) return {math.exp(-x^2 / 0.025), 2 - x*x} end
 
 -- Grid geometry
 grid_geometry = 'cartesian'
