@@ -33,7 +33,7 @@ domain_upper = { 1.0, 1.0, 1.0}
 conservation_law = {'scalar_advection', wave_speed=1}
 
 -- flux scheme (scalar_upwind, method_of_lines)
-flux_scheme = {'method_of_lines', plm_theta=2.0}
+flux_scheme = {'method_of_lines_weno', plm_theta=2.0}
 
 -- RK order: must be 1, 2, or 3
 runge_kutta_order = 3

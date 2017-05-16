@@ -35,7 +35,6 @@ public:
     void advance (double dt);
 
 private:
-
     /* @internal */
     void computeIntercellFluxes();
     /* @internal */

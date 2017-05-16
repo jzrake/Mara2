@@ -6,6 +6,7 @@
 #include <string>
 #include <functional>
 #include "Array.hpp"
+#include "Reconstruction.hpp"
 
 
 
@@ -103,9 +104,48 @@ public:
         AreaElement areaElement;
     };
 
+    using StateVector = std::vector<State>;
+
+    /**
+    Generate a state from the given information request, and a double pointer
+    of conserved quantities. U must point to valid conserved quantity data
+    with numConserved consecutive doubles.
+    */
     virtual State fromConserved (const Request& request, const double* U) const = 0;
+
+    /**
+    Generate a state from the given information request, and a double pointer
+    of primitive quantities. {} must point to valid primitive quantity data
+    with numConserved consecutive doubles.
+    */
     virtual State fromPrimitive (const Request& request, const double* P) const = 0;
+
+    /**
+    Get the number of primitive and conserved quantities for this conservation
+    law. For example, the Euler equation has 5 (density, total energy, and
+    three components of momentum), and MHD has 8 (three magnetic field fluxes
+    in addition). If there are passive scalars then those will increase that
+    number.
+    */
     virtual int getNumConserved() const = 0;
+
+    /**
+    A helper function that returns a vector of states by calling fromPrimitive
+    numStates times, where P.shape() = [numStates, numConserved].
+    */
+    StateVector fromPrimitive (const Request& request, const Cow::Array& P) const;
+
+    /**
+    A helper function that returns the maximum absolute value of all
+    eigenvalues for the given state.
+    */
+    double maxEigenvalueMagnitude (const State& state) const;
+
+    /**
+    A helper function that the maximum eigenvalue magnitude, over a vector of
+    states. This is useful for Lax-Friedrichs flux splitting.
+    */
+    double maxEigenvalueMagnitude (const StateVector& states) const;
 };
 
 
@@ -246,48 +286,12 @@ public:
 
 
 // ============================================================================
-#include "Reconstruction.hpp"
-
 class MethodOfLines : public IntercellFluxScheme
 {
 public:
-    MethodOfLines (double plmTheta)
-    {
-        plm.setPlmTheta (plmTheta);
-    }
-
-    ConservationLaw::State intercellFlux (const FaceData& faceData) const override
-    {
-        ConservationLaw::Request request;
-        request.areaElement = faceData.areaElement;
-
-        const double* P0 = &faceData.stencilData (0);
-        const double* P1 = &faceData.stencilData (1);
-        const double* P2 = &faceData.stencilData (2);
-        const double* P3 = &faceData.stencilData (3);
-        const int nq = faceData.conservationLaw->getNumConserved();
-
-        std::vector<double> PL (nq);
-        std::vector<double> PR (nq);
-
-        for (int q = 0; q < nq; ++q)
-        {
-            const double ps[4] = {P0[q], P1[q], P2[q], P3[q]};
-            PL[q] = plm.reconstruct (&ps[1], Reconstruction::PLM_C2R);
-            PR[q] = plm.reconstruct (&ps[2], Reconstruction::PLM_C2L);
-        }
-        auto L = faceData.conservationLaw->fromPrimitive (request, &PL[0]);
-        auto R = faceData.conservationLaw->fromPrimitive (request, &PR[0]);
-
-        UpwindRiemannSolver riemannSolver;
-        return riemannSolver.solve (L, R, faceData.areaElement);
-    }
-
-    int getStencilSize() const override
-    {
-        return 2;
-    }
-
+    MethodOfLines (double plmTheta);
+    ConservationLaw::State intercellFlux (const FaceData& faceData) const override;
+    int getStencilSize() const override;
 private:
     Reconstruction plm;
 };
@@ -299,60 +303,9 @@ private:
 class MethodOfLinesWeno : public IntercellFluxScheme
 {
 public:
-    MethodOfLinesWeno (double shenZhaA=50)
-    {
-        weno.setSmoothnessIndicator (Reconstruction::ImprovedShenZha10);
-    }
-
-    ConservationLaw::State intercellFlux (const FaceData& faceData) const override
-    {
-        ConservationLaw::Request request;
-        request.areaElement = faceData.areaElement;
-
-        const double* P0 = &faceData.stencilData (0);
-        const double* P1 = &faceData.stencilData (1);
-        const double* P2 = &faceData.stencilData (2);
-        const double* P3 = &faceData.stencilData (3);
-        const double* P4 = &faceData.stencilData (4);
-        const double* P5 = &faceData.stencilData (5);
-
-        const auto S0 = faceData.conservationLaw->fromPrimitive (request, P0);
-        const auto S1 = faceData.conservationLaw->fromPrimitive (request, P1);
-        const auto S2 = faceData.conservationLaw->fromPrimitive (request, P2);
-        const auto S3 = faceData.conservationLaw->fromPrimitive (request, P3);
-        const auto S4 = faceData.conservationLaw->fromPrimitive (request, P4);
-        const auto S5 = faceData.conservationLaw->fromPrimitive (request, P5);
-
-        const auto A = 1; // !!! hard-coded to 1 for now
-
-        const double fp[6] = {
-            S0.F[0] + A * S0.U[0],
-            S1.F[0] + A * S1.U[0],
-            S2.F[0] + A * S2.U[0],
-            S3.F[0] + A * S3.U[0],
-            S4.F[0] + A * S4.U[0],
-            S5.F[0] + A * S5.U[0]};
-
-        const double fm[6] = {
-            S0.F[0] - A * S0.U[0],
-            S1.F[0] - A * S1.U[0],
-            S2.F[0] - A * S2.U[0],
-            S3.F[0] - A * S3.U[0],
-            S4.F[0] - A * S4.U[0],
-            S5.F[0] - A * S5.U[0]};
-
-        double fhatp = weno.reconstruct (fp + 2, Reconstruction::WENO5_FD_C2R);
-        double fhatm = weno.reconstruct (fm + 3, Reconstruction::WENO5_FD_C2L);
-        auto S = ConservationLaw::State();
-        S.F = {0.5 * (fhatp + fhatm)};
-        return S;
-    }
-
-    int getStencilSize() const override
-    {
-        return 3;
-    }
-
+    MethodOfLinesWeno (double shenZhaA=50);
+    ConservationLaw::State intercellFlux (const FaceData& faceData) const override;
+    int getStencilSize() const override;
 private:
     Reconstruction weno;
 };

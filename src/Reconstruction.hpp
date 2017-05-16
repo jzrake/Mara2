@@ -27,11 +27,11 @@ public:
     double reconstruct (const double* v, enum Operation type) const;
     void setSmoothnessIndicator (enum SmoothnessIndicator IS);
     void setPlmTheta (double theta);
-    void setShenzha10A (double A);
+    void setShenZha10A (double A);
 
 private:
     double plmTheta;    // [1 -> 2 (most aggressive)]
-    double shenzha10A;  // [0 -> ~100 (most aggressive)]
+    double shenZha10A;  // [0 -> ~100 (most aggressive)]
     enum SmoothnessIndicator modeIS;
 
     double minmod (double ul, double u0, double ur) const;

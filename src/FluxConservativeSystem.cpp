@@ -125,7 +125,7 @@ double FluxConservativeSystem::getCourantTimestep()
         const double dx3 = meshGeometry->cellLength (i, j, k, 2);
 
         auto S = conservationLaw->fromPrimitive (request, pit);
-        double maxWaveSpeed = std::fabs (S.A[0]);
+        double maxWaveSpeed = conservationLaw->maxEigenvalueMagnitude (S);
         double minLength = MIN3(dx1, dx2, dx3);
 
         courantTimestep = MIN2(courantTimestep, minLength / maxWaveSpeed);

@@ -17,7 +17,7 @@
 Reconstruction::Reconstruction()
 {
     plmTheta = 2.0;
-    shenzha10A = 50.0;
+    shenZha10A = 50.0;
     modeIS = OriginalJiangShu96;
 }
 
@@ -47,9 +47,9 @@ void Reconstruction::setPlmTheta (double theta)
     plmTheta = theta;
 }
 
-void Reconstruction::setShenzha10A (double A)
+void Reconstruction::setShenZha10A (double A)
 {
-    shenzha10A = A;
+    shenZha10A = A;
 }
 
 double Reconstruction::minmod (double ul, double u0, double ur) const
@@ -112,7 +112,7 @@ double Reconstruction::weno5 (const double* v, const double c[3][3], const doubl
         {
             eps = 1e-6;
             eps_prime = 1e-10;
-            const double A = shenzha10A; // [0 (less aggressive) -> ~100 (more aggressive)]
+            const double A = shenZha10A; // [0 (less aggressive) -> ~100 (more aggressive)]
             const double minB = MIN3(B[0], B[1], B[2]);
             const double maxB = MAX3(B[0], B[1], B[2]);
             const double R0 = minB / (maxB + eps_prime);
