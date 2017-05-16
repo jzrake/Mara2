@@ -8,6 +8,18 @@
 class Reconstruction
 {
 public:
+
+    /**
+    PLM operations refer to the peicewise linear reconstruction method, using
+    the generalized minmod slope limiter. The "theta" parameter is controlled
+    by the setPlmTheta method. C2R and C2L refer to second order
+    extrapolations from zone centers to either the left (L) or right (R) edge
+    of the given zone. For WENO operations, FV generates an interpolant that
+    is itself 5th order accurate at the left or right zone edge, while FD
+    generates an interpolant whose 1st order centered finite difference is a
+    5th order accurate approximation to the derivative of the tabulated
+    function at the zone center.
+    */
     enum Operation
     {
         PLM_C2L, PLM_C2R,
@@ -37,7 +49,6 @@ private:
     double minmod (double ul, double u0, double ur) const;
     double plm (const double *v, double sgn) const;
     double weno5 (const double *v, const double c[3][3], const double d[3]) const;
-
 
     static const double CeesA2C_FV[3][3];
     static const double CeesC2A_FV[3][3];

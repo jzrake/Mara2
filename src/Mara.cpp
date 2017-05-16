@@ -5,6 +5,8 @@
 #include "Configuration.hpp"
 #include "FluxConservativeSystem.hpp"
 #include "HDF5.hpp"
+#include "Matrix.hpp"
+#include "DebugHelper.hpp"
 
 
 
@@ -32,6 +34,59 @@ SimulationStatus::SimulationStatus()
 
 
 // ============================================================================
+ScalarAdvection::ScalarAdvection (double waveSpeed) : waveSpeed (waveSpeed)
+{
+
+}
+
+ConservationLaw::State ScalarAdvection::fromConserved (const Request& request, const double* U) const
+{
+    double u = U[0];
+    State S;
+    S.P = {u, 0};
+    S.U = {u, 0};
+    S.A = {waveSpeed, 0};
+    S.F = {waveSpeed * u, 0};
+    S.L = Cow::Matrix (2, 2); // identity
+    S.R = Cow::Matrix (2, 2);
+    return S;
+}
+
+ConservationLaw::State ScalarAdvection::fromPrimitive (const Request& request, const double* P) const
+{
+    double u = P[0];
+    State S;
+    S.P = {u, 0};
+    S.U = {u, 0};
+    S.A = {waveSpeed, 0};
+    S.F = {waveSpeed * u, 0};
+    S.L = Cow::Matrix (2, 2); // identity
+    S.R = Cow::Matrix (2, 2);
+    return S;
+}
+
+int ScalarAdvection::getNumConserved() const
+{
+    return 2;
+}
+
+
+
+
+// ============================================================================
+ConservationLaw::State ConservationLaw::averageStates (const Request& request,
+    const State& L, const State& R) const
+{
+    int nq = getNumConserved();
+    auto Paverage = std::vector<double> (nq);
+
+    for (int q = 0; q < nq; ++q)
+    {
+        Paverage[q] = 0.5 * (L.P[q] + R.P[q]);
+    }
+    return fromPrimitive (request, &Paverage[0]);
+}
+
 std::vector<ConservationLaw::State> ConservationLaw::fromPrimitive
 (const Request& request, const Cow::Array& P) const
 {
@@ -71,6 +126,30 @@ double ConservationLaw::maxEigenvalueMagnitude (const StateVector& states) const
         if (maxLambda < A) maxLambda = A;
     }
     return maxLambda;
+}
+
+
+
+
+// ============================================================================
+ConservationLaw::State ScalarUpwind::intercellFlux (const FaceData& faceData) const
+{
+    ConservationLaw::Request request;
+    request.areaElement = faceData.areaElement;
+
+    const double* PL = &faceData.stencilData (0);
+    const double* PR = &faceData.stencilData (1);
+
+    auto L = faceData.conservationLaw->fromPrimitive (request, PL);
+    auto R = faceData.conservationLaw->fromPrimitive (request, PR);
+
+    UpwindRiemannSolver riemannSolver;
+    return riemannSolver.solve (L, R, faceData.areaElement);
+}
+
+int ScalarUpwind::getStencilSize() const
+{
+    return 1;
 }
 
 
@@ -126,29 +205,47 @@ MethodOfLinesWeno::MethodOfLinesWeno (double shenZhaA)
 
 ConservationLaw::State MethodOfLinesWeno::intercellFlux (const FaceData& faceData) const
 {
-    auto claw = faceData.conservationLaw;
     auto request = ConservationLaw::Request();
     request.areaElement = faceData.areaElement;
 
+    const auto claw = faceData.conservationLaw;
     const auto states = claw->fromPrimitive (request, faceData.stencilData);
     const auto maxLam = claw->maxEigenvalueMagnitude (states);
+    const auto Shat = claw->averageStates (request, states[2], states[3]);
+    const int nq = claw->getNumConserved();
 
-    claw->maxEigenvalueMagnitude (states);
-
-    double Fp[6];
-    double Fm[6];
+    Cow::Matrix Fp (nq, 6);
+    Cow::Matrix Fm (nq, 6);
 
     for (int n = 0; n < 6; ++n)
     {
-        const auto& S = states[n];
-        Fp[n] = S.F[0] + maxLam * S.U[0]; // Lax-Friedrichs flux splitting
-        Fm[n] = S.F[0] - maxLam * S.U[0];
+        for (int q = 0; q < nq; ++q)
+        {
+            const auto& S = states[n];
+            Fp (q, n) = S.F[q] + maxLam * S.U[q]; // Lax-Friedrichs flux splitting
+            Fm (q, n) = S.F[q] - maxLam * S.U[q];
+        }
     }
 
-    double Fhatp = weno.reconstruct (Fp + 2, Reconstruction::WENO5_FD_C2R);
-    double Fhatm = weno.reconstruct (Fm + 3, Reconstruction::WENO5_FD_C2L);
+    auto fp = Shat.L * Fp;
+    auto fm = Shat.L * Fm;
+    auto fhat = Cow::Matrix (nq, 1); // column vector (nq rows)
+
+    for (int q = 0; q < nq; ++q)
+    {
+        double fhatp = weno.reconstruct (&fp (q, 2), Reconstruction::WENO5_FD_C2R);
+        double fhatm = weno.reconstruct (&fm (q, 3), Reconstruction::WENO5_FD_C2L);
+        fhat (q, 0) = 0.5 * (fhatp + fhatm);
+    }
+
+    auto Fhat = Shat.R * fhat;
     auto S = ConservationLaw::State();
-    S.F = {0.5 * (Fhatp + Fhatm)};
+    S.F.resize (nq);
+
+    for (int q = 0; q < nq; ++q)
+    {
+        S.F[q] = Fhat (q, 0);
+    }
     return S;
 }
 

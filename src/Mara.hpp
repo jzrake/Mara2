@@ -6,6 +6,7 @@
 #include <string>
 #include <functional>
 #include "Array.hpp"
+#include "Matrix.hpp"
 #include "Reconstruction.hpp"
 
 
@@ -92,6 +93,8 @@ public:
         std::vector<double> P; // Primitive quantities
         std::vector<double> F; // Fluxes in given direction
         std::vector<double> A; // Eigenvalues
+        Cow::Matrix L; // Left eigenvector matrix
+        Cow::Matrix R; // Right eigenvector matrix
     };
 
     struct Request
@@ -130,6 +133,13 @@ public:
     virtual int getNumConserved() const = 0;
 
     /**
+    Return the numeric average the primitive quantities from the two given
+    states, and return a state computed with from that average and the given
+    request.
+    */
+    State averageStates (const Request& request, const State& L, const State& R) const;
+
+    /**
     A helper function that returns a vector of states by calling fromPrimitive
     numStates times, where P.shape() = [numStates, numConserved].
     */
@@ -151,7 +161,6 @@ public:
 
 
 
-
 class RiemannSolver
 {
 public:
@@ -165,8 +174,6 @@ public:
 class IntercellFluxScheme
 {
 public:
-    using StateVector = std::vector<ConservationLaw::State>; // DEP
-
     struct FaceData
     {
     public:
@@ -176,7 +183,6 @@ public:
     };
 
     virtual ConservationLaw::State intercellFlux (const FaceData&) const = 0;
-
     virtual int getStencilSize() const = 0;
 };
 
@@ -218,38 +224,10 @@ public:
 class ScalarAdvection : public ConservationLaw
 {
 public:
-    ScalarAdvection(double waveSpeed) : waveSpeed (waveSpeed)
-    {
-
-    }
-
-    State fromConserved (const Request& request, const double* U) const override
-    {
-        double u = U[0];
-        State S;
-        S.P = {u, 0};
-        S.U = {u, 0};
-        S.A = {waveSpeed, 0};
-        S.F = {waveSpeed * u, 0};
-        return S;
-    }
-
-    State fromPrimitive (const Request& request, const double* P) const override
-    {
-        double u = P[0];
-        State S;
-        S.P = {u, 0};
-        S.U = {u, 0};
-        S.A = {waveSpeed, 0};
-        S.F = {waveSpeed * u, 0};
-        return S;
-    }
-
-    int getNumConserved() const override
-    {
-        return 2;
-    }
-
+    ScalarAdvection (double waveSpeed);
+    State fromConserved (const Request& request, const double* U) const override;
+    State fromPrimitive (const Request& request, const double* P) const override;
+    int getNumConserved() const override;
 private:
     double waveSpeed;
 };
@@ -261,25 +239,8 @@ private:
 class ScalarUpwind : public IntercellFluxScheme
 {
 public:
-    ConservationLaw::State intercellFlux (const FaceData& faceData) const override
-    {
-        ConservationLaw::Request request;
-        request.areaElement = faceData.areaElement;
-
-        const double* PL = &faceData.stencilData (0);
-        const double* PR = &faceData.stencilData (1);
-
-        auto L = faceData.conservationLaw->fromPrimitive (request, PL);
-        auto R = faceData.conservationLaw->fromPrimitive (request, PR);
-
-        UpwindRiemannSolver riemannSolver;
-        return riemannSolver.solve (L, R, faceData.areaElement);
-    }
-
-    int getStencilSize() const override
-    {
-        return 1;
-    }
+    ConservationLaw::State intercellFlux (const FaceData& faceData) const override;
+    int getStencilSize() const override;
 };
 
 
