@@ -192,14 +192,13 @@ int main(int argc, const char* argv[])
     while (status.simulationTime < setup.finalTime)
     {
         double dt = setup.cflParameter * system.getCourantTimestep();
+        system.advance (dt);
+        status.simulationTime += dt;
+        status.simulationIter += 1;
 
         std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
         std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
         std::cout << "dt=" << std::setprecision (2) << std::scientific << dt << "\n";
-
-        system.advance (dt);
-        status.simulationTime += dt;
-        status.simulationIter += 1;
     }
 
     {

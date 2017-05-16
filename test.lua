@@ -6,13 +6,13 @@ run_name = 'AdvectionTest'
 output_directory = './'
 
 -- Time at which to terminate simulation
-final_time = 0.5
+final_time = 2.
 
 -- How frequently to output full simulation snapshot
 checkpoint_interval = 1.0
 
 -- CFL parameter
-cfl_parameter = 0.75
+cfl_parameter = 0.5
 
 -- A callback to supply simple initial data
 initial_data = function(x, y, z) return {math.exp(-x^2 / 0.025)} end

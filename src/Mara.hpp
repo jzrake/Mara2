@@ -115,7 +115,7 @@ public:
 
     /**
     Generate a state from the given information request, and a double pointer
-    of primitive quantities. {} must point to valid primitive quantity data
+    of primitive quantities. P must point to valid primitive quantity data
     with numConserved consecutive doubles.
     */
     virtual State fromPrimitive (const Request& request, const double* P) const = 0;
@@ -317,19 +317,18 @@ private:
 class PeriodicBoundaryCondition : public BoundaryCondition
 {
 public:
-
     void apply (Cow::Array& P, int numGuard) const override
     {
         int ng = numGuard;
-        int n1 = P.shape()[0] - 2 * ng;
-        int nq = P.shape()[3];
+        int n1 = P.size(0) - 2 * ng;
+        int nq = P.size(3);
 
         for (int i = 0; i < ng; ++i)
         {
             for (int q = 0; q < nq; ++q)
             {
-                P (i, 0, 0, q) = P (n1 - 2 * ng + i, 0, 0, q);
-                P (n1 - ng + i, 0, 0, q) = P (ng + i, 0, 0, q);
+                P (i, 0, 0, q) = P (i + n1, 0, 0, q);
+                P (i + ng + n1, 0, 0, q) = P (i + ng, 0, 0, q);
             }
         }
     }
