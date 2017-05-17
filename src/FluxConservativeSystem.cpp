@@ -147,7 +147,7 @@ double FluxConservativeSystem::getCourantTimestep()
 
 void FluxConservativeSystem::advance (double dt)
 {
-    cacheConserved();
+    U0 = U; // cache conserved
 
     switch (rungeKuttaOrder)
     {
@@ -245,14 +245,6 @@ void FluxConservativeSystem::computeTimeDerivative()
 void FluxConservativeSystem::applyBoundaryCondition()
 {
     boundaryCondition->apply (P, stencilSize);
-}
-
-void FluxConservativeSystem::cacheConserved()
-{
-    for (int n = 0; n < U.size(); ++n)
-    {
-        U0[n] = U[n];
-    }
 }
 
 void FluxConservativeSystem::updateConserved (double dt)

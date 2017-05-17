@@ -2,6 +2,7 @@
 #include "Configuration.hpp"
 #include "CartesianMeshGeometry.hpp"
 #include "EulerEquation.hpp"
+#include "RiemannSolver.hpp"
 #include "sol.hpp"
 #define lua (luaState->L)
 #define PRINT_VEC3(v) "[" << v[0] << " " << v[1] << " " << v[2] << "]"
@@ -104,13 +105,31 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
         double wave_speed = lua["conservation_law"]["wave_speed"].get_or (1.0);
         setup.conservationLaw.reset (new ScalarAdvection (wave_speed));
     }
-    if (conservation_law == "euler_equation")
+    else if (conservation_law == "euler_equation")
     {
         setup.conservationLaw.reset (new EulerEquation);
     }
     else
     {
         throw std::runtime_error ("unrecognized option for conservation_law");
+    }
+
+
+    // riemann solver
+    // ------------------------------------------------------------------------
+    std::string riemann_solver = lua["riemann_solver"];
+
+    if (riemann_solver == "upwind")
+    {
+        setup.riemannSolver.reset (new UpwindRiemannSolver);
+    }
+    else if (riemann_solver == "hlle")
+    {
+        setup.riemannSolver.reset (new HlleRiemannSolver);
+    }
+    else
+    {
+        throw std::runtime_error ("unrecognized option for riemann_solver");
     }
 
 
@@ -125,7 +144,9 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     else if (flux_scheme == "method_of_lines")
     {
         double plm_theta = lua["flux_scheme"]["plm_theta"].get_or (1.5);
-        setup.intercellFluxScheme.reset (new MethodOfLines (plm_theta));
+        auto scheme = new MethodOfLines (plm_theta);
+        scheme->setRiemannSolver (setup.riemannSolver);
+        setup.intercellFluxScheme.reset (scheme);
     }
     else if (flux_scheme == "method_of_lines_weno")
     {

@@ -4,6 +4,7 @@
 #include "Mara.hpp"
 #include "Configuration.hpp"
 #include "FluxConservativeSystem.hpp"
+#include "RiemannSolver.hpp"
 #include "HDF5.hpp"
 #include "Matrix.hpp"
 #include "DebugHelper.hpp"
@@ -161,6 +162,12 @@ int ScalarUpwind::getStencilSize() const
 MethodOfLines::MethodOfLines (double plmTheta)
 {
     plm.setPlmTheta (plmTheta);
+    riemannSolver.reset (new HlleRiemannSolver);
+}
+
+void MethodOfLines::setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse)
+{
+    riemannSolver = solverToUse;
 }
 
 ConservationLaw::State MethodOfLines::intercellFlux (const FaceData& faceData) const
@@ -186,8 +193,7 @@ ConservationLaw::State MethodOfLines::intercellFlux (const FaceData& faceData) c
     auto L = faceData.conservationLaw->fromPrimitive (request, &PL[0]);
     auto R = faceData.conservationLaw->fromPrimitive (request, &PR[0]);
 
-    UpwindRiemannSolver riemannSolver;
-    return riemannSolver.solve (L, R, faceData.areaElement);
+    return riemannSolver->solve (L, R, faceData.areaElement);
 }
 
 int MethodOfLines::getStencilSize() const

@@ -12,15 +12,17 @@
 
 
 
-class SimulationSetup;
-class SimulationStatus;
-class MeshGeometry;
 class BoundaryCondition;
 class ConservationLaw;
 class IntercellFluxScheme;
+class MeshGeometry;
+class RiemannSolver;
+class SimulationSetup;
+class SimulationStatus;
 
 using InitialDataFunction = std::function<std::vector<double> (double, double, double)>;
 using AreaElement = std::array<double, 3>;
+
 
 
 
@@ -42,6 +44,7 @@ public:
     std::shared_ptr<ConservationLaw> conservationLaw;
     std::shared_ptr<IntercellFluxScheme> intercellFluxScheme;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
+    std::shared_ptr<RiemannSolver> riemannSolver;
     InitialDataFunction initialDataFunction;
 };
 
@@ -52,7 +55,6 @@ class SimulationStatus
 {
 public:
     SimulationStatus();
-
     double simulationTime;
     int simulationIter;
     int outputsWrittenSoFar;
@@ -89,8 +91,8 @@ class ConservationLaw
 public:
     struct State
     {
-        std::vector<double> U; // Conserved densities
         std::vector<double> P; // Primitive quantities
+        std::vector<double> U; // Conserved densities
         std::vector<double> F; // Fluxes in given direction
         std::vector<double> A; // Eigenvalues
         Cow::Matrix L; // Left eigenvector matrix
@@ -165,7 +167,7 @@ class RiemannSolver
 {
 public:
     using State = ConservationLaw::State;
-    virtual State solve (const State& L, const State& R, AreaElement dA) = 0;
+    virtual State solve (const State& L, const State& R, AreaElement dA) const = 0;
 };
 
 
@@ -192,32 +194,6 @@ public:
 // Classes below will be moved to implementation files soon
 // ============================================================================
 #include <iostream>
-
-
-
-class UpwindRiemannSolver : public RiemannSolver
-{
-public:
-    State solve (const State& L, const State& R, AreaElement dA) override
-    {
-        auto S = ConservationLaw::State();
-
-        if (L.A[0] > 0 && R.A[0] > 0)
-        {
-            S.F = L.F;
-        }
-        else if (L.A[0] < 0 && R.A[0] < 0)
-        {
-            S.F = R.F;
-        }
-        else
-        {
-            S.F = std::vector<double> (L.F.size(), 0.0);
-        }
-        return S;
-    }
-};
-
 
 
 
@@ -251,9 +227,11 @@ class MethodOfLines : public IntercellFluxScheme
 {
 public:
     MethodOfLines (double plmTheta);
+    void setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse);
     ConservationLaw::State intercellFlux (const FaceData& faceData) const override;
     int getStencilSize() const override;
 private:
+    std::shared_ptr<RiemannSolver> riemannSolver;
     Reconstruction plm;
 };
 

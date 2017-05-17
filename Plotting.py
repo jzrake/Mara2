@@ -6,8 +6,8 @@ import numpy as np
 def main():
     chkpt0 = h5py.File("chkpt.0000.h5", "r")
     chkpt1 = h5py.File("chkpt.0001.h5", "r")
-    P0 = chkpt0["primitive"][:,0,0,1]
-    P1 = chkpt1["primitive"][:,0,0,1]
+    P0 = chkpt0["primitive"][:,0,0,0]
+    P1 = chkpt1["primitive"][:,0,0,0]
     plt.plot(P0, 'o', mec='k', mfc='none')
     plt.plot(P1, 'x', mec='b', mfc='none')
 

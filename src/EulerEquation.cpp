@@ -36,7 +36,7 @@ ConservationLaw::State EulerEquation::fromConserved (const Request& request, con
     P[V22] =  U[S22] / U[DDD];
     P[V33] =  U[S33] / U[DDD];
 
-    return fromPrimitive (request, U);
+    return fromPrimitive (request, P);
 }
 
 ConservationLaw::State EulerEquation::fromPrimitive (const Request& request, const double* P) const
@@ -51,19 +51,20 @@ ConservationLaw::State EulerEquation::fromPrimitive (const Request& request, con
     auto S = State();
     S.P.resize (5);
     S.U.resize (5);
+    S.F.resize (5);
     S.A.resize (5);
-
-    S.U[DDD] = P[RHO];
-    S.U[S11] = P[RHO] * P[V11];
-    S.U[S22] = P[RHO] * P[V22];
-    S.U[S33] = P[RHO] * P[V33];
-    S.U[NRG] = P[RHO] * 0.5 * vv + P[PRE] / gm1;
 
     S.P[RHO] = P[RHO];
     S.P[V11] = P[V11];
     S.P[V22] = P[V22];
     S.P[V33] = P[V33];
     S.P[PRE] = P[PRE];
+
+    S.U[DDD] = P[RHO];
+    S.U[S11] = P[RHO] * P[V11];
+    S.U[S22] = P[RHO] * P[V22];
+    S.U[S33] = P[RHO] * P[V33];
+    S.U[NRG] = P[RHO] * 0.5 * vv + P[PRE] / gm1;
 
     S.F[DDD] =  S.U[DDD] * vn;
     S.F[S11] =  S.U[S11] * vn + P[PRE] * dAA[0];
