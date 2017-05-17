@@ -34,6 +34,7 @@ public:
     // Run description
     double finalTime;
     double checkpointInterval;
+    double vtkOutputInterval;
     double cflParameter;
     int rungeKuttaOrder;
     std::string outputDirectory;
@@ -57,7 +58,8 @@ public:
     SimulationStatus();
     double simulationTime;
     int simulationIter;
-    int outputsWrittenSoFar;
+    int checkpointsWrittenSoFar;
+    int vtkOutputsWrittenSoFar;
 };
 
 
@@ -135,6 +137,11 @@ public:
     virtual int getNumConserved() const = 0;
 
     /**
+    Return a name for the primitive variable at the given index.
+    */
+    virtual std::string getPrimitiveName (int fieldIndex) const = 0;
+
+    /**
     Return the numeric average the primitive quantities from the two given
     states, and return a state computed with from that average and the given
     request.
@@ -204,6 +211,7 @@ public:
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     int getNumConserved() const override;
+    std::string getPrimitiveName (int fieldIndex) const override;
 private:
     double waveSpeed;
 };

@@ -28,7 +28,7 @@ std::string FileSystem::makeFilename (std::string directory, std::string base, s
 
     if (number >= 0)
     {
-        filenameStream << "." << std::setfill ('0') << std::setw (6) << number;
+        filenameStream << "." << std::setfill ('0') << std::setw (4) << number;
     }
     filenameStream << extension;
     return filenameStream.str();

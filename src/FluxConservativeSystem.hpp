@@ -15,9 +15,10 @@ public:
 
     /**
     Return a reference to the updateable region in the primitive variable
-    array.
+    array. All fields are returned, but if fieldIndex is non-negative then
+    only that component of the primitive data is returned.
     */
-    Cow::Array::Reference getPrimitive();
+    Cow::Array::Reference getPrimitive (int fieldIndex=-1);
 
     /**
     Set initial data on the primitive variable array.

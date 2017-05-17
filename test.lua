@@ -3,13 +3,13 @@
 run_name = 'AdvectionTest'
 
 -- directory where output should go
-output_directory = './'
+output_directory = 'euler'
 
 -- Time at which to terminate simulation
-final_time = 0.1
+final_time = 2.0
 
 -- How frequently to output full simulation snapshot
-checkpoint_interval = 1.0
+checkpoint_interval = 0.1
 
 -- CFL parameter
 cfl_parameter = 0.5
@@ -19,7 +19,7 @@ cfl_parameter = 0.5
 
 initial_data = function(x, y, z)
 	local d = 1.0 + math.exp(-x^2 / 0.025)
-	local u = 0.0
+	local u = 1.0
 	local v = 0.0
 	local w = 0.0
 	local p = 1.0
@@ -30,7 +30,7 @@ end
 grid_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
-resolution = {100, 1, 1}
+resolution = {300, 1, 1}
 
 -- Domain lower bounds
 domain_lower = {-1.0, 0.0, 0.0}

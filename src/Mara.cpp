@@ -1,11 +1,14 @@
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <cmath>
 #include "Mara.hpp"
 #include "Configuration.hpp"
+#include "FileSystem.hpp"
 #include "FluxConservativeSystem.hpp"
 #include "RiemannSolver.hpp"
 #include "HDF5.hpp"
+#include "VTK.hpp"
 #include "Matrix.hpp"
 #include "DebugHelper.hpp"
 
@@ -17,6 +20,7 @@ SimulationSetup::SimulationSetup()
 {
     finalTime = 1.0;
     checkpointInterval = 1.0;
+    vtkOutputInterval = 1.0;
     cflParameter = 0.25;
 }
 
@@ -28,7 +32,8 @@ SimulationStatus::SimulationStatus()
 {
     simulationTime = 0.0;
     simulationIter = 0;
-    outputsWrittenSoFar = 0;
+    checkpointsWrittenSoFar = 0;
+    vtkOutputsWrittenSoFar = 0;
 }
 
 
@@ -72,6 +77,17 @@ int ScalarAdvection::getNumConserved() const
 {
     return 2;
 }
+
+std::string ScalarAdvection::getPrimitiveName (int fieldIndex) const
+{
+    switch (fieldIndex)
+    {
+        case 0: return "u";
+        case 1: return "v";
+        default: return "";
+    }
+}
+
 
 
 
@@ -262,6 +278,36 @@ int MethodOfLinesWeno::getStencilSize() const
     return 3;
 }
 
+void writeOutput (SimulationSetup& setup, SimulationStatus& status, FluxConservativeSystem& system)
+{
+    using namespace Cow;
+
+    auto dir = setup.outputDirectory;
+
+    FileSystem::ensureDirectoryExists (dir);
+    auto h5fname = FileSystem::makeFilename (dir, "chkpt", ".h5", status.checkpointsWrittenSoFar);
+    auto vtkname = FileSystem::makeFilename (dir, "mesh", ".vtk", status.vtkOutputsWrittenSoFar);
+
+    auto file = H5::File (h5fname, "w");
+    auto vtkStream = std::ofstream (vtkname);
+    auto vtkDataSet = VTK::DataSet (setup.meshGeometry->domainShape());
+    vtkDataSet.setTitle (setup.runName);
+
+    for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
+    {
+        std::string field = setup.conservationLaw->getPrimitiveName(q);
+
+        auto P = system.getPrimitive (q);
+        file.write (field, P);
+
+        vtkDataSet.addField (field, P);
+    }
+    vtkDataSet.write (vtkStream);
+
+    ++status.checkpointsWrittenSoFar;
+    ++status.vtkOutputsWrittenSoFar;
+}
+
 
 
 
@@ -287,15 +333,14 @@ int main(int argc, const char* argv[])
 
 
     auto status = SimulationStatus();
-    {
-        auto P = system.getPrimitive();
-        auto file = H5::File ("chkpt.0000.h5", "w");
-        file.write ("primitive", P);
-    }
-
 
     while (status.simulationTime < setup.finalTime)
     {
+        if (status.simulationTime >= status.checkpointsWrittenSoFar * setup.checkpointInterval)
+        {
+            writeOutput (setup, status, system);
+        }
+
         double dt = setup.cflParameter * system.getCourantTimestep();
         system.advance (dt);
         status.simulationTime += dt;
@@ -304,13 +349,6 @@ int main(int argc, const char* argv[])
         std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
         std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
         std::cout << "dt=" << std::setprecision (2) << std::scientific << dt << "\n";
-    }
-
-    {
-        auto P = system.getPrimitive();
-        auto file = H5::File ("chkpt.0001.h5", "w");
-        file.write ("primitive", P);
-        file.write ("t", status.simulationTime);
     }
 
     return 0;

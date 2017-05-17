@@ -80,10 +80,18 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     F3 = Array (shapeF3);
 }
 
-Cow::Array::Reference FluxConservativeSystem::getPrimitive()
+Cow::Array::Reference FluxConservativeSystem::getPrimitive (int fieldIndex)
 {
     Region R = updateableRegion;
-    R.stride[3] = 1; // return the whole array of primitives
+
+    R.stride[3] = 1;
+
+    if (fieldIndex != -1)
+    {
+        assert (0 <= fieldIndex && fieldIndex < numConserved);
+        R.lower[3] = fieldIndex;
+        R.upper[3] = fieldIndex + 1;
+    }
     return P[R];
 }
 
@@ -210,6 +218,34 @@ void FluxConservativeSystem::computeIntercellFluxes()
             }
         }
     }
+
+
+    // This is a possible revision to the method of flux sweeps, but requires
+    // some updates new Array methods:
+    // ------------------------------------------------------------------------
+
+    // auto fluxableRegion = Region::strided (3, numConserved);
+    // auto Freg = F1[updateableRegion];
+    // auto Fit = Freg.begin();
+
+    // for ( ; Fit != Freg.end(); ++Fit)
+    // {
+    //     auto P0 = P.getIterator (Fit);
+
+    //     for (int q = 0; q < numConserved; ++q)
+    //     {
+    //         for (int n = 0; n < stencilSize * 2; ++n)
+    //         {
+    //             faceData.stencilData (n, q) = P0 (n, 0, 0, q);
+    //         }
+    //     }
+    //     auto flux = intercellFluxScheme->intercellFlux (faceData);
+
+    //     for (int q = 0; q < numConserved; ++q)
+    //     {
+    //         Fit[q] = flux.F[q];
+    //     }
+    // }
 }
 
 void FluxConservativeSystem::computeTimeDerivative()

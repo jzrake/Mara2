@@ -85,3 +85,16 @@ int EulerEquation::getNumConserved() const
 {
     return 5;
 }
+
+std::string EulerEquation::getPrimitiveName (int fieldIndex) const
+{
+    switch (fieldIndex)
+    {
+        case RHO: return "density";
+        case S11: return "velocity1";
+        case S22: return "velocity2";
+        case S33: return "velocity3";
+        case PRE: return "pressure";
+        default: return "";
+    }
+}
