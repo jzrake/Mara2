@@ -1,6 +1,7 @@
 #include <iostream>
 #include "Configuration.hpp"
 #include "CartesianMeshGeometry.hpp"
+#include "EulerEquation.hpp"
 #include "sol.hpp"
 #define lua (luaState->L)
 #define PRINT_VEC3(v) "[" << v[0] << " " << v[1] << " " << v[2] << "]"
@@ -102,6 +103,10 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     {
         double wave_speed = lua["conservation_law"]["wave_speed"].get_or (1.0);
         setup.conservationLaw.reset (new ScalarAdvection (wave_speed));
+    }
+    if (conservation_law == "euler_equation")
+    {
+        setup.conservationLaw.reset (new EulerEquation);
     }
     else
     {

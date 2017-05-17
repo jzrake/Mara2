@@ -61,7 +61,7 @@ private:
 
     Cow::Array U; // Conserved quantities
     Cow::Array P; // Primitive quantities
-    Cow::Array L; // Time derivative of U
+    Cow::Array L; // Time derivative of U (to save memory this could be removed)
     Cow::Array U0; // Conserved quantities (cached for RK update)
     Cow::Array F1; // Flux along axis 1
     Cow::Array F2; // Flux along axis 2
