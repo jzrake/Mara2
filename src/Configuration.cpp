@@ -1,7 +1,7 @@
 #include <iostream>
 #include "Configuration.hpp"
 #include "CartesianMeshGeometry.hpp"
-#include "EulerEquation.hpp"
+#include "ConservationLaws.hpp"
 #include "RiemannSolver.hpp"
 #include "sol.hpp"
 #define lua (luaState->L)
@@ -52,7 +52,7 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     lua.script_file (filename);
     auto setup = SimulationSetup();
 
-
+ 
     // initial data function
     // ------------------------------------------------------------------------
     sol::function initial_data = lua["initial_data"];
@@ -108,9 +108,9 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
         double wave_speed = lua["conservation_law"]["wave_speed"].get_or (1.0);
         setup.conservationLaw.reset (new ScalarAdvection (wave_speed));
     }
-    else if (conservation_law == "euler_equation")
+    else if (conservation_law == "newtonian_hydro")
     {
-        setup.conservationLaw.reset (new EulerEquation);
+        setup.conservationLaw.reset (new NewtonianHydro);
     }
     else
     {

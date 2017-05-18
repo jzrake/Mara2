@@ -4,16 +4,16 @@ local setups = require 'setups'
 run_name = 'AdvectionTest'
 
 -- directory where output should go
-output_directory = 'data2'
+output_directory = 'data'
 
 -- Time at which to terminate simulation
-final_time = 0.1
+final_time = 0.25
 
 -- How frequently to output full simulation snapshot
-checkpoint_interval = 0.01
+checkpoint_interval = 0.025
 
 -- CFL parameter
-cfl_parameter = 0.33
+cfl_parameter = 0.6
 
 -- A callback to supply simple initial data
 initial_data = setups['shocktube1']
@@ -22,7 +22,7 @@ initial_data = setups['shocktube1']
 grid_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
-resolution = {64, 1, 64}
+resolution = {256, 1, 1}
 
 -- Domain lower bounds
 domain_lower = {-0.5,-0.5,-0.5}
@@ -30,18 +30,17 @@ domain_lower = {-0.5,-0.5,-0.5}
 -- Domain upper bounds
 domain_upper = { 0.5, 0.5, 0.5}
 
--- Fluid variables: scalar_advection, euler_equation
--- conservation_law = {'scalar_advection', wave_speed=1}
-conservation_law = {'euler_equation'}
+-- Conservation law: scalar_advection, newtonian_hydro, newtonian_mhd
+conservation_law = {'newtonian_hydro'}
 
 -- Riemann solver: upwind, hlle
 riemann_solver = 'hlle'
 
 -- Flux scheme: scalar_upwind, method_of_lines
-flux_scheme = {'method_of_lines_plm', plm_theta=1.0}
+flux_scheme = {'method_of_lines_plm', plm_theta=1.5}
 
 -- RK order: must be 1, 2, or 3
-runge_kutta_order = 2
+runge_kutta_order = 3
 
 -- Boundary condition name
 boundary_condition = 'periodic'

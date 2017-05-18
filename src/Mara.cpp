@@ -107,59 +107,6 @@ void PeriodicBoundaryCondition::apply (Cow::Array& P, int numGuard) const
 
 
 // ============================================================================
-ScalarAdvection::ScalarAdvection (double waveSpeed) : waveSpeed (waveSpeed)
-{
-
-}
-
-ConservationLaw::State ScalarAdvection::fromConserved (const Request& request, const double* U) const
-{
-    double u = U[0];
-    double v = U[1];
-    State S;
-    S.P = {u, v};
-    S.U = {u, v};
-    S.A = {waveSpeed, waveSpeed};
-    S.F = {waveSpeed * u, waveSpeed * v};
-    S.L = Cow::Matrix (2, 2); // identity
-    S.R = Cow::Matrix (2, 2);
-    return S;
-}
-
-ConservationLaw::State ScalarAdvection::fromPrimitive (const Request& request, const double* P) const
-{
-    double u = P[0];
-    double v = P[1];
-    State S;
-    S.P = {u, v};
-    S.U = {u, v};
-    S.A = {waveSpeed, waveSpeed};
-    S.F = {waveSpeed * u, waveSpeed * v};
-    S.L = Cow::Matrix (2, 2); // identity
-    S.R = Cow::Matrix (2, 2);
-    return S;
-}
-
-int ScalarAdvection::getNumConserved() const
-{
-    return 2;
-}
-
-std::string ScalarAdvection::getPrimitiveName (int fieldIndex) const
-{
-    switch (fieldIndex)
-    {
-        case 0: return "u";
-        case 1: return "v";
-        default: return "";
-    }
-}
-
-
-
-
-
-// ============================================================================
 ConservationLaw::State ConservationLaw::averageStates (const Request& request,
     const State& L, const State& R) const
 {
