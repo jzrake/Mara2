@@ -7,22 +7,22 @@ run_name = 'AdvectionTest'
 output_directory = 'data'
 
 -- Time at which to terminate simulation
-final_time = 0.25
+final_time = 0.1
 
 -- How frequently to output full simulation snapshot
-checkpoint_interval = 0.025
+checkpoint_interval = 0.01
 
 -- CFL parameter
 cfl_parameter = 0.6
 
 -- A callback to supply simple initial data
-initial_data = setups['shocktube1']
+initial_data = setups['abc_equilibrium_mhd']
 
 -- Grid geometry
 grid_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
-resolution = {256, 1, 1}
+resolution = {64, 64, 1}
 
 -- Domain lower bounds
 domain_lower = {-0.5,-0.5,-0.5}
@@ -31,7 +31,7 @@ domain_lower = {-0.5,-0.5,-0.5}
 domain_upper = { 0.5, 0.5, 0.5}
 
 -- Conservation law: scalar_advection, newtonian_hydro, newtonian_mhd
-conservation_law = {'newtonian_hydro'}
+conservation_law = {'newtonian_mhd'}
 
 -- Riemann solver: upwind, hlle
 riemann_solver = 'hlle'

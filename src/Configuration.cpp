@@ -112,6 +112,10 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     {
         setup.conservationLaw.reset (new NewtonianHydro);
     }
+    else if (conservation_law == "newtonian_mhd")
+    {
+        setup.conservationLaw.reset (new NewtonianMHD);
+    }
     else
     {
         throw std::runtime_error ("unrecognized option for conservation_law");
