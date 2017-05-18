@@ -39,6 +39,8 @@ private:
     /* @internal */
     void computeIntercellFluxes();
     /* @internal */
+    void intercellFluxSweep (int axis);
+    /* @internal */
     void computeTimeDerivative();
     /* @internal */
     void applyBoundaryCondition();

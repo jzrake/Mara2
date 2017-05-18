@@ -146,8 +146,14 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     }
     else if (flux_scheme == "method_of_lines")
     {
+        auto scheme = new MethodOfLines;
+        scheme->setRiemannSolver (setup.riemannSolver);
+        setup.intercellFluxScheme.reset (scheme);
+    }
+    else if (flux_scheme == "method_of_lines_plm")
+    {
         double plm_theta = lua["flux_scheme"]["plm_theta"].get_or (1.5);
-        auto scheme = new MethodOfLines (plm_theta);
+        auto scheme = new MethodOfLinesPlm (plm_theta);
         scheme->setRiemannSolver (setup.riemannSolver);
         setup.intercellFluxScheme.reset (scheme);
     }

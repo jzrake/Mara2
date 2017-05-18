@@ -40,6 +40,73 @@ SimulationStatus::SimulationStatus()
 
 
 // ============================================================================
+void PeriodicBoundaryCondition::apply (Cow::Array& P, int numGuard) const
+{
+    int ng = numGuard;
+    int ni = P.size(0) - 2 * ng;
+    int nj = P.size(1) - 2 * ng;
+    int nk = P.size(2) - 2 * ng;
+    int nq = P.size(3);
+
+    if (P.size(0) > 1)
+    {
+        for (int j = 0; j < P.size(1); ++j)
+        {
+            for (int k = 0; k < P.size(2); ++k)
+            {
+                for (int i = 0; i < ng; ++i)
+                {
+                    for (int q = 0; q < nq; ++q)
+                    {
+                        P (i,           j, k, q) = P (i + ni, j, k, q);
+                        P (i + ng + ni, j, k, q) = P (i + ng, j, k, q);
+                    }
+                }
+            }
+        }
+    }
+
+    if (P.size(1) > 1)
+    {
+        for (int k = 0; k < P.size(2); ++k)
+        {
+            for (int i = 0; i < P.size(0); ++i)
+            {
+                for (int j = 0; j < ng; ++j)
+                {
+                    for (int q = 0; q < nq; ++q)
+                    {
+                        P (i, j,           k, q) = P (i, j + nj, k, q);
+                        P (i, j + ng + nj, k, q) = P (i, j + ng, k, q);
+                    }
+                }
+            }
+        }
+    }
+
+    if (P.size(2) > 1)
+    {
+        for (int i = 0; i < P.size(0); ++i)
+        {
+            for (int j = 0; j < P.size(1); ++j)
+            {
+                for (int k = 0; k < ng; ++k)
+                {
+                    for (int q = 0; q < nq; ++q)
+                    {
+                        P (i, j, k,           q) = P (i, j, k + nk, q);
+                        P (i, j, k + ng + nk, q) = P (i, j, k + ng, q);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+
+// ============================================================================
 ScalarAdvection::ScalarAdvection (double waveSpeed) : waveSpeed (waveSpeed)
 {
 
@@ -173,11 +240,9 @@ int ScalarUpwind::getStencilSize() const
 
 
 
-
 // ============================================================================
-MethodOfLines::MethodOfLines (double plmTheta)
+MethodOfLines::MethodOfLines()
 {
-    plm.setPlmTheta (plmTheta);
     riemannSolver.reset (new HlleRiemannSolver);
 }
 
@@ -191,14 +256,48 @@ ConservationLaw::State MethodOfLines::intercellFlux (const FaceData& faceData) c
     ConservationLaw::Request request;
     request.areaElement = faceData.areaElement;
 
-    const double* P0 = &faceData.stencilData (0);
-    const double* P1 = &faceData.stencilData (1);
-    const double* P2 = &faceData.stencilData (2);
-    const double* P3 = &faceData.stencilData (3);
+    const double* P0 = &faceData.stencilData(0);
+    const double* P1 = &faceData.stencilData(1);
+
+    auto L = faceData.conservationLaw->fromPrimitive (request, P0);
+    auto R = faceData.conservationLaw->fromPrimitive (request, P1);
+
+    return riemannSolver->solve (L, R, faceData.areaElement);
+}
+
+int MethodOfLines::getStencilSize() const
+{
+    return 1;
+}
+
+
+
+
+// ============================================================================
+MethodOfLinesPlm::MethodOfLinesPlm (double plmTheta)
+{
+    plm.setPlmTheta (plmTheta);
+    riemannSolver.reset (new HlleRiemannSolver);
+}
+
+void MethodOfLinesPlm::setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse)
+{
+    riemannSolver = solverToUse;
+}
+
+ConservationLaw::State MethodOfLinesPlm::intercellFlux (const FaceData& faceData) const
+{
+    ConservationLaw::Request request;
+    request.areaElement = faceData.areaElement;
+
+    const double* P0 = &faceData.stencilData(0);
+    const double* P1 = &faceData.stencilData(1);
+    const double* P2 = &faceData.stencilData(2);
+    const double* P3 = &faceData.stencilData(3);
     const int nq = faceData.conservationLaw->getNumConserved();
 
-    std::vector<double> PL (nq);
-    std::vector<double> PR (nq);
+    std::vector<double> PL(nq);
+    std::vector<double> PR(nq);
 
     for (int q = 0; q < nq; ++q)
     {
@@ -212,7 +311,7 @@ ConservationLaw::State MethodOfLines::intercellFlux (const FaceData& faceData) c
     return riemannSolver->solve (L, R, faceData.areaElement);
 }
 
-int MethodOfLines::getStencilSize() const
+int MethodOfLinesPlm::getStencilSize() const
 {
     return 2;
 }
@@ -333,6 +432,7 @@ int main(int argc, const char* argv[])
 
 
     auto status = SimulationStatus();
+    writeOutput (setup, status, system);
 
     while (status.simulationTime < setup.finalTime)
     {

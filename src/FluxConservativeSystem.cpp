@@ -128,7 +128,7 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F)
 
 double FluxConservativeSystem::getCourantTimestep()
 {
-    auto request = ConservationLaw::Request();
+    auto request = ConservationLaw::Request();    
     auto Preg = P[updateableRegion];
 
     double courantTimestep = std::numeric_limits<double>::max();
@@ -144,8 +144,9 @@ double FluxConservativeSystem::getCourantTimestep()
         const double dx2 = meshGeometry->cellLength (i, j, k, 1);
         const double dx3 = meshGeometry->cellLength (i, j, k, 2);
 
+        // !!! Need to compute wave speeds in other directions
         auto S = conservationLaw->fromPrimitive (request, pit);
-        double maxWaveSpeed = conservationLaw->maxEigenvalueMagnitude (S);
+        double maxWaveSpeed = conservationLaw->maxEigenvalueMagnitude(S);
         double minLength = MIN3(dx1, dx2, dx3);
 
         courantTimestep = MIN2(courantTimestep, minLength / maxWaveSpeed);
@@ -182,30 +183,43 @@ void FluxConservativeSystem::advance (double dt)
 
 void FluxConservativeSystem::computeIntercellFluxes()
 {
+    if (domainShape[0] > 1) intercellFluxSweep(0);
+    if (domainShape[1] > 1) intercellFluxSweep(1);
+    if (domainShape[2] > 1) intercellFluxSweep(2);
+}
+
+void FluxConservativeSystem::intercellFluxSweep (int axis)
+{
     int N1 = domainShape[0];
     int N2 = domainShape[1];
     int N3 = domainShape[2];
+    int i0 = domainShape[0] > 1 ? stencilSize : 0; // account for guard zones in P
+    int j0 = domainShape[1] > 1 ? stencilSize : 0;
+    int k0 = domainShape[2] > 1 ? stencilSize : 0;
 
-    // Flux sweep along axis 1
-    // ------------------------------------------------------------------------
     auto faceData = IntercellFluxScheme::FaceData();
     faceData.stencilData = Cow::Array (stencilSize * 2, numConserved);
-    faceData.areaElement[0] = 1.0;
-    faceData.areaElement[1] = 0.0;
-    faceData.areaElement[2] = 0.0;
+    faceData.areaElement[0] = axis == 0 ? 1.0 : 0.0;
+    faceData.areaElement[1] = axis == 1 ? 1.0 : 0.0;
+    faceData.areaElement[2] = axis == 2 ? 1.0 : 0.0;
     faceData.conservationLaw = conservationLaw;
 
-    for (int i = 0; i < N1 + 1; ++i)
+    for (int i = 0; i < N1 + (axis == 0); ++i)
     {
-        for (int j = 0; j < N2; ++j)
+        for (int j = 0; j < N2 + (axis == 1); ++j)
         {
-            for (int k = 0; k < N3; ++k)
+            for (int k = 0; k < N3 + (axis == 2); ++k)
             {
                 for (int q = 0; q < numConserved; ++q)
                 {
                     for (int n = 0; n < stencilSize * 2; ++n)
                     {
-                        faceData.stencilData (n, q) = P (i + n, j, k, q);
+                        switch (axis)
+                        {
+                            case 0: faceData.stencilData (n, q) = P (i + n,  j + j0, k + k0, q); break;
+                            case 1: faceData.stencilData (n, q) = P (i + i0, j + n,  k + k0, q); break;
+                            case 2: faceData.stencilData (n, q) = P (i + i0, j + j0, k + n,  q); break;
+                        }
                     }
                 }
 
@@ -213,15 +227,21 @@ void FluxConservativeSystem::computeIntercellFluxes()
 
                 for (int q = 0; q < numConserved; ++q)
                 {
-                    F1 (i, j, k, q) = flux.F[q];
+                    switch (axis)
+                    {
+                        case 0: F1 (i, j, k, q) = flux.F[q]; break;
+                        case 1: F2 (i, j, k, q) = flux.F[q]; break;
+                        case 2: F3 (i, j, k, q) = flux.F[q]; break;
+                    }
                 }
             }
         }
     }
 
 
+
     // This is a possible revision to the method of flux sweeps, but requires
-    // some updates new Array methods:
+    // some new Array methods:
     // ------------------------------------------------------------------------
 
     // auto fluxableRegion = Region::strided (3, numConserved);
