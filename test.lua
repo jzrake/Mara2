@@ -1,3 +1,4 @@
+local setups = require 'setups'
 
  -- name of the current run
 run_name = 'AdvectionTest'
@@ -6,25 +7,16 @@ run_name = 'AdvectionTest'
 output_directory = 'euler'
 
 -- Time at which to terminate simulation
-final_time = 2.0
+final_time = 0.1
 
 -- How frequently to output full simulation snapshot
-checkpoint_interval = 0.1
+checkpoint_interval = 0.001
 
 -- CFL parameter
 cfl_parameter = 0.5
 
 -- A callback to supply simple initial data
--- initial_data = function(x, y, z) return {math.exp(-x^2 / 0.025), 2 - x*x} end
-
-initial_data = function(x, y, z)
-	local d = 1.0 + math.exp(-x^2 / 0.025)
-	local u = 1.0
-	local v = 0.0
-	local w = 0.0
-	local p = 1.0
-	return {d, u, v, w, p}
-end
+initial_data = setups['shocktube1']
 
 -- Grid geometry
 grid_geometry = 'cartesian'

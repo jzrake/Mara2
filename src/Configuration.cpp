@@ -39,7 +39,7 @@ public:
 Configuration::Configuration()
 {
     luaState.reset (new LuaState);
-    lua.open_libraries (sol::lib::base, sol::lib::math);
+    lua.open_libraries (sol::lib::base, sol::lib::math, sol::lib::package);
 }
 
 Configuration::~Configuration()
@@ -49,14 +49,17 @@ Configuration::~Configuration()
 
 SimulationSetup Configuration::fromLuaFile (std::string filename)
 {
-    auto setup = SimulationSetup();
     lua.script_file (filename);
+    auto setup = SimulationSetup();
 
+
+    // initial data function
+    // ------------------------------------------------------------------------
     sol::function initial_data = lua["initial_data"];
     setup.initialDataFunction = luaState->makeIDF (initial_data);
 
 
-    // grid_geometry
+    // grid geometry
     // ------------------------------------------------------------------------
     std::string grid_geometry = lua["grid_geometry"];
 
