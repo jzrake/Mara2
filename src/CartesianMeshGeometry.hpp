@@ -19,6 +19,11 @@ public:
         return shape;
     }
 
+    unsigned long totalCellsInMesh() const override
+    {
+        return shape[0] * shape[1] * shape[2];
+    }
+
     Coordinate coordinateAtIndex (double i, double j, double k) const override
     {
         return Coordinate ({{

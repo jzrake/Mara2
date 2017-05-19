@@ -8,6 +8,7 @@
 #include "FluxConservativeSystem.hpp"
 #include "RiemannSolver.hpp"
 #include "HDF5.hpp"
+#include "Timer.hpp"
 #include "VTK.hpp"
 #include "Matrix.hpp"
 #include "DebugHelper.hpp"
@@ -310,7 +311,7 @@ ConservationLaw::State MethodOfLinesWeno::intercellFlux (const FaceData& faceDat
 
     auto Fhat = Shat.R * fhat;
     auto S = ConservationLaw::State();
-    S.F.resize (nq);
+    //S.F.resize (nq);
 
     for (int q = 0; q < nq; ++q)
     {
@@ -388,14 +389,19 @@ int main(int argc, const char* argv[])
             writeOutput (setup, status, system);
         }
 
+        Cow::Timer timer;
+
         double dt = setup.cflParameter * system.getCourantTimestep();
         system.advance (dt);
         status.simulationTime += dt;
         status.simulationIter += 1;
 
+        double kzps = 1e-3 * setup.meshGeometry->totalCellsInMesh() / timer.age();
+
         std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
         std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
-        std::cout << "dt=" << std::setprecision (2) << std::scientific << dt << "\n";
+        std::cout << "dt=" << std::setprecision (2) << std::scientific << dt << " ";
+        std::cout << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
     }
 
     return 0;

@@ -70,6 +70,7 @@ class MeshGeometry
 public:
     using Coordinate = std::array<double, 3>;
     virtual Cow::Shape domainShape() const = 0;
+    virtual unsigned long totalCellsInMesh() const = 0;
     virtual Coordinate coordinateAtIndex (double i, double j, double k) const = 0;
     virtual double cellLength (int i, int j, int k, int axis) const = 0;
     virtual double faceArea (int i, int j, int k, int axis) const = 0;
@@ -93,10 +94,14 @@ class ConservationLaw
 public:
     struct State
     {
-        std::vector<double> P; // Primitive quantities
-        std::vector<double> U; // Conserved densities
-        std::vector<double> F; // Fluxes in given direction
-        std::vector<double> A; // Eigenvalues
+        // std::vector<double> P; // Primitive quantities
+        // std::vector<double> U; // Conserved densities
+        // std::vector<double> F; // Fluxes in given direction
+        // std::vector<double> A; // Eigenvalues
+        std::array<double, 8> P; // Primitive quantities
+        std::array<double, 8> U; // Conserved densities
+        std::array<double, 8> F; // Fluxes in given direction
+        std::array<double, 8> A; // Eigenvalues
         Cow::Matrix L; // Left eigenvector matrix
         Cow::Matrix R; // Right eigenvector matrix
     };

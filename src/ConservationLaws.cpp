@@ -35,10 +35,10 @@ ConservationLaw::State ScalarAdvection::fromConserved (const Request& request, c
     double u = U[0];
     double v = U[1];
     State S;
-    S.P = {u, v};
-    S.U = {u, v};
-    S.A = {waveSpeed, waveSpeed};
-    S.F = {waveSpeed * u, waveSpeed * v};
+    S.P = {{u, v}};
+    S.U = {{u, v}};
+    S.A = {{waveSpeed, waveSpeed}};
+    S.F = {{waveSpeed * u, waveSpeed * v}};
     S.L = Cow::Matrix (2, 2); // identity
     S.R = Cow::Matrix (2, 2);
     return S;
@@ -49,10 +49,10 @@ ConservationLaw::State ScalarAdvection::fromPrimitive (const Request& request, c
     double u = P[0];
     double v = P[1];
     State S;
-    S.P = {u, v};
-    S.U = {u, v};
-    S.A = {waveSpeed, waveSpeed};
-    S.F = {waveSpeed * u, waveSpeed * v};
+    S.P = {{u, v}};
+    S.U = {{u, v}};
+    S.A = {{waveSpeed, waveSpeed}};
+    S.F = {{waveSpeed * u, waveSpeed * v}};
     S.L = Cow::Matrix (2, 2); // identity
     S.R = Cow::Matrix (2, 2);
     return S;
@@ -107,10 +107,10 @@ ConservationLaw::State NewtonianHydro::fromPrimitive (const Request& request, co
     const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
 
     auto S = State();
-    S.P.resize (5);
-    S.U.resize (5);
-    S.F.resize (5);
-    S.A.resize (5);
+    // S.P.resize (5);
+    // S.U.resize (5);
+    // S.F.resize (5);
+    // S.A.resize (5);
 
     S.P[RHO] = P[RHO];
     S.P[V11] = P[V11];
@@ -135,6 +135,9 @@ ConservationLaw::State NewtonianHydro::fromPrimitive (const Request& request, co
     S.A[2] = vn;
     S.A[3] = vn;
     S.A[4] = vn + cs;
+
+    //S.L = Cow::Matrix (5, 5);
+    //S.R = Cow::Matrix (5, 5);
 
     return S;
 }
@@ -198,10 +201,10 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     const double ps = P[PRE] + 0.5 * BB; // total pressure
 
     auto S = State();
-    S.P.resize (8);
-    S.U.resize (8);
-    S.F.resize (8);
-    S.A.resize (8);
+    // S.P.resize (8);
+    // S.U.resize (8);
+    // S.F.resize (8);
+    // S.A.resize (8);
 
     S.P[RHO] = P[RHO];
     S.P[V11] = P[V11];

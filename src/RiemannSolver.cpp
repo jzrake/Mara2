@@ -24,7 +24,9 @@ State UpwindRiemannSolver::solve (const State& L, const State& R, AreaElement dA
     }
     else
     {
-        S.F = std::vector<double> (L.F.size(), 0.0);
+        //S.F = std::vector<double> (L.F.size(), 0.0);
+        S.F[0] = 0.0;
+        S.F[1] = 0.0;
     }
     return S;
 }
@@ -45,8 +47,8 @@ State HlleRiemannSolver::solve (const State& L, const State& R, AreaElement dA) 
     const double am = MIN3(0.0, eml, emr);
 
     auto S = ConservationLaw::State();
-    S.U.resize (nq);
-    S.F.resize (nq);
+    // S.U.resize (nq);
+    // S.F.resize (nq);
 
     for (int q = 0; q < nq; ++q)
     {
