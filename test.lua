@@ -7,31 +7,31 @@ run_name = 'AdvectionTest'
 output_directory = 'data'
 
 -- Time at which to terminate simulation
-final_time = 0.1
+final_time = 4.0
 
 -- How frequently to output full simulation snapshot
 checkpoint_interval = 0.01
 
 -- CFL parameter
-cfl_parameter = 0.6
+cfl_parameter = 0.5
 
 -- A callback to supply simple initial data
-initial_data = setups['abc_equilibrium_mhd']
+initial_data = setups['hydro_uniform']
 
 -- Grid geometry
 grid_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
-resolution = {64, 64, 1}
+resolution = {256, 16, 1}
 
 -- Domain lower bounds
-domain_lower = {-0.5,-0.5,-0.5}
+domain_lower = { 0.0, 0.00,-0.125}
 
 -- Domain upper bounds
-domain_upper = { 0.5, 0.5, 0.5}
+domain_upper = { 1.0, 0.25, 0.125}
 
 -- Conservation law: scalar_advection, newtonian_hydro, newtonian_mhd
-conservation_law = {'newtonian_mhd'}
+conservation_law = {'newtonian_hydro'}
 
 -- Riemann solver: upwind, hlle
 riemann_solver = 'hlle'
@@ -40,7 +40,7 @@ riemann_solver = 'hlle'
 flux_scheme = {'method_of_lines_plm', plm_theta=1.5}
 
 -- RK order: must be 1, 2, or 3
-runge_kutta_order = 3
+runge_kutta_order = 2
 
 -- Boundary condition name
-boundary_condition = 'periodic'
+boundary_condition = 'planar_pipe_flow'

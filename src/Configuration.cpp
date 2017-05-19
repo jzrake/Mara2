@@ -1,6 +1,7 @@
 #include <iostream>
 #include "Configuration.hpp"
 #include "CartesianMeshGeometry.hpp"
+#include "BoundaryConditions.hpp"
 #include "ConservationLaws.hpp"
 #include "RiemannSolver.hpp"
 #include "sol.hpp"
@@ -91,7 +92,15 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
 
     if (boundary_condition == "periodic")
     {
-        setup.boundaryCondition.reset (new PeriodicBoundaryCondition());
+        setup.boundaryCondition.reset (new PeriodicBoundaryCondition);
+    }
+    else if (boundary_condition == "driven_mhd")
+    {
+        setup.boundaryCondition.reset (new DrivenMHDBoundary);
+    }
+    else if (boundary_condition == "planar_pipe_flow")
+    {
+        setup.boundaryCondition.reset (new PlanarPipeFlow);
     }
     else
     {

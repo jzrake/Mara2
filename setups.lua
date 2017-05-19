@@ -1,9 +1,17 @@
 local setups = {}
 
+
 -- One profile for each component of the scalar advection law.
 function setups.scalar_pulse(x, y, z)
 	return {math.exp(-(x^2 + y^2) / 0.025), 2 - x*x}
 end
+
+
+-- Uniform hydrodynamic state with no fluid motion.
+function setups.hydro_uniform(x, y, z)
+	return {1.0, 0.0, 0.0, 0.0, 1.0}
+end
+
 
 -- A gaussian density enhancement that advects to the right with speed 1.
 function setups.hydro_pulse(x, y, z)
@@ -15,6 +23,7 @@ function setups.hydro_pulse(x, y, z)
 	return {d, u, v, w, p}
 end
 
+
 -- Classic hydro shocktube setup.
 function setups.shocktube1(x, y, z)
 	local d = x < 0.0 and 1.0 or 0.1
@@ -24,6 +33,7 @@ function setups.shocktube1(x, y, z)
 	local p = x < 0.0 and 1.0 or 0.125
 	return {d, u, v, w, p}
 end
+
 
 -- Classic MHD shocktube setup.
 function setups.shocktube1_mhd(x, y, z)
@@ -38,6 +48,7 @@ function setups.shocktube1_mhd(x, y, z)
 	return {d, u, v, w, p, b1, b2, b3}
 end
 
+
 -- Left and right states have the same total pressure, so the solution should
 -- remain near the initial value.
 function setups.pressure_equilibrium_mhd(x, y, z)
@@ -51,6 +62,7 @@ function setups.pressure_equilibrium_mhd(x, y, z)
 	local b3 = 0.0
 	return {d, u, v, w, p, b1, b2, b3}
 end
+
 
 function setups.abc_equilibrium_mhd(x, y, z)
 	local A = 1.0

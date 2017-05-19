@@ -94,10 +94,6 @@ class ConservationLaw
 public:
     struct State
     {
-        // std::vector<double> P; // Primitive quantities
-        // std::vector<double> U; // Conserved densities
-        // std::vector<double> F; // Fluxes in given direction
-        // std::vector<double> A; // Eigenvalues
         std::array<double, 8> P; // Primitive quantities
         std::array<double, 8> U; // Conserved densities
         std::array<double, 8> F; // Fluxes in given direction
@@ -264,14 +260,6 @@ private:
 };
 
 
-
-
-// ============================================================================
-class PeriodicBoundaryCondition : public BoundaryCondition
-{
-public:
-    void apply (Cow::Array& P, int numGuard) const override;
-};
 
 
 #endif

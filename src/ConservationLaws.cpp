@@ -124,11 +124,11 @@ ConservationLaw::State NewtonianHydro::fromPrimitive (const Request& request, co
     S.U[S33] = P[RHO] * P[V33];
     S.U[NRG] = P[RHO] * 0.5 * vv + P[PRE] / gm1;
 
-    S.F[DDD] =  S.U[DDD] * vn;
-    S.F[S11] =  S.U[S11] * vn + P[PRE] * dAA[0];
-    S.F[S22] =  S.U[S22] * vn + P[PRE] * dAA[1];
-    S.F[S33] =  S.U[S33] * vn + P[PRE] * dAA[2];
-    S.F[NRG] = (S.U[NRG] + P[PRE]) * vn;
+    S.F[DDD] = vn * S.U[DDD];
+    S.F[S11] = vn * S.U[S11] + P[PRE] * dAA[0];
+    S.F[S22] = vn * S.U[S22] + P[PRE] * dAA[1];
+    S.F[S33] = vn * S.U[S33] + P[PRE] * dAA[2];
+    S.F[NRG] = vn * S.U[NRG] + P[PRE] * vn;
 
     S.A[0] = vn - cs;
     S.A[1] = vn;
