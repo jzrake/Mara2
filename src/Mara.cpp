@@ -277,11 +277,21 @@ void writeOutput (SimulationSetup& setup, SimulationStatus& status, FluxConserva
     {
         std::string field = setup.conservationLaw->getPrimitiveName(q);
 
-        auto P = system.getPrimitive (q);
-        file.write (field, P);
+        auto P = system.getPrimitive(q);
+        file.write (field, P); // Write HDF5 (this should really be in a separate method)
 
-        vtkDataSet.addField (field, P);
+        if (field.find ("magnetic") == -1)
+        {
+            vtkDataSet.addScalarField (field, P);
+        }
     }
+
+    if (setup.conservationLaw->getNumConserved() == 8) // it's MHD
+    {
+        auto P = system.getPrimitiveVector(5);
+        vtkDataSet.addVectorField ("magnetic", P);        
+    }
+
     vtkDataSet.write (vtkStream);
 
     ++status.checkpointsWrittenSoFar;

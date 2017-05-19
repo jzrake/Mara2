@@ -94,13 +94,13 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
     {
         setup.boundaryCondition.reset (new PeriodicBoundaryCondition);
     }
-    else if (boundary_condition == "driven_mhd")
-    {
-        setup.boundaryCondition.reset (new DrivenMHDBoundary);
-    }
     else if (boundary_condition == "planar_pipe_flow")
     {
         setup.boundaryCondition.reset (new PlanarPipeFlow);
+    }
+    else if (boundary_condition == "driven_mhd")
+    {
+        setup.boundaryCondition.reset (new DrivenMHDBoundary);
     }
     else
     {

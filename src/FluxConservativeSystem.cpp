@@ -95,6 +95,15 @@ Cow::Array::Reference FluxConservativeSystem::getPrimitive (int fieldIndex)
     return P[R];
 }
 
+Cow::Array::Reference FluxConservativeSystem::getPrimitiveVector (int fieldIndex)
+{
+    Region R = updateableRegion;
+    R.stride[3] = 1;
+    R.lower[3] = fieldIndex;
+    R.upper[3] = fieldIndex + 3;
+    return P[R];
+}
+
 void FluxConservativeSystem::setInitialData (InitialDataFunction F)
 {
     auto request = ConservationLaw::Request();

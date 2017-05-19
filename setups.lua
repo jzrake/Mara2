@@ -51,7 +51,7 @@ end
 
 -- Left and right states have the same total pressure, so the solution should
 -- remain near the initial value.
-function setups.pressure_equilibrium_mhd(x, y, z)
+function setups.mhd_pressure_equilibrium(x, y, z)
 	local d = 1.0
 	local u = 0.0
 	local v = 0.0
@@ -64,10 +64,18 @@ function setups.pressure_equilibrium_mhd(x, y, z)
 end
 
 
-function setups.abc_equilibrium_mhd(x, y, z)
+-- Unform vertical magnetic field.
+function setups.mhd_uniform_vertical(x, y, z)
+	local bz = 1.0
+	return {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, bz}
+end
+
+
+-- Force-free equilibrium state.
+function setups.mhd_abc_equilibrium(x, y, z)
 	local A = 1.0
 	local B = 1.0
-	local C = 0.0
+	local C = 1.0
 	local k = 4.0 * math.pi
 	local d = 1.0
 	local u = 0.0

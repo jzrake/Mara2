@@ -21,6 +21,12 @@ public:
     Cow::Array::Reference getPrimitive (int fieldIndex=-1);
 
     /**
+    Return three contiguous components of the primitive data, starting at the
+    given index.
+    */
+    Cow::Array::Reference getPrimitiveVector (int fieldIndex);
+
+    /**
     Set initial data on the primitive variable array.
     */
     void setInitialData (InitialDataFunction F);
