@@ -34,7 +34,17 @@ public:
 
     double faceArea (int i, int j, int k, int axis) const override
     {
-        return 1.0; // 1D only !!!
+        const double dx = cellLength (i, j, k, 0);
+        const double dy = cellLength (i, j, k, 1);
+        const double dz = cellLength (i, j, k, 2);
+
+        switch (axis)
+        {
+            case 0: return dy * dz;
+            case 1: return dz * dx;
+            case 2: return dx * dy;
+            default: return 0.0;
+        }
     }
 
     double cellLength (int i, int j, int k, int axis) const override
@@ -44,7 +54,10 @@ public:
 
     double cellVolume (int i, int j, int k) const override
     {
-        return (upper[0] - lower[0]) / shape[0]; // 1D only !!!
+        const double dx = cellLength (i, j, k, 0);
+        const double dy = cellLength (i, j, k, 1);
+        const double dz = cellLength (i, j, k, 2);
+        return dx * dy * dz;
     }
 
     Cow::Shape shape;
