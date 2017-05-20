@@ -14,6 +14,20 @@ class PeriodicBoundaryCondition : public BoundaryCondition
 {
 public:
     void apply (Cow::Array& P, int numGuard) const override;
+    void applyToAxis (Cow::Array& P, int numGuard, int axis) const;
+};
+
+
+
+
+/**
+A simple outflow boundary condition, zero-gradient is imposed on all variables.
+*/
+class OutflowBoundaryCondition : public BoundaryCondition
+{
+public:
+    void apply (Cow::Array& P, int numGuard) const override;
+    void applyToAxis (Cow::Array& P, int numGuard, int axis) const;
 };
 
 

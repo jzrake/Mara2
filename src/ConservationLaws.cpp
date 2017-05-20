@@ -107,10 +107,6 @@ ConservationLaw::State NewtonianHydro::fromPrimitive (const Request& request, co
     const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
 
     auto S = State();
-    // S.P.resize (5);
-    // S.U.resize (5);
-    // S.F.resize (5);
-    // S.A.resize (5);
 
     S.P[RHO] = P[RHO];
     S.P[V11] = P[V11];
@@ -201,10 +197,6 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     const double ps = P[PRE] + 0.5 * BB; // total pressure
 
     auto S = State();
-    // S.P.resize (8);
-    // S.U.resize (8);
-    // S.F.resize (8);
-    // S.A.resize (8);
 
     S.P[RHO] = P[RHO];
     S.P[V11] = P[V11];
@@ -232,6 +224,8 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     S.F[H11] = vn * S.U[H11] - Bn * P[V11];
     S.F[H22] = vn * S.U[H22] - Bn * P[V22];
     S.F[H33] = vn * S.U[H33] - Bn * P[V33];
+
+    //if (dAA[2] == 1.0) std::cout << "Fz(Bx) = " << S.F[B11] << std::endl;
 
     const double Bn2 = Bn * Bn;
     const double cs2 = cs * cs;

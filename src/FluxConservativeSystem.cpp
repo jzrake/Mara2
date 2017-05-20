@@ -288,12 +288,12 @@ void FluxConservativeSystem::computeTimeDerivative()
         const int j = index[1];
         const int k = index[2];
 
-        const double A1L = meshGeometry->faceArea (i - 0, j, k, 1);
-        const double A1R = meshGeometry->faceArea (i + 1, j, k, 1);
-        const double A2L = meshGeometry->faceArea (i, j - 0, k, 2);
-        const double A2R = meshGeometry->faceArea (i, j + 1, k, 2);
-        const double A3L = meshGeometry->faceArea (i, j, k - 0, 3);
-        const double A3R = meshGeometry->faceArea (i, j, k + 1, 3);
+        const double A1L = meshGeometry->faceArea (i - 0, j, k, 0);
+        const double A1R = meshGeometry->faceArea (i + 1, j, k, 0);
+        const double A2L = meshGeometry->faceArea (i, j - 0, k, 1);
+        const double A2R = meshGeometry->faceArea (i, j + 1, k, 1);
+        const double A3L = meshGeometry->faceArea (i, j, k - 0, 2);
+        const double A3R = meshGeometry->faceArea (i, j, k + 1, 2);
         const double Vol = meshGeometry->cellVolume (i, j, k);
 
         for (int q = 0; q < numConserved; ++q)
@@ -303,6 +303,10 @@ void FluxConservativeSystem::computeTimeDerivative()
             const double dAF3 = F3 (i, j, k + 1, q) * A3R - F3 (i, j, k, q) * A3L;
 
             it[q] = -(dAF1 + dAF2 + dAF3) / Vol;
+
+            // std::cout << "dot(Bx) = " <<  it[5] << std::endl;
+            // std::cout << "dot(By) = " <<  it[6] << std::endl;
+            // std::cout << "dot(Bz) = " <<  it[7] << std::endl;
         }
     }
 }

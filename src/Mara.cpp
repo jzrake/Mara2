@@ -244,7 +244,6 @@ ConservationLaw::State MethodOfLinesWeno::intercellFlux (const FaceData& faceDat
 
     auto Fhat = Shat.R * fhat;
     auto S = ConservationLaw::State();
-    //S.F.resize (nq);
 
     for (int q = 0; q < nq; ++q)
     {
@@ -343,7 +342,7 @@ int main(int argc, const char* argv[])
 
         std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
         std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
-        std::cout << "dt=" << std::setprecision (2) << std::scientific << dt << " ";
+        std::cout << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
         std::cout << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
     }
 

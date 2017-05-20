@@ -1,3 +1,4 @@
+#include <cassert>
 #include "Mara.hpp"
 
 
@@ -43,7 +44,7 @@ public:
             case 0: return dy * dz;
             case 1: return dz * dx;
             case 2: return dx * dy;
-            default: return 0.0;
+            default: assert (false);
         }
     }
 
