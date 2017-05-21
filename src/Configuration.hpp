@@ -12,6 +12,7 @@ public:
     Configuration();
     ~Configuration();
     SimulationSetup fromLuaFile (std::string filename);
+    int launchFromScript (MaraSession& mara, std::string filename);
 
 private:
     class LuaState;

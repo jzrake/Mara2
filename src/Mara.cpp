@@ -10,6 +10,7 @@
 #include "HDF5.hpp"
 #include "Timer.hpp"
 #include "VTK.hpp"
+#include "MPI.hpp"
 #include "Matrix.hpp"
 #include "DebugHelper.hpp"
 
@@ -257,13 +258,18 @@ int MethodOfLinesWeno::getStencilSize() const
     return 3;
 }
 
+
+
+
 void writeOutput (SimulationSetup& setup, SimulationStatus& status, FluxConservativeSystem& system)
 {
     using namespace Cow;
 
+    auto mpiWorld = MpiCommunicator::world();
     auto dir = setup.outputDirectory;
 
-    FileSystem::ensureDirectoryExists (dir);
+    mpiWorld.onMasterOnly ([&] () { FileSystem::ensureDirectoryExists (dir); });
+
     auto h5fname = FileSystem::makeFilename (dir, "chkpt", ".h5", status.checkpointsWrittenSoFar);
     auto vtkname = FileSystem::makeFilename (dir, "mesh", ".vtk", status.vtkOutputsWrittenSoFar);
 
@@ -300,28 +306,12 @@ void writeOutput (SimulationSetup& setup, SimulationStatus& status, FluxConserva
 
 
 
-// ============================================================================
-int main(int argc, const char* argv[])
+int MaraSession::launch (SimulationSetup& setup)
 {
-    using namespace Cow;
-    std::set_terminate (Cow::terminateWithBacktrace);
-
-
-    if (argc == 1)
-    {
-        std::cout << "usage: mara config.lua\n";
-        return 0;
-    }
-    auto configuration = Configuration();
-    auto setup = configuration.fromLuaFile (argv[1]);
-
-
-    // Setup lines specific to conservation law problems
-    auto system = FluxConservativeSystem (setup);
-    system.setInitialData (setup.initialDataFunction);
-
-
     auto status = SimulationStatus();
+    auto system = FluxConservativeSystem (setup);
+
+    system.setInitialData (setup.initialDataFunction);
     writeOutput (setup, status, system);
 
     while (status.simulationTime < setup.finalTime)
@@ -344,6 +334,55 @@ int main(int argc, const char* argv[])
         std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
         std::cout << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
         std::cout << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
+    }
+
+    return 0;
+}
+
+
+
+
+// ============================================================================
+int main (int argc, const char* argv[])
+{
+    using namespace Cow;
+    MpiSession mpiSession;
+
+    std::set_terminate (Cow::terminateWithBacktrace);
+
+    if (argc == 1)
+    {
+        std::cout << "usages: \n";
+        std::cout << "\tmara config.lua\n";
+        std::cout << "\tmara run script.lua\n";
+        std::cout << "\tmara help\n";
+        return 0;
+    }
+
+    auto session = MaraSession();
+    auto configuration = Configuration();
+    auto command = std::string (argv[1]);
+
+    if (command == "help")
+    {
+        std::cout <<
+        "Mara is an astrophysics code for gas and magnetofluid "
+        "dynamics simulations.\n";
+        return 0;
+    }
+    else if (command == "run")
+    {
+        if (argc < 3)
+        {
+            std::cout << "'run': no script provided\n";
+            return 0;
+        }
+        return configuration.launchFromScript (session, argv[2]);
+    }
+    else
+    {
+        auto setup = configuration.fromLuaFile (argv[1]);
+        return session.launch (setup);
     }
 
     return 0;

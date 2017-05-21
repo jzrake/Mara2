@@ -1,13 +1,13 @@
 local setups = require 'setups'
 
- -- name of the current run
+-- name of the current run
 run_name = 'AdvectionTest'
 
 -- directory where output should go
 output_directory = 'data'
 
 -- Time at which to terminate simulation
-final_time = 4.
+final_time = 0.5
 
 -- How frequently to output full simulation snapshot
 checkpoint_interval = 0.05

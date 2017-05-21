@@ -14,6 +14,12 @@ void PeriodicBoundaryCondition::apply (Cow::Array& P, int numGuard) const
 
 void PeriodicBoundaryCondition::applyToAxis (Cow::Array& P, int numGuard, int axis) const
 {
+    if (P.size (axis) == 1)
+    {
+        throw std::runtime_error("Attempt to apply boundary "
+            "condition on flattened axis " + std::to_string (axis));
+    }
+
     const int ng = numGuard;
     const int ni = P.size(0) - 2 * ng;
     const int nj = P.size(1) - 2 * ng;
@@ -90,6 +96,12 @@ void OutflowBoundaryCondition::apply (Cow::Array& P, int numGuard) const
 
 void OutflowBoundaryCondition::applyToAxis (Cow::Array& P, int numGuard, int axis) const
 {
+    if (P.size (axis) == 1)
+    {
+        throw std::runtime_error("Attempt to apply boundary "
+            "condition on flattened axis " + std::to_string (axis));
+    }
+
     const int ng = numGuard;
     const int ni = P.size(0) - 2 * ng;
     const int nj = P.size(1) - 2 * ng;

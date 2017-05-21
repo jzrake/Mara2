@@ -15,6 +15,7 @@
 class BoundaryCondition;
 class ConservationLaw;
 class IntercellFluxScheme;
+class MaraSession;
 class MeshGeometry;
 class RiemannSolver;
 class SimulationSetup;
@@ -22,6 +23,15 @@ class SimulationStatus;
 
 using InitialDataFunction = std::function<std::vector<double> (double, double, double)>;
 using AreaElement = std::array<double, 3>;
+
+
+
+
+class MaraSession
+{
+public:
+    int launch (SimulationSetup& setup);
+};
 
 
 
