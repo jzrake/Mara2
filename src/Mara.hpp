@@ -102,6 +102,14 @@ public:
 class ConservationLaw
 {
 public:
+    enum class VariableType
+    {
+        density  = 111,
+        velocity = 222,
+        pressure = 333,
+        magnetic = 444,
+    };
+
     struct State
     {
         std::array<double, 8> P; // Primitive quantities
@@ -146,6 +154,13 @@ public:
     number.
     */
     virtual int getNumConserved() const = 0;
+
+    /**
+    Return the index at which the given primitive variable data resides. If
+    this conservation law does not have that variable type, the return value
+    will be -1.
+    */
+    virtual int getIndexFor (VariableType type) const = 0;
 
     /**
     Return a name for the primitive variable at the given index.

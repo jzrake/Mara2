@@ -261,67 +261,104 @@ int MethodOfLinesWeno::getStencilSize() const
 
 
 
-void writeOutput (SimulationSetup& setup, SimulationStatus& status, FluxConservativeSystem& system)
+void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConservativeSystem& system)
 {
     using namespace Cow;
-
     auto mpiWorld = MpiCommunicator::world();
     auto dir = setup.outputDirectory;
-
     mpiWorld.onMasterOnly ([&] () { FileSystem::ensureDirectoryExists (dir); });
 
-    auto h5fname = FileSystem::makeFilename (dir, "chkpt", ".h5", status.checkpointsWrittenSoFar);
-    auto vtkname = FileSystem::makeFilename (dir, "mesh", ".vtk", status.vtkOutputsWrittenSoFar);
-
-    auto file = H5::File (h5fname, "w");
-    auto vtkStream = std::ofstream (vtkname);
+    auto vtkFilename = FileSystem::makeFilename (dir, "mesh", ".vtk", status.vtkOutputsWrittenSoFar);
+    auto vtkStream = std::ofstream (vtkFilename);
     auto vtkDataSet = VTK::DataSet (setup.meshGeometry->domainShape());
     vtkDataSet.setTitle (setup.runName);
 
-    for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
+    using VT = ConservationLaw::VariableType;
+    auto claw = setup.conservationLaw;
+
+    auto indexD = claw->getIndexFor (VT::density);
+    auto indexP = claw->getIndexFor (VT::pressure);
+    auto indexV = claw->getIndexFor (VT::velocity);
+    auto indexB = claw->getIndexFor (VT::magnetic);
+
+    if (indexD != -1)
     {
-        std::string field = setup.conservationLaw->getPrimitiveName(q);
-
-        auto P = system.getPrimitive(q);
-        file.write (field, P); // Write HDF5 (this should really be in a separate method)
-
-        if (field.find ("magnetic") == -1)
-        {
-            vtkDataSet.addScalarField (field, P);
-        }
+        auto D = system.getPrimitive (indexD);
+        vtkDataSet.addScalarField ("density", D);
+    }
+    if (indexP != -1)
+    {
+        auto P = system.getPrimitive (indexP);
+        vtkDataSet.addScalarField ("pressure", P);
+    }
+    if (indexV != -1)
+    {
+        auto V = system.getPrimitiveVector (indexV);
+        vtkDataSet.addVectorField ("velocity", V);
+    }
+    if (indexB != -1)
+    {
+        auto B = system.getPrimitiveVector (indexB);
+        vtkDataSet.addVectorField ("magnetic", B);
     }
 
-    if (setup.conservationLaw->getNumConserved() == 8) // it's MHD
-    {
-        auto P = system.getPrimitiveVector(5);
-        vtkDataSet.addVectorField ("magnetic", P);        
-    }
-
+    std::cout << "writing VTK file " << vtkFilename << std::endl;
     vtkDataSet.write (vtkStream);
-
-    ++status.checkpointsWrittenSoFar;
     ++status.vtkOutputsWrittenSoFar;
 }
 
 
 
 
+void writeCheckpoint (SimulationSetup& setup, SimulationStatus& status, FluxConservativeSystem& system)
+{
+    using namespace Cow;
+    auto mpiWorld = MpiCommunicator::world();
+    auto dir = setup.outputDirectory;
+
+    mpiWorld.onMasterOnly ([&] () { FileSystem::ensureDirectoryExists (dir); });
+
+    auto h5Filename = FileSystem::makeFilename (dir, "chkpt", ".h5", status.checkpointsWrittenSoFar);
+    auto file = H5::File (h5Filename, "w");
+
+    std::cout << "writing checkpoint file " << h5Filename << std::endl;
+
+    for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
+    {
+        auto field = setup.conservationLaw->getPrimitiveName(q);
+        file.write (field, system.getPrimitive(q));
+    }
+
+    ++status.checkpointsWrittenSoFar;
+}
+
+
+
+
+// ============================================================================
 int MaraSession::launch (SimulationSetup& setup)
 {
     auto status = SimulationStatus();
     auto system = FluxConservativeSystem (setup);
 
     system.setInitialData (setup.initialDataFunction);
-    writeOutput (setup, status, system);
+    writeVtkOutput (setup, status, system);
 
     while (status.simulationTime < setup.finalTime)
     {
-        if (status.simulationTime >= status.checkpointsWrittenSoFar * setup.checkpointInterval)
+        double nextVtk = status.vtkOutputsWrittenSoFar * setup.vtkOutputInterval;
+        double nextChkpt = status.checkpointsWrittenSoFar * setup.checkpointInterval;
+
+        if (setup.checkpointInterval > 0 && status.simulationTime >= nextVtk)
         {
-            writeOutput (setup, status, system);
+            writeVtkOutput (setup, status, system);
         }
 
-        Cow::Timer timer;
+        if (setup.vtkOutputInterval > 0 && status.simulationTime >= nextChkpt)
+        {
+            writeCheckpoint (setup, status, system);
+        }
+        auto timer = Cow::Timer();
 
         double dt = setup.cflParameter * system.getCourantTimestep();
         system.advance (dt);
@@ -329,7 +366,6 @@ int MaraSession::launch (SimulationSetup& setup)
         status.simulationIter += 1;
 
         double kzps = 1e-3 * setup.meshGeometry->totalCellsInMesh() / timer.age();
-
         std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
         std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
         std::cout << "dt=" << std::setprecision (4) << std::scientific << dt << " ";

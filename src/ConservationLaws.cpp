@@ -63,6 +63,15 @@ int ScalarAdvection::getNumConserved() const
     return 2;
 }
 
+int ScalarAdvection::getIndexFor (VariableType type) const
+{
+    switch (type)
+    {
+        case VariableType::density: return 0;
+        default: return -1;
+    }
+}
+
 std::string ScalarAdvection::getPrimitiveName (int fieldIndex) const
 {
     switch (fieldIndex)
@@ -143,6 +152,17 @@ int NewtonianHydro::getNumConserved() const
     return 5;
 }
 
+int NewtonianHydro::getIndexFor (VariableType type) const
+{
+    switch (type)
+    {
+        case VariableType::density: return 0;
+        case VariableType::velocity: return 1;
+        case VariableType::pressure: return 4;
+        default: return -1;
+    }
+}
+
 std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const
 {
     switch (fieldIndex)
@@ -155,6 +175,7 @@ std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const
         default: return "";
     }
 }
+
 
 
 
@@ -251,6 +272,18 @@ int NewtonianMHD::getNumConserved() const
     return 8;
 }
 
+int NewtonianMHD::getIndexFor (VariableType type) const
+{
+    switch (type)
+    {
+        case VariableType::density: return 0;
+        case VariableType::velocity: return 1;
+        case VariableType::pressure: return 4;
+        case VariableType::magnetic: return 5;
+        default: return -1;
+    }
+}
+
 std::string NewtonianMHD::getPrimitiveName (int fieldIndex) const
 {
     switch (fieldIndex)
@@ -266,3 +299,5 @@ std::string NewtonianMHD::getPrimitiveName (int fieldIndex) const
         default: return "";
     }
 }
+
+

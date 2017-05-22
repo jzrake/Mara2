@@ -173,9 +173,10 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
 
     // Run configuration
     // ------------------------------------------------------------------------
-    setup.outputDirectory = cfg["output_directory"];
     setup.finalTime = cfg["final_time"];
+    setup.outputDirectory = cfg["output_directory"];
     setup.checkpointInterval = cfg["checkpoint_interval"];
+    setup.vtkOutputInterval = cfg["vtk_output_interval"];
     setup.cflParameter = cfg["cfl_parameter"];
     setup.rungeKuttaOrder = cfg["runge_kutta_order"];
 
@@ -214,6 +215,11 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
 int Configuration::launchFromScript (MaraSession& session, std::string filename)
 {
     sol::table mara = lua.require_script ("mara", "return {}", false);
+
+    mara["weno"] = [&] (sol::table T)
+    {
+        return std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesWeno);
+    };
 
     mara["run"] = [&] (sol::table T)
     {

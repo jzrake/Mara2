@@ -13,6 +13,7 @@ public:
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     int getNumConserved() const override;
+    int getIndexFor (VariableType type) const override;
     std::string getPrimitiveName (int fieldIndex) const override;
 private:
     double waveSpeed;
@@ -27,6 +28,7 @@ public:
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     int getNumConserved() const override;
+    int getIndexFor (VariableType type) const override;
     std::string getPrimitiveName (int fieldIndex) const override;
 private:
     double gammaLawIndex;
@@ -41,6 +43,7 @@ public:
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     int getNumConserved() const override;
+    int getIndexFor (VariableType type) const override;
     std::string getPrimitiveName (int fieldIndex) const override;
 private:
     double gammaLawIndex;

@@ -236,4 +236,30 @@ void DrivenMHDBoundary::apply (Cow::Array& P, int numGuard) const
     if (P.size(0) > 1) periodic.applyToAxis (P, numGuard, 0);
     if (P.size(1) > 1) periodic.applyToAxis (P, numGuard, 1);
     if (P.size(2) > 1) outflow.applyToAxis (P, numGuard, 2);
+
+    const int V11 = 1;
+    const int V22 = 2;
+    const int ng = numGuard;
+    const int ni = P.size(0) - 2 * ng;
+    const int nj = P.size(1) - 2 * ng;
+    const int nk = P.size(2) - 2 * ng;
+
+    for (int i = 0; i < P.size(0); ++i)
+    {
+        for (int j = 0; j < P.size(1); ++j)
+        {
+            const double x = (i - ng + 0.5) / ni - 0.5;
+            const double y = (j - ng + 0.5) / nj - 0.5;
+            const double vx = 0.1 * std::sin (2 * M_PI * y);
+            const double vy = 0.1 * std::cos (2 * M_PI * x);
+
+            for (int k = 0; k < ng; ++k)
+            {
+                P (i, j, k,           V11) =  vx;
+                P (i, j, k + nk + ng, V11) = -vx;
+                P (i, j, k,           V22) =  vy;
+                P (i, j, k + nk + ng, V22) = -vy;
+            }
+        }
+    }
 }
