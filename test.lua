@@ -4,7 +4,7 @@ local setups = require 'setups'
 run_name = 'AdvectionTest'
 
 -- directory where output should go
-output_directory = 'data'
+output_directory = 'mhdVz016'
 
 -- Time at which to terminate simulation
 final_time = 16.0
@@ -14,7 +14,7 @@ final_time = 16.0
 checkpoint_interval = 1.0
 
 -- How frequently to write VTK data (set to 0 to disable VTK output)
-vtk_output_interval = 0.05
+vtk_output_interval = 0.1
 
 -- CFL parameter
 cfl_parameter = 0.3
@@ -26,7 +26,7 @@ initial_data = setups['mhd_uniform_vertical']
 grid_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
-resolution = {32, 32, 32}
+resolution = {16, 16, 16}
 
 -- Domain lower bounds
 domain_lower = {-0.5, -0.5, -0.5}

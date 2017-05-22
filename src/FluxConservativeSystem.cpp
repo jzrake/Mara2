@@ -313,7 +313,7 @@ void FluxConservativeSystem::computeTimeDerivative()
 
 void FluxConservativeSystem::applyBoundaryCondition()
 {
-    boundaryCondition->apply (P, stencilSize);
+    boundaryCondition->apply (P, *conservationLaw, stencilSize);
 }
 
 void FluxConservativeSystem::updateConserved (double dt)

@@ -93,7 +93,7 @@ public:
 class BoundaryCondition
 {
 public:
-    virtual void apply (Cow::Array& P, int numGuard) const = 0;
+    virtual void apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const = 0;
 };
 
 

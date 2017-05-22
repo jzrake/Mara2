@@ -66,9 +66,10 @@ end
 
 -- Unform vertical magnetic field.
 function setups.mhd_uniform_vertical(x, y, z)
-	local vx = 0.0 * z
-	local bz = 0.5
-	return {1.0, vx, 0.0, 0.0, 1.0, 0.0, 0.0, bz}
+	local bz = 4.0
+	local d = 1.0
+	local p = 1.0
+	return {d, 0.0, 0.0, 0.0, p, 0.0, 0.0, bz}
 end
 
 
