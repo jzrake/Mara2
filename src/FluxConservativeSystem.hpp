@@ -11,6 +11,21 @@
 class FluxConservativeSystem
 {
 public:
+    /**
+    An exception class that holds a list of zones that have failed in a given
+    time step.
+    */
+    class SolverFailure : public std::exception
+    {
+    public:
+        const char* what() const noexcept override;
+        std::vector<ConservationLaw::StateFailure> failedStates;
+    };
+
+    /**
+    Constructor, stores shared pointers to needed algorithms in the given
+    setup struct.
+    */
     FluxConservativeSystem (SimulationSetup setup);
 
     /**

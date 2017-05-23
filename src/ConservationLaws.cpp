@@ -55,6 +55,21 @@ const char* ConservationLaw::StateFailure::what() const noexcept
 
 
 // ============================================================================
+ConservationLaw::Request::Request()
+{
+    getPrimitive = false;
+    getConserved = false;
+    getFluxes = false;
+    getEigenvalues = false;
+    areaElement[0] = 1.0;
+    areaElement[1] = 0.0;
+    areaElement[2] = 0.0;
+}
+
+
+
+
+// ============================================================================
 ScalarAdvection::ScalarAdvection (double waveSpeed) : waveSpeed (waveSpeed)
 {
 

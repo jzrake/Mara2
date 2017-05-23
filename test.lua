@@ -17,7 +17,7 @@ checkpoint_interval = 1.0
 vtk_output_interval = 0.1
 
 -- CFL parameter
-cfl_parameter = 0.4
+cfl_parameter = 0.3
 
 -- A callback to supply simple initial data
 initial_data = setups['mhd_uniform_vertical']

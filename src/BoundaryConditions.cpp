@@ -382,8 +382,8 @@ void DrivenMHDBoundary::apply (Cow::Array& P, const ConservationLaw& law, int nu
         {
             const double x = (i - ng + 0.5) / ni - 0.5;
             const double y = (j - ng + 0.5) / nj - 0.5;
-            const double vx = 0.05 * std::sin (2 * M_PI * (y - 0.25));
-            const double vy = 0.05 * std::cos (2 * M_PI * (x - 0.25));
+            const double vx = 0.05 * std::sin (2 * M_PI * y);
+            const double vy = 0.05 * std::cos (2 * M_PI * x);
 
             for (int k = 0; k < ng; ++k)
             {

@@ -109,14 +109,6 @@ public:
         magnetic,
     };
 
-    // enum class StateHealth
-    // {
-    //     healthyState,
-    //     negativePressure,
-    //     negativeDensity,
-    //     negativeTotalEnergy,
-    // };
-
     struct State
     {
         std::array<double, 8> P; // Primitive quantities
@@ -125,8 +117,6 @@ public:
         std::array<double, 8> A; // Eigenvalues
         Cow::Matrix L; // Left eigenvector matrix
         Cow::Matrix R; // Right eigenvector matrix
-        // std::array<int, 3> zoneIndex;
-        // StateHealth health;
     };
 
     struct Request

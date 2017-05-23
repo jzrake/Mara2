@@ -1,5 +1,6 @@
 #include <iostream> //DEBUG
 #include <cassert>
+#include <sstream>
 #include <cmath>
 #include "FluxConservativeSystem.hpp"
 #define MIN2(a, b) ((a) < (b) ? a : b)
@@ -10,15 +11,18 @@ using namespace Cow;
 
 
 // ============================================================================
-ConservationLaw::Request::Request()
+const char* FluxConservativeSystem::SolverFailure::what() const noexcept
 {
-    getPrimitive = false;
-    getConserved = false;
-    getFluxes = false;
-    getEigenvalues = false;
-    areaElement[0] = 1.0;
-    areaElement[1] = 0.0;
-    areaElement[2] = 0.0;
+    std::stringstream stream;
+    static std::string message;
+
+    for (auto& e : failedStates)
+    {
+        stream << e.what() << std::endl;
+    }
+    message = stream.str();
+
+    return message.c_str();
 }
 
 
@@ -335,6 +339,7 @@ void FluxConservativeSystem::recoverPrimitive()
     auto Preg = P[updateableRegion];
     auto pit = Preg.begin();
     auto uit = Ureg.begin();
+    auto solverFailure = SolverFailure();
 
     for ( ; uit != Ureg.end(); ++uit, ++pit)
     {
@@ -347,12 +352,16 @@ void FluxConservativeSystem::recoverPrimitive()
                 pit[q] = S.P[q];
             }
         }
-        catch (ConservationLaw::StateFailure& failure)
+        catch (ConservationLaw::StateFailure& stateFailure)
         {
-            failure.zoneIndex = uit.index();
-            //std::cout << failure.what() << std::endl;
-            throw;
+            stateFailure.zoneIndex = uit.index();
+            solverFailure.failedStates.push_back (stateFailure);
         }
+    }
+
+    if (solverFailure.failedStates.size() > 0)
+    {
+        throw solverFailure;
     }
 }
 
