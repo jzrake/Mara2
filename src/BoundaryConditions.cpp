@@ -12,6 +12,20 @@ void PeriodicBoundaryCondition::apply (Cow::Array& P, const ConservationLaw& law
     if (P.size(2) > 1) applyToAxis (P, numGuard, 2);
 }
 
+void PeriodicBoundaryCondition::applyToCellCenteredB (Cow::Array& B, int numGuard) const
+{
+    if (B.size(0) > 1) applyToAxis (B, numGuard, 0);
+    if (B.size(1) > 1) applyToAxis (B, numGuard, 1);
+    if (B.size(2) > 1) applyToAxis (B, numGuard, 2);
+}
+
+void PeriodicBoundaryCondition::applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const
+{
+    if (F.size(0) > 1) applyToAxis (F, numGuard, 0);
+    if (F.size(1) > 1) applyToAxis (F, numGuard, 1);
+    if (F.size(2) > 1) applyToAxis (F, numGuard, 2);
+}
+
 void PeriodicBoundaryCondition::applyToAxis (Cow::Array& P, int numGuard, int axis) const
 {
     if (P.size (axis) == 1)

@@ -13,31 +13,54 @@ void UniformCartesianCT::setDomainShape (Cow::Shape shape)
     domainShape = shape;
 }
 
+void UniformCartesianCT::setBoundaryCondition (std::shared_ptr<BoundaryCondition> newBC)
+{
+    boundaryCondition = newBC;
+}
+
 Array UniformCartesianCT::computeMonopole (MeshLocation location) const
 {
     assert (location == MeshLocation::vert);
-    auto shape = domainShape;
-    shape[0] += 1;
-    shape[1] += 1;
-    shape[2] += 1;
 
-    auto divB = Array (shape);
+    auto Mshape = domainShape;
+    Mshape[0] += 1;
+    Mshape[1] += 1;
+    Mshape[2] += 1;
 
-    for (int i = 0; i < B.size(0) - 1; ++i)
+    auto Bshape = domainShape;
+    Bshape[0] += 2;
+    Bshape[1] += 2;
+    // Bshape[2] += 2;
+    Bshape[3] = 3;
+
+    auto updateableRegion = Region();
+    updateableRegion.lower[0] =  1;
+    updateableRegion.upper[0] = -1;
+    updateableRegion.lower[1] =  1;
+    updateableRegion.upper[1] = -1;
+    // updateableRegion.lower[2] =  1;
+    // updateableRegion.upper[2] = -1;
+
+    auto M0 = Array (Mshape);
+    auto B0 = Array (Bshape);
+
+    B0[updateableRegion] = B;
+    boundaryCondition->applyToCellCenteredB (B0, 1);
+
+    for (int i = 0; i < B0.size(0) - 1; ++i)
     {
-        for (int j = 0; j < B.size(1) - 1; ++j)
+        for (int j = 0; j < B0.size(1) - 1; ++j)
         {
-            double Bi1 = 0.5 * (B(i + 1, j, 0, 0) + B(i + 1, j + 1, 0, 0)); // average Bx_{i+1} in the j-direction
-            double Bi0 = 0.5 * (B(i + 0, j, 0, 0) + B(i + 0, j + 1, 0, 0)); // average Bx_{i+0} in the j-direction
-            double Bj1 = 0.5 * (B(i, j + 1, 0, 1) + B(i + 1, j + 1, 0, 1)); // average By_{j+1} in the i-direction
-            double Bj0 = 0.5 * (B(i, j + 0, 0, 1) + B(i + 1, j + 0, 0, 1)); // average By_{j+0} in the i-direction
+            double Bi1 = 0.5 * (B0(i + 1, j, 0, 0) + B0(i + 1, j + 1, 0, 0)); // average Bx_{i+1} in the j-direction
+            double Bi0 = 0.5 * (B0(i + 0, j, 0, 0) + B0(i + 0, j + 1, 0, 0)); // average Bx_{i+0} in the j-direction
+            double Bj1 = 0.5 * (B0(i, j + 1, 0, 1) + B0(i + 1, j + 1, 0, 1)); // average By_{j+1} in the i-direction
+            double Bj0 = 0.5 * (B0(i, j + 0, 0, 1) + B0(i + 1, j + 0, 0, 1)); // average By_{j+0} in the i-direction
 
-            divB (i + 1, j + 1, 0) = (Bi1 - Bi0) + (Bj1 - Bj0);
-            divB (i + 1, j + 1, 1) = (Bi1 - Bi0) + (Bj1 - Bj0);
+            M0 (i, j, 0) = (Bi1 - Bi0) + (Bj1 - Bj0);
+            M0 (i, j, 1) = (Bi1 - Bi0) + (Bj1 - Bj0);
         }
     }
-
-    return divB;
+    return M0;
 }
 
 void UniformCartesianCT::assignGodunovFluxes (Array newF1, Array newF2, Array newF3)

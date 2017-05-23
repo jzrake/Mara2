@@ -25,7 +25,14 @@ public:
     void setDomainShape (Cow::Shape shape) override;
 
     /**
-    Compute monopole level at given mesh location (vert or cell).
+    Assign a boundary condition to use for Godunov fluxes and magnetic field
+    values.
+    */
+    void setBoundaryCondition (std::shared_ptr<BoundaryCondition>) override;
+
+    /**
+    Compute monopole at the given mesh location (vert or cell) from the given
+    array of magnetic field vectors.
     */
     Array computeMonopole (MeshLocation location) const override;
 
@@ -39,7 +46,7 @@ public:
     /**
     Assign magnetic field values to cell centers.
     */
-    void assignCellCenteredB (Array newB);
+    void assignCellCenteredB (Array newB) override;
 
     /**
     Assign magnetic flux values to faces, formally the dimensions are B * dA,
@@ -63,6 +70,7 @@ public:
     void computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, Array& ctF3) const;
 
 private:
+    std::shared_ptr<BoundaryCondition> boundaryCondition;
     Shape domainShape;
     Array F1; // Godunov flux along each axis
     Array F2;

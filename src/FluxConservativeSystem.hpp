@@ -77,6 +77,8 @@ private:
     /* @internal */
     void takeRungeKuttaSubstep (double dt, double b);
     /* @internal */
+    void uploadFieldsToCT();
+    /* @internal */
     UniformCartesianCT* getCT();
 
     int numConserved;

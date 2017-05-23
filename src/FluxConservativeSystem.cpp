@@ -138,6 +138,7 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F)
     }
 
     applyBoundaryCondition();
+    uploadFieldsToCT();
 }
 
 double FluxConservativeSystem::getCourantTimestep()
@@ -194,13 +195,7 @@ void FluxConservativeSystem::advance (double dt)
         }
     }
 
-    int imag = conservationLaw->getIndexFor (ConservationLaw::VariableType::magnetic);
-
-    if (imag != -1)
-    {
-        auto ct = getCT();
-        ct->assignCellCenteredB (getPrimitiveVector (imag));
-    }
+    uploadFieldsToCT();
 }
 
 void FluxConservativeSystem::computeIntercellFluxes()
@@ -406,13 +401,23 @@ void FluxConservativeSystem::takeRungeKuttaSubstep (double dt, double b)
     applyBoundaryCondition();
 }
 
+void FluxConservativeSystem::uploadFieldsToCT()
+{
+    int imag = conservationLaw->getIndexFor (ConservationLaw::VariableType::magnetic);
+
+    if (imag != -1)
+    {
+        auto ct = getCT();
+        ct->assignCellCenteredB (getPrimitiveVector (imag));
+    }
+}
+
 UniformCartesianCT* FluxConservativeSystem::getCT()
 {
-    auto ct = dynamic_cast<UniformCartesianCT*> (constrainedTransport.get());
-
-    if (ct == nullptr)
+    if (auto ct = dynamic_cast<UniformCartesianCT*> (constrainedTransport.get()))
     {
-        throw std::logic_error ("constrainedTransport must be UniformCartesianCT");
+        return ct;
     }
-    return ct;
+
+    throw std::logic_error ("constrainedTransport must be UniformCartesianCT");
 }

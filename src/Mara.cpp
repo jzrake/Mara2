@@ -302,7 +302,7 @@ void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConse
         vtkDataSet.addVectorField ("magnetic", B);
 
         // Write divergence of magnetic field (at mesh vertices)
-        auto M = setup.constrainedTransport->computeMonopole(ConstrainedTransport::MeshLocation::vert);
+        auto M = setup.constrainedTransport->computeMonopole (ConstrainedTransport::MeshLocation::vert);
         vtkDataSet.addScalarField ("monopole", M, VTK::DataSet::MeshLocation::vert);
     }
 
@@ -317,6 +317,8 @@ void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConse
 void writeCheckpoint (SimulationSetup& setup, SimulationStatus& status, FluxConservativeSystem& system)
 {
     using namespace Cow;
+    using VT = ConservationLaw::VariableType; // For VT::magnetic
+
     auto mpiWorld = MpiCommunicator::world();
     auto dir = setup.outputDirectory;
 
@@ -333,6 +335,15 @@ void writeCheckpoint (SimulationSetup& setup, SimulationStatus& status, FluxCons
         file.write (field, system.getPrimitive(q));
     }
 
+
+    auto indexB = setup.conservationLaw->getIndexFor (VT::magnetic);
+
+    if (indexB != -1)
+    {
+        auto M = setup.constrainedTransport->computeMonopole (ConstrainedTransport::MeshLocation::vert);
+        file.write ("monopole", M);
+    }
+
     ++status.checkpointsWrittenSoFar;
 }
 
@@ -346,6 +357,8 @@ int MaraSession::launch (SimulationSetup& setup)
     auto system = FluxConservativeSystem (setup);
 
     setup.constrainedTransport->setDomainShape (setup.meshGeometry->domainShape());
+    setup.constrainedTransport->setBoundaryCondition (setup.boundaryCondition);
+
     system.setInitialData (setup.initialDataFunction);
     writeVtkOutput (setup, status, system);
 
