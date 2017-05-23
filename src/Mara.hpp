@@ -54,6 +54,7 @@ public:
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;
     std::shared_ptr<IntercellFluxScheme> intercellFluxScheme;
+    std::shared_ptr<ConstrainedTransport> constrainedTransport;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
     std::shared_ptr<RiemannSolver> riemannSolver;
     InitialDataFunction initialDataFunction;
@@ -103,6 +104,7 @@ class ConstrainedTransport
 {
 public:
     enum class MeshLocation { vert, edge, face, cell };
+    virtual void setDomainShape (Cow::Shape shape) = 0;
     virtual Cow::Array computeMonopole (MeshLocation location) const = 0;
 };
 

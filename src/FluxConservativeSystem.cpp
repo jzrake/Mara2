@@ -34,14 +34,13 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     meshGeometry           = setup.meshGeometry;
     conservationLaw        = setup.conservationLaw;
     intercellFluxScheme    = setup.intercellFluxScheme;
+    constrainedTransport   = setup.constrainedTransport;
     boundaryCondition      = setup.boundaryCondition;
     rungeKuttaOrder        = setup.rungeKuttaOrder;
 
     domainShape   = meshGeometry->domainShape();
     numConserved  = conservationLaw->getNumConserved();
     stencilSize   = intercellFluxScheme->getStencilSize();
-
-    constrainedTransport.reset (new UniformCartesianCT (domainShape));
 
     Shape shapeU  = domainShape;
     Shape shapeP  = domainShape;
@@ -194,6 +193,14 @@ void FluxConservativeSystem::advance (double dt)
             break;
         }
     }
+
+    int imag = conservationLaw->getIndexFor (ConservationLaw::VariableType::magnetic);
+
+    if (imag != -1)
+    {
+        auto ct = getCT();
+        ct->assignCellCenteredB (getPrimitiveVector (imag));
+    }
 }
 
 void FluxConservativeSystem::computeIntercellFluxes()
@@ -206,16 +213,18 @@ void FluxConservativeSystem::computeIntercellFluxes()
 
     if (imag != -1)
     {
+        auto ct = getCT();
         auto Rmag = Region();
         Rmag.lower[3] = imag;
         Rmag.upper[3] = imag + 3;
-        constrainedTransport->assignGodunovFluxes (F1[Rmag], F2[Rmag], F3[Rmag]);
+
+        ct->assignGodunovFluxes (F1[Rmag], F2[Rmag], F3[Rmag]);
 
         auto ctF1 = Cow::Array();
         auto ctF2 = Cow::Array();
         auto ctF3 = Cow::Array();
 
-        constrainedTransport->computeGodunovFluxesFieldCT (ctF1, ctF2, ctF3);
+        ct->computeGodunovFluxesFieldCT (ctF1, ctF2, ctF3);
 
         F1[Rmag] = ctF1;
         F2[Rmag] = ctF2;
@@ -395,4 +404,15 @@ void FluxConservativeSystem::takeRungeKuttaSubstep (double dt, double b)
     averageRungeKutta (b);
     recoverPrimitive();
     applyBoundaryCondition();
+}
+
+UniformCartesianCT* FluxConservativeSystem::getCT()
+{
+    auto ct = dynamic_cast<UniformCartesianCT*> (constrainedTransport.get());
+
+    if (ct == nullptr)
+    {
+        throw std::logic_error ("constrainedTransport must be UniformCartesianCT");
+    }
+    return ct;
 }

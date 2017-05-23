@@ -300,6 +300,10 @@ void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConse
     {
         auto B = system.getPrimitiveVector (indexB);
         vtkDataSet.addVectorField ("magnetic", B);
+
+        // Write divergence of magnetic field (at mesh vertices)
+        auto M = setup.constrainedTransport->computeMonopole(ConstrainedTransport::MeshLocation::vert);
+        vtkDataSet.addScalarField ("monopole", M, VTK::DataSet::MeshLocation::vert);
     }
 
     std::cout << "writing VTK file " << vtkFilename << std::endl;
@@ -341,6 +345,7 @@ int MaraSession::launch (SimulationSetup& setup)
     auto status = SimulationStatus();
     auto system = FluxConservativeSystem (setup);
 
+    setup.constrainedTransport->setDomainShape (setup.meshGeometry->domainShape());
     system.setInitialData (setup.initialDataFunction);
     writeVtkOutput (setup, status, system);
 

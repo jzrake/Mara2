@@ -76,6 +76,8 @@ private:
     void recoverPrimitive();
     /* @internal */
     void takeRungeKuttaSubstep (double dt, double b);
+    /* @internal */
+    UniformCartesianCT* getCT();
 
     int numConserved;
     int stencilSize;
@@ -95,7 +97,7 @@ private:
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;
     std::shared_ptr<IntercellFluxScheme> intercellFluxScheme;
-    std::shared_ptr<UniformCartesianCT> constrainedTransport;
+    std::shared_ptr<ConstrainedTransport> constrainedTransport;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
 };
 

@@ -18,10 +18,11 @@ public:
     using Shape = Cow::Shape;
 
     /**
-    Constructor takes the number of cells along each axis. Uniform mesh
-    spacing is assumed, so no geometrical information is needed.
+    This function needs to be called before any of the algorithms are useful.
+    The domain shape is not required at construction, so that algorithm
+    choices may be sorted out before the domain size is known.
     */
-    UniformCartesianCT (Shape domainShape);
+    void setDomainShape (Cow::Shape shape) override;
 
     /**
     Compute monopole level at given mesh location (vert or cell).

@@ -3,6 +3,7 @@
 #include "CartesianMeshGeometry.hpp"
 #include "BoundaryConditions.hpp"
 #include "ConservationLaws.hpp"
+#include "constrainedTransport.hpp"
 #include "RiemannSolver.hpp"
 #include "sol.hpp"
 #define lua (luaState->L)
@@ -171,6 +172,11 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     }
 
 
+    // constrained transport algorithm
+    // ------------------------------------------------------------------------
+    setup.constrainedTransport.reset (new UniformCartesianCT);
+
+
     // Run configuration
     // ------------------------------------------------------------------------
     setup.finalTime = cfg["final_time"];
@@ -215,11 +221,6 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
 int Configuration::launchFromScript (MaraSession& session, std::string filename)
 {
     sol::table mara = lua.require_script ("mara", "return {}", false);
-
-    mara["weno"] = [&] (sol::table T)
-    {
-        return std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesWeno);
-    };
 
     mara["run"] = [&] (sol::table T)
     {
