@@ -73,6 +73,22 @@ function setups.mhd_uniform_vertical(x, y, z)
 end
 
 
+-- Magnetic field loop.
+function setups.mhd_field_loop(x, y, z)
+	local R = (x^2 + y^2)^0.5
+	local k = 10
+	local d = 1.0
+	local p = 1.0
+	local u1 = 1.0
+	local u2 = 0.0
+	local u3 = 0.0
+	local b1 = R^2 * math.exp (-(k * R)^2) * (-y / R)
+	local b2 = R^2 * math.exp (-(k * R)^2) * ( x / R)
+	local b3 = 0.0
+	return {d, u1, u2, u3, p, b1, b2, b3}
+end
+
+
 -- Force-free equilibrium state.
 function setups.mhd_abc_equilibrium(x, y, z)
 	local A = 1.0
