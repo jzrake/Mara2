@@ -1,10 +1,10 @@
-local mara = require 'mara'
+--local mara = require 'mara'
 local setups = require 'setups'
 
 local fieldLoopTest = {
 	run_name = 'FieldLoopTest',
 	output_directory = 'data/field_loop_test',
-	final_time = 2.0,
+	final_time = 0.01,
 	checkpoint_interval = 0.1,
 	vtk_output_interval = 0.01,
 	cfl_parameter = 0.3,
@@ -20,4 +20,10 @@ local fieldLoopTest = {
 	boundary_condition = 'periodic',
 }
 
-mara.run (fieldLoopTest)
+--mara.run (fieldLoopTest)
+
+
+for k, v in pairs (fieldLoopTest) do
+	_G[k] = v
+end
+

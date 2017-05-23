@@ -67,11 +67,16 @@ public:
     scheme of Toth (2000) Section 4.4, which may be used to advance the cell-
     centered magnetic field.
     */
-    void computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, Array& ctF3) const;
+    void computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, Array& ctF3);
 
 private:
     std::shared_ptr<BoundaryCondition> boundaryCondition;
     Shape domainShape;
+
+    Cow::Region updateableRegionF1;
+    Cow::Region updateableRegionF2;
+    Cow::Region updateableRegionF3;
+
     Array F1; // Godunov flux along each axis
     Array F2;
     Array F3;
