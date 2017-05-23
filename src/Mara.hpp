@@ -26,7 +26,6 @@ using AreaElement = std::array<double, 3>;
 
 
 
-
 class MaraSession
 {
 public:
@@ -104,11 +103,19 @@ class ConservationLaw
 public:
     enum class VariableType
     {
-        density  = 111,
-        velocity = 222,
-        pressure = 333,
-        magnetic = 444,
+        density,
+        velocity,
+        pressure,
+        magnetic,
     };
+
+    // enum class StateHealth
+    // {
+    //     healthyState,
+    //     negativePressure,
+    //     negativeDensity,
+    //     negativeTotalEnergy,
+    // };
 
     struct State
     {
@@ -118,6 +125,8 @@ public:
         std::array<double, 8> A; // Eigenvalues
         Cow::Matrix L; // Left eigenvector matrix
         Cow::Matrix R; // Right eigenvector matrix
+        // std::array<int, 3> zoneIndex;
+        // StateHealth health;
     };
 
     struct Request
@@ -128,6 +137,15 @@ public:
         bool getFluxes;
         bool getEigenvalues;
         AreaElement areaElement;
+    };
+
+    class StateFailure : public std::exception
+    {
+    public:
+        StateFailure (const State& failedState) : failedState (failedState) {}
+        const char* what() const noexcept override;
+        Cow::Index zoneIndex;
+        State failedState;
     };
 
     using StateVector = std::vector<State>;

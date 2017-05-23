@@ -4,7 +4,7 @@ local setups = require 'setups'
 run_name = 'AdvectionTest'
 
 -- directory where output should go
-output_directory = 'mhdVz016'
+output_directory = 'mhd32'
 
 -- Time at which to terminate simulation
 final_time = 16.0
@@ -17,7 +17,7 @@ checkpoint_interval = 1.0
 vtk_output_interval = 0.1
 
 -- CFL parameter
-cfl_parameter = 0.3
+cfl_parameter = 0.4
 
 -- A callback to supply simple initial data
 initial_data = setups['mhd_uniform_vertical']
@@ -26,7 +26,7 @@ initial_data = setups['mhd_uniform_vertical']
 grid_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
-resolution = {16, 16, 16}
+resolution = {32, 32, 32}
 
 -- Domain lower bounds
 domain_lower = {-0.5, -0.5, -0.5}
@@ -41,7 +41,7 @@ conservation_law = {'newtonian_mhd'}
 riemann_solver = 'hlle'
 
 -- Flux scheme: scalar_upwind, method_of_lines
-flux_scheme = {'method_of_lines_plm', plm_theta=1.5}
+flux_scheme = {'method_of_lines_plm', plm_theta=2.0}
 
 -- RK order: must be 1, 2, or 3
 runge_kutta_order = 2

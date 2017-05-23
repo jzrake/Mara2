@@ -303,10 +303,6 @@ void FluxConservativeSystem::computeTimeDerivative()
             const double dAF3 = F3 (i, j, k + 1, q) * A3R - F3 (i, j, k, q) * A3L;
 
             it[q] = -(dAF1 + dAF2 + dAF3) / Vol;
-
-            // std::cout << "dot(Bx) = " <<  it[5] << std::endl;
-            // std::cout << "dot(By) = " <<  it[6] << std::endl;
-            // std::cout << "dot(Bz) = " <<  it[7] << std::endl;
         }
     }
 }
@@ -342,11 +338,20 @@ void FluxConservativeSystem::recoverPrimitive()
 
     for ( ; uit != Ureg.end(); ++uit, ++pit)
     {
-        auto S = conservationLaw->fromConserved (request, uit);
-
-        for (int q = 0; q < numConserved; ++q)
+        try
         {
-            pit[q] = S.P[q];
+            auto S = conservationLaw->fromConserved (request, uit);
+
+            for (int q = 0; q < numConserved; ++q)
+            {
+                pit[q] = S.P[q];
+            }
+        }
+        catch (ConservationLaw::StateFailure& failure)
+        {
+            failure.zoneIndex = uit.index();
+            //std::cout << failure.what() << std::endl;
+            throw;
         }
     }
 }

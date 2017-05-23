@@ -1,4 +1,5 @@
 #include <cmath>
+#include <sstream>
 #include "ConservationLaws.hpp"
 
 // Indexes to primitive quanitites P
@@ -20,6 +21,35 @@
 #define H11 5
 #define H22 6
 #define H33 7
+
+
+
+
+// ============================================================================
+const char* ConservationLaw::StateFailure::what() const noexcept
+{
+    std::ostringstream stream;
+    static std::string message;
+
+    stream << "at zone index [" << zoneIndex[0] << " " << zoneIndex[1] << " " << zoneIndex[2] << "]\n";
+    stream << "P = {";
+
+    for (int q = 0; q < failedState.P.size(); ++q)
+    {
+        stream << failedState.P[q] << " ";
+    }
+    stream << "}\n";
+    stream << "U = {";
+
+    for (int q = 0; q < failedState.U.size(); ++q)
+    {
+        stream << failedState.U[q] << " ";
+    }
+    stream << "}";
+
+    message = stream.str();
+    return message.c_str();
+}
 
 
 
@@ -179,7 +209,6 @@ std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const
 
 
 
-
 // ============================================================================
 NewtonianMHD::NewtonianMHD() : gammaLawIndex (5./3)
 {
@@ -201,6 +230,21 @@ ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, cons
     P[B11] =  U[H11];
     P[B22] =  U[H22];
     P[B33] =  U[H33];
+
+    // ------------------------------------------------------------------------
+    // Bad state detection
+    // ------------------------------------------------------------------------
+    if (P[PRE] < 0.0 || P[RHO] < 0.0 || U[DDD] < 0.0 || U[NRG] < 0.0)
+    {
+        State S;
+
+        for (int q = 0; q < getNumConserved(); ++q)
+        {
+            S.U[q] = U[q];
+            S.P[q] = P[q];
+        }
+        throw ConservationLaw::StateFailure (S);
+    }
 
     return fromPrimitive (request, P);
 }
@@ -245,8 +289,6 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     S.F[H11] = vn * S.U[H11] - Bn * P[V11];
     S.F[H22] = vn * S.U[H22] - Bn * P[V22];
     S.F[H33] = vn * S.U[H33] - Bn * P[V33];
-
-    //if (dAA[2] == 1.0) std::cout << "Fz(Bx) = " << S.F[B11] << std::endl;
 
     const double Bn2 = Bn * Bn;
     const double cs2 = cs * cs;

@@ -399,26 +399,36 @@ int main (int argc, const char* argv[])
     auto configuration = Configuration();
     auto command = std::string (argv[1]);
 
-    if (command == "help")
+    try
     {
-        std::cout <<
-        "Mara is an astrophysics code for gas and magnetofluid "
-        "dynamics simulations.\n";
-        return 0;
-    }
-    else if (command == "run")
-    {
-        if (argc < 3)
+        if (command == "help")
         {
-            std::cout << "'run': no script provided\n";
+            std::cout <<
+            "Mara is an astrophysics code for gas and magnetofluid "
+            "dynamics simulations.\n";
             return 0;
         }
-        return configuration.launchFromScript (session, argv[2]);
+        else if (command == "run")
+        {
+            if (argc < 3)
+            {
+                std::cout << "'run': no script provided\n";
+                return 0;
+            }
+            return configuration.launchFromScript (session, argv[2]);
+        }
+        else
+        {
+            auto setup = configuration.fromLuaFile (argv[1]);
+            return session.launch (setup);
+        }
     }
-    else
+    catch (std::exception& error)
     {
-        auto setup = configuration.fromLuaFile (argv[1]);
-        return session.launch (setup);
+        std::cout << std::string (80, '-') << std::endl;
+        std::cout << "Run failure: " << std::endl;
+        std::cout << std::string (80, '-') << std::endl;
+        std::cout << error.what() << std::endl;
     }
 
     return 0;
