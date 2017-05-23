@@ -4,6 +4,7 @@
 #include <functional>
 #include "Array.hpp"
 #include "Mara.hpp"
+#include "ConstrainedTransport.hpp"
 
 
 
@@ -94,6 +95,7 @@ private:
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;
     std::shared_ptr<IntercellFluxScheme> intercellFluxScheme;
+    std::shared_ptr<UniformCartesianCT> constrainedTransport;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
 };
 

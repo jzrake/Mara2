@@ -41,6 +41,8 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     numConserved  = conservationLaw->getNumConserved();
     stencilSize   = intercellFluxScheme->getStencilSize();
 
+    constrainedTransport.reset (new UniformCartesianCT (domainShape));
+
     Shape shapeU  = domainShape;
     Shape shapeP  = domainShape;
     Shape shapeL  = domainShape;
@@ -199,6 +201,26 @@ void FluxConservativeSystem::computeIntercellFluxes()
     if (domainShape[0] > 1) intercellFluxSweep(0);
     if (domainShape[1] > 1) intercellFluxSweep(1);
     if (domainShape[2] > 1) intercellFluxSweep(2);
+
+    int imag = conservationLaw->getIndexFor (ConservationLaw::VariableType::magnetic);
+
+    if (imag != -1)
+    {
+        auto Rmag = Region();
+        Rmag.lower[3] = imag;
+        Rmag.upper[3] = imag + 3;
+        constrainedTransport->assignGodunovFluxes (F1[Rmag], F2[Rmag], F3[Rmag]);
+
+        auto ctF1 = Cow::Array();
+        auto ctF2 = Cow::Array();
+        auto ctF3 = Cow::Array();
+
+        constrainedTransport->computeGodunovFluxesFieldCT (ctF1, ctF2, ctF3);
+
+        F1[Rmag] = ctF1;
+        F2[Rmag] = ctF2;
+        F3[Rmag] = ctF3;
+    }
 }
 
 void FluxConservativeSystem::intercellFluxSweep (int axis)

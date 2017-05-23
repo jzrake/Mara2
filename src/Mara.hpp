@@ -14,6 +14,7 @@
 
 class BoundaryCondition;
 class ConservationLaw;
+class ConstrainedTransport;
 class IntercellFluxScheme;
 class MaraSession;
 class MeshGeometry;
@@ -93,6 +94,16 @@ class BoundaryCondition
 {
 public:
     virtual void apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const = 0;
+};
+
+
+
+
+class ConstrainedTransport
+{
+public:
+    enum class MeshLocation { vert, edge, face, cell };
+    virtual Cow::Array computeMonopole (MeshLocation location) const = 0;
 };
 
 
