@@ -8,9 +8,10 @@ using namespace Cow;
 
 
 
-void UniformCartesianCT::setDomainShape (Cow::Shape shape)
+void UniformCartesianCT::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry)
 {
-    domainShape = shape;
+    meshGeometry = geometry;
+    auto domainShape = meshGeometry->domainShape();
 
 
     // The flux arrays we work with will have one more face than cells in the
@@ -81,7 +82,7 @@ Array UniformCartesianCT::computeMonopole (MeshLocation location) const
 {
     assert (location == MeshLocation::vert);
 
-    auto Mshape = domainShape;
+    auto Mshape = meshGeometry->domainShape();
     Mshape[0] += 1;
     Mshape[1] += 1;
     Mshape[2] += 1;
@@ -109,6 +110,50 @@ void UniformCartesianCT::assignGodunovFluxes (Array newF1, Array newF2, Array ne
     F1[updateableRegionF1] = newF1;
     F2[updateableRegionF2] = newF2;
     F3[updateableRegionF3] = newF3;
+
+    boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
+    boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
+    boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
+    boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
+    boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
+    boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
+}
+
+void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocation location)
+{
+    assert (location == MeshLocation::face);
+
+    auto F1reg = F1[updateableRegionF1];
+    auto F2reg = F1[updateableRegionF2];
+    // auto F3reg = F1[updateableRegionF3];
+
+    for (auto fit = F1reg.begin(); fit != F1reg.end(); ++fit)
+    {
+        auto index = fit.relativeIndex();
+        auto coord = meshGeometry->coordinateAtIndex (index[0] - 0.5, index[1], index[2]);
+        auto a = A (coord[0], coord[1], coord[2]);
+
+        if (a.size() != 3)
+        {
+            throw std::runtime_error ("vector potential function returned vector of length != 3");
+        }
+
+        fit[2] = a[2];
+    }
+
+    for (auto fit = F2reg.begin(); fit != F2reg.end(); ++fit)
+    {
+        auto index = fit.relativeIndex();
+        auto coord = meshGeometry->coordinateAtIndex (index[0], index[1] - 0.5, index[2]);
+        auto a = A (coord[0], coord[1], coord[2]);
+
+        if (a.size() != 3)
+        {
+            throw std::runtime_error ("vector potential function returned vector of length != 3");
+        }
+
+        fit[2] = a[2];
+    }
 
     boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
     boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
@@ -179,3 +224,15 @@ void UniformCartesianCT::computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, 
         }
     }
 }
+
+Cow::Array::Reference UniformCartesianCT::getGodunovFluxes (int axis)
+{
+    switch (axis)
+    {
+        case 0: return F1[updateableRegionF1];
+        case 1: return F2[updateableRegionF2];
+        case 2: return F3[updateableRegionF3];
+        default: assert (false);
+    }
+}
+

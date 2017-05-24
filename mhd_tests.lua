@@ -9,6 +9,7 @@ local fieldLoopTest = {
 	vtk_output_interval = 0.01,
 	cfl_parameter = 0.3,
 	initial_data = setups['mhd_field_loop'],
+	vector_potential = function(x, y, z) return {0, 0, x^2 + y^2} end,
 	grid_geometry = 'cartesian',
 	resolution = {48, 48, 1},
 	domain_lower = {-0.5, -0.5, -0.5},

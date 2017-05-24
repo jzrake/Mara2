@@ -107,8 +107,6 @@ class ConstrainedTransport
 {
 public:
     enum class MeshLocation { vert, edge, face, cell };
-    virtual void setDomainShape (Cow::Shape) = 0;
-    virtual void setBoundaryCondition (std::shared_ptr<BoundaryCondition>) = 0;
     virtual void assignCellCenteredB (Cow::Array) = 0;
     virtual Cow::Array computeMonopole (MeshLocation) const = 0;
 };

@@ -19,16 +19,16 @@ public:
 
     /**
     This function needs to be called before any of the algorithms are useful.
-    The domain shape is not required at construction, so that algorithm
+    The mesh geometry is not required at construction, so that algorithm
     choices may be sorted out before the domain size is known.
     */
-    void setDomainShape (Cow::Shape shape) override;
+    void setMeshGeometry (std::shared_ptr<MeshGeometry>);
 
     /**
     Assign a boundary condition to use for Godunov fluxes and magnetic field
     values.
     */
-    void setBoundaryCondition (std::shared_ptr<BoundaryCondition>) override;
+    void setBoundaryCondition (std::shared_ptr<BoundaryCondition>);
 
     /**
     Compute monopole at the given mesh location (vert or cell) from the given
@@ -42,6 +42,10 @@ public:
     be zero.
     */
     void assignGodunovFluxes (Array newF1, Array newF2, Array newF3);
+
+    /**
+    */
+    void assignVectorPotential (InitialDataFunction, MeshLocation);
 
     /**
     Assign magnetic field values to cell centers.
@@ -69,9 +73,14 @@ public:
     */
     void computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, Array& ctF3);
 
+    /**
+    Retrieve the Godunov fluxes on faces.
+    */
+    Cow::Array::Reference getGodunovFluxes (int axis);
+
 private:
+    std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
-    Shape domainShape;
 
     Cow::Region updateableRegionF1;
     Cow::Region updateableRegionF2;

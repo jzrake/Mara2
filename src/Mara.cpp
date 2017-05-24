@@ -354,12 +354,9 @@ void writeCheckpoint (SimulationSetup& setup, SimulationStatus& status, FluxCons
 int MaraSession::launch (SimulationSetup& setup)
 {
     auto status = SimulationStatus();
-    auto system = FluxConservativeSystem (setup);
+    auto system = FluxConservativeSystem (setup); // This also initializes CT.
 
-    setup.constrainedTransport->setDomainShape (setup.meshGeometry->domainShape());
-    setup.constrainedTransport->setBoundaryCondition (setup.boundaryCondition);
-
-    system.setInitialData (setup.initialDataFunction);
+    system.setInitialData (setup.initialDataFunction, setup.vectorPotentialFunction);
     writeVtkOutput (setup, status, system);
 
     while (status.simulationTime < setup.finalTime)
@@ -417,37 +414,27 @@ int main (int argc, const char* argv[])
     auto configuration = Configuration();
     auto command = std::string (argv[1]);
 
-    // try
-    // {
-        if (command == "help")
+    if (command == "help")
+    {
+        std::cout <<
+        "Mara is an astrophysics code for gas and magnetofluid "
+        "dynamics simulations.\n";
+        return 0;
+    }
+    else if (command == "run")
+    {
+        if (argc < 3)
         {
-            std::cout <<
-            "Mara is an astrophysics code for gas and magnetofluid "
-            "dynamics simulations.\n";
+            std::cout << "'run': no script provided\n";
             return 0;
         }
-        else if (command == "run")
-        {
-            if (argc < 3)
-            {
-                std::cout << "'run': no script provided\n";
-                return 0;
-            }
-            return configuration.launchFromScript (session, argv[2]);
-        }
-        else
-        {
-            auto setup = configuration.fromLuaFile (argv[1]);
-            return session.launch (setup);
-        }
-    // }
-    // catch (std::exception& error)
-    // {
-    //     std::cout << std::string (80, '-') << std::endl;
-    //     std::cout << "Run failure: " << std::endl;
-    //     std::cout << std::string (80, '-') << std::endl;
-    //     std::cout << error.what() << std::endl;
-    // }
+        return configuration.launchFromScript (session, argv[2]);
+    }
+    else
+    {
+        auto setup = configuration.fromLuaFile (argv[1]);
+        return session.launch (setup);
+    }
 
     return 0;
 }

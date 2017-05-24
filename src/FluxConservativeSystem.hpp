@@ -25,7 +25,7 @@ public:
 
     /**
     Constructor, stores shared pointers to needed algorithms in the given
-    setup struct.
+    setup struct. Also initialized the CT scheme.
     */
     FluxConservativeSystem (SimulationSetup setup);
 
@@ -45,7 +45,7 @@ public:
     /**
     Set initial data on the primitive variable array.
     */
-    void setInitialData (InitialDataFunction F);
+    void setInitialData (InitialDataFunction F, InitialDataFunction A);
 
     /**
     Get the shortest time a wave to cross a cell.
@@ -87,6 +87,7 @@ private:
 
     Cow::Shape domainShape;
     Cow::Region updateableRegion;
+    Cow::Region magneticIndices;
 
     Cow::Array U; // Conserved quantities
     Cow::Array P; // Primitive quantities
