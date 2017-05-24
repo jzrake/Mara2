@@ -3,7 +3,7 @@
 #include "CartesianMeshGeometry.hpp"
 #include "BoundaryConditions.hpp"
 #include "ConservationLaws.hpp"
-#include "constrainedTransport.hpp"
+#include "ConstrainedTransport.hpp"
 #include "RiemannSolver.hpp"
 #include "sol.hpp"
 #define lua (luaState->L)
@@ -49,7 +49,9 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     // initial data function
     // ------------------------------------------------------------------------
     sol::function initial_data = cfg["initial_data"];
-    setup.initialDataFunction = makeIDF (initial_data);
+    sol::function vector_potential = cfg["vector_potential"];
+    setup.initialDataFunction = cfg["initial_data"] ? makeIDF (initial_data) : nullptr;
+    setup.vectorPotentialFunction = cfg["vector_potential"] ? makeIDF (vector_potential) : nullptr;
 
 
     // grid geometry

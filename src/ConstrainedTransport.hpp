@@ -76,6 +76,7 @@ private:
     Cow::Region updateableRegionF1;
     Cow::Region updateableRegionF2;
     Cow::Region updateableRegionF3;
+    Cow::Region updateableRegionB;
 
     Array F1; // Godunov flux along each axis
     Array F2;

@@ -58,6 +58,7 @@ public:
     std::shared_ptr<BoundaryCondition> boundaryCondition;
     std::shared_ptr<RiemannSolver> riemannSolver;
     InitialDataFunction initialDataFunction;
+    InitialDataFunction vectorPotentialFunction;
 };
 
 
