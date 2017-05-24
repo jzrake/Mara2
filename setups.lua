@@ -81,7 +81,7 @@ function setups.mhd_field_loop(x, y, z)
 	local d = 1.0
 	local p = 1.0
 	local u1 = 1.0
-	local u2 = 0.0
+	local u2 = 1.0
 	local u3 = 0.0
 	local bf = B * 3 * k * (k * R)^2 * math.exp (-(k * R)^3) -- B-phi
 	local b1 = bf * (-y / R)
@@ -96,8 +96,8 @@ function setups.mhd_field_loop_A(x, y, z)
 	local R = (x^2 + y^2)^0.5
 	local B = 1e-5
 	local k = 10
-	local Az = B * math.exp (-(k * R)^3)
-	return {0.0, 0.0, Az}
+	local A = B * math.exp (-(k * R)^3)
+	return {0.0, 0.0, A}
 end
 
 

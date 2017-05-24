@@ -54,8 +54,13 @@ public:
     void assignGodunovFluxes (Array newF1, Array newF2, Array newF3);
 
     /**
+    Use the given callback function (which returns [Ax, Ay, Az] to assign
+    vector potential values at the given mesh location. If location == face,
+    then the internal Godunov fluxes are overwritten with the two components
+    of A tangent to each face, through the relation Fi(Bj) = -Ek. For this
+    operation, vector potential is synonymous with electric field.
     */
-    void assignVectorPotential (InitialDataFunction, MeshLocation);
+    void assignVectorPotential (InitialDataFunction A, MeshLocation location);
 
     /**
     Assign magnetic field values to cell centers.
@@ -97,7 +102,7 @@ private:
     Cow::Region updateableRegionF3;
     Cow::Region updateableRegionB;
 
-    Array F1; // Godunov flux along each axis
+    Array F1; // Godunov flux along each axis, stored on faces
     Array F2;
     Array F3;
     Array B; // Magnetic field at cell centers

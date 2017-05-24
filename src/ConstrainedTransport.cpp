@@ -89,17 +89,48 @@ Array UniformCartesianCT::computeMonopole (MeshLocation location) const
 
     auto M = Array (Mshape);
 
-    for (int i = 0; i < B.size(0) - 1; ++i)
+    for (int i = 0; i < M.size(0); ++i)
     {
-        for (int j = 0; j < B.size(1) - 1; ++j)
+        for (int j = 0; j < M.size(1); ++j)
         {
-            double Bi1 = 0.5 * (B(i + 1, j, 0, 0) + B(i + 1, j + 1, 0, 0)); // average Bx_{i+1} in the j-direction
-            double Bi0 = 0.5 * (B(i + 0, j, 0, 0) + B(i + 0, j + 1, 0, 0)); // average Bx_{i+0} in the j-direction
-            double Bj1 = 0.5 * (B(i, j + 1, 0, 1) + B(i + 1, j + 1, 0, 1)); // average By_{j+1} in the i-direction
-            double Bj0 = 0.5 * (B(i, j + 0, 0, 1) + B(i + 1, j + 0, 0, 1)); // average By_{j+0} in the i-direction
+            for (int k = 0; k < M.size(2); ++k)
+            {
+                const double B0x00 = B(i + 0, j + 0, k + 0, 0);
+                const double B0x01 = B(i + 0, j + 0, k + 1, 0);
+                const double B0x10 = B(i + 0, j + 1, k + 0, 0);
+                const double B0x11 = B(i + 0, j + 1, k + 1, 0);
+                const double B1x00 = B(i + 1, j + 0, k + 0, 0);
+                const double B1x01 = B(i + 1, j + 0, k + 1, 0);
+                const double B1x10 = B(i + 1, j + 1, k + 0, 0);
+                const double B1x11 = B(i + 1, j + 1, k + 1, 0);
 
-            M (i, j, 0) = (Bi1 - Bi0) + (Bj1 - Bj0);
-            M (i, j, 1) = (Bi1 - Bi0) + (Bj1 - Bj0);
+                const double B0y00 = B(i + 0, j + 0, k + 0, 1);
+                const double B0y01 = B(i + 1, j + 0, k + 0, 1);
+                const double B0y10 = B(i + 0, j + 0, k + 1, 1);
+                const double B0y11 = B(i + 1, j + 0, k + 1, 1);
+                const double B1y00 = B(i + 0, j + 1, k + 0, 1);
+                const double B1y01 = B(i + 1, j + 1, k + 0, 1);
+                const double B1y10 = B(i + 0, j + 1, k + 1, 1);
+                const double B1y11 = B(i + 1, j + 1, k + 1, 1);
+
+                const double B0z00 = B(i + 0, j + 0, k + 0, 2);
+                const double B0z01 = B(i + 0, j + 1, k + 0, 2);
+                const double B0z10 = B(i + 1, j + 0, k + 0, 2);
+                const double B0z11 = B(i + 1, j + 1, k + 0, 2);
+                const double B1z00 = B(i + 0, j + 0, k + 1, 2);
+                const double B1z01 = B(i + 0, j + 1, k + 1, 2);
+                const double B1z10 = B(i + 1, j + 0, k + 1, 2);
+                const double B1z11 = B(i + 1, j + 1, k + 1, 2);
+
+                const double Bx0 = B0x00 + B0x01 + B0x10 + B0x11;
+                const double Bx1 = B1x00 + B1x01 + B1x10 + B1x11;
+                const double By0 = B0y00 + B0y01 + B0y10 + B0y11;
+                const double By1 = B1y00 + B1y01 + B1y10 + B1y11;
+                const double Bz0 = B0z00 + B0z01 + B0z10 + B0z11;
+                const double Bz1 = B1z00 + B1z01 + B1z10 + B1z11;
+
+                M (i, j, k) = 0.25 * ((Bx1 - Bx0) + (By1 - By0) + (Bz1 - Bz0));
+            }
         }
     }
     return M;
@@ -211,31 +242,87 @@ UniformCartesianCT::FluxArrays UniformCartesianCT::computeGodunovFluxesFieldCT()
     {
         for (int j = 0; j < ctFluxes.F1.size(1); ++j)
         {
-            ctFluxes.F1 (i, j, 0, 1) = 0.125 * (0.0
-                + 2 * F1(i + 0, j + 1, 0, 1)
-                + 1 * F1(i + 0, j + 2, 0, 1)
-                + 1 * F1(i + 0, j + 0, 0, 1)
-                - 1 * F2(i + 0, j + 1, 0, 0)
-                - 1 * F2(i + 1, j + 1, 0, 0)
-                - 1 * F2(i + 0, j + 0, 0, 0)
-                - 1 * F2(i + 1, j + 0, 0, 0));
+            for (int k = 0; k < ctFluxes.F1.size(2); ++k)
+            {
+                ctFluxes.F1 (i, j, k, 1) = 0.125 * (0.0
+                    + 2 * F1(i + 0, j + 1, k, 1) // Fx(By)
+                    + 1 * F1(i + 0, j + 2, k, 1)
+                    + 1 * F1(i + 0, j + 0, k, 1)
+                    - 1 * F2(i + 0, j + 1, k, 0) // Fy(Bx)
+                    - 1 * F2(i + 1, j + 1, k, 0)
+                    - 1 * F2(i + 0, j + 0, k, 0)
+                    - 1 * F2(i + 1, j + 0, k, 0));
+
+                ctFluxes.F1 (i, j, k, 2) = 0.125 * (0.0
+                    + 2 * F1(i + 0, j, k + 1, 2) // Fx(Bz)
+                    + 1 * F1(i + 0, j, k + 2, 2)
+                    + 1 * F1(i + 0, j, k + 0, 2)
+                    - 1 * F3(i + 0, j, k + 1, 0) // Fz(Bx)
+                    - 1 * F3(i + 1, j, k + 1, 0)
+                    - 1 * F3(i + 0, j, k + 0, 0)
+                    - 1 * F3(i + 1, j, k + 0, 0));
+            }
         }
     }
 
-    for (int j = 0; j < ctFluxes.F2.size(1); ++j)
+    for (int i = 0; i < ctFluxes.F2.size(0); ++i)
     {
-        for (int i = 0; i < ctFluxes.F2.size(0); ++i)
+        for (int j = 0; j < ctFluxes.F2.size(1); ++j)
         {
-            ctFluxes.F2 (i, j, 0, 0) = 0.125 * (0.0
-                + 2 * F2(i + 1, j + 0, 0, 0)   // Fy_{i, j+1/2}
-                + 1 * F2(i + 2, j + 0, 0, 0)   // Fy_{i+1, j+1/2}
-                + 1 * F2(i + 0, j + 0, 0, 0)   // Fy_{i-1, j+1/2}
-                - 1 * F1(i + 1, j + 0, 0, 1)   // Fx_{i+1/2, j}
-                - 1 * F1(i + 1, j + 1, 0, 1)   // Fx_{i+1/2, j+1}
-                - 1 * F1(i + 0, j + 0, 0, 1)   // Fx_{i-1/2, j}
-                - 1 * F1(i + 0, j + 1, 0, 1)); // Fx_{i-1/2, j+1}
+            for (int k = 0; k < ctFluxes.F2.size(2); ++k)
+            {
+                ctFluxes.F2 (i, j, k, 2) = 0.125 * (0.0
+                    + 2 * F2(i, j + 0, k + 1, 2) // Fy(Bz)
+                    + 1 * F2(i, j + 0, k + 2, 2)
+                    + 1 * F2(i, j + 0, k + 0, 2)
+                    - 1 * F3(i, j + 0, k + 1, 1) // Fz(By)
+                    - 1 * F3(i, j + 1, k + 1, 1)
+                    - 1 * F3(i, j + 0, k + 0, 1)
+                    - 1 * F3(i, j + 1, k + 0, 1));
+
+                ctFluxes.F2 (i, j, k, 0) = 0.125 * (0.0
+                    + 2 * F2(i + 1, j + 0, k, 0) // Fy(Bx)
+                    + 1 * F2(i + 2, j + 0, k, 0)
+                    + 1 * F2(i + 0, j + 0, k, 0)
+                    - 1 * F1(i + 1, j + 0, k, 1) // Fx(By)
+                    - 1 * F1(i + 1, j + 1, k, 1)
+                    - 1 * F1(i + 0, j + 0, k, 1)
+                    - 1 * F1(i + 0, j + 1, k, 1));
+            }
         }
     }
+
+    for (int i = 0; i < ctFluxes.F3.size(0); ++i)
+    {
+        for (int j = 0; j < ctFluxes.F3.size(1); ++j)
+        {
+            for (int k = 0; k < ctFluxes.F3.size(2); ++k)
+            {
+                ctFluxes.F3 (i, j, k, 0) = 0.125 * (0.0
+                    + 2 * F3(i + 1, j, k + 0, 0) // Fz(Bx)
+                    + 1 * F3(i + 2, j, k + 0, 0)
+                    + 1 * F3(i + 0, j, k + 0, 0)
+                    - 1 * F1(i + 1, j, k + 0, 2) // Fx(Bz)
+                    - 1 * F1(i + 1, j, k + 1, 2)
+                    - 1 * F1(i + 0, j, k + 0, 2)
+                    - 1 * F1(i + 0, j, k + 1, 2));
+
+                ctFluxes.F3 (i, j, k, 1) = 0.125 * (0.0
+                    + 2 * F3(i, j + 1, k + 0, 1) // Fz(By)
+                    + 1 * F3(i, j + 2, k + 0, 1)
+                    + 1 * F3(i, j + 0, k + 0, 1)
+                    - 1 * F2(i, j + 1, k + 0, 2) // Fy(Bz)
+                    - 1 * F2(i, j + 1, k + 1, 2)
+                    - 1 * F2(i, j + 0, k + 0, 2)
+                    - 1 * F2(i, j + 0, k + 1, 2));
+            }
+        }
+    }
+
+    // ctFluxes.F1 = F1[updateableRegionF1];
+    // ctFluxes.F2 = F2[updateableRegionF2];
+    // ctFluxes.F3 = F3[updateableRegionF3];
+
     return ctFluxes;
 }
 
