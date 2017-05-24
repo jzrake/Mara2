@@ -128,7 +128,6 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
         throw std::runtime_error ("vector potential function returned vector of length != 3");
     }
 
-
     for (int i = 0; i < F1.size(0); ++i)
     {
         for (int j = 0; j < F1.size(1); ++j)
@@ -158,7 +157,6 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
             }
         }
     }
-
 
     for (int i = 0; i < F3.size(0); ++i)
     {

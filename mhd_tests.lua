@@ -1,4 +1,4 @@
---local mara = require 'mara'
+local mara = require 'mara'
 local setups = require 'setups'
 
 local fieldLoopTest = {
@@ -11,7 +11,7 @@ local fieldLoopTest = {
 	initial_data = setups['mhd_field_loop'],
 	vector_potential = setups['mhd_field_loop_A'],
 	grid_geometry = 'cartesian',
-	resolution = {16, 16, 1},
+	resolution = {128, 128, 1},
 	domain_lower = {-0.5, -0.5, -0.5},
 	domain_upper = { 0.5,  0.5,  0.5},
 	conservation_law = {'newtonian_mhd'},
@@ -21,10 +21,9 @@ local fieldLoopTest = {
 	boundary_condition = 'periodic',
 }
 
---mara.run (fieldLoopTest)
+mara.run (fieldLoopTest)
 
 
-for k, v in pairs (fieldLoopTest) do
-	_G[k] = v
-end
-
+-- for k, v in pairs (fieldLoopTest) do
+-- 	_G[k] = v
+-- end

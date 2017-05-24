@@ -140,14 +140,11 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
 
         ct->assignVectorPotential (A, ConstrainedTransport::MeshLocation::face);
 
-        // auto ctF1 = Cow::Array();
-        // auto ctF2 = Cow::Array();
-        // auto ctF3 = Cow::Array();
-        // ct->computeGodunovFluxesFieldCT (ctF1, ctF2, ctF3);
+        auto ctF1 = Cow::Array();
+        auto ctF2 = Cow::Array();
+        auto ctF3 = Cow::Array();
+        ct->computeGodunovFluxesFieldCT (ctF1, ctF2, ctF3);
 
-        Cow::Array ctF1 = ct->getGodunovFluxes (0);
-        Cow::Array ctF2 = ct->getGodunovFluxes (1);
-        Cow::Array ctF3 = ct->getGodunovFluxes (2);
         F1[magneticIndices] = ctF1;
         F2[magneticIndices] = ctF2;
         F3[magneticIndices] = ctF3;
@@ -166,7 +163,8 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
         {
             throw std::runtime_error ("initial data function returned vector of length != nq");
         }
-        if (useVectorPotential)
+
+        if (useVectorPotential) // then fields are already computed and stored in U
         {
             P[imag + 0] = uit[imag + 0];
             P[imag + 1] = uit[imag + 1];
@@ -183,6 +181,7 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
     }
 
     applyBoundaryCondition();
+    uploadFieldsToCT();
 }
 
 double FluxConservativeSystem::getCourantTimestep()
