@@ -76,13 +76,14 @@ end
 -- Magnetic field loop.
 function setups.mhd_field_loop(x, y, z)
 	local R = (x^2 + y^2)^0.5
+	local B = 1e-5
 	local k = 10
 	local d = 1.0
 	local p = 1.0
 	local u1 = 1.0
 	local u2 = 0.0
 	local u3 = 0.0
-	local bf = 3 * k * (k * R)^2 * math.exp (-(k * R)^3) -- B-phi
+	local bf = B * 3 * k * (k * R)^2 * math.exp (-(k * R)^3) -- B-phi
 	local b1 = bf * (-y / R)
 	local b2 = bf * ( x / R)
 	local b3 = 0.0
@@ -93,8 +94,9 @@ end
 -- Magnetic field loop (corresponding vector potential)
 function setups.mhd_field_loop_A(x, y, z)
 	local R = (x^2 + y^2)^0.5
+	local B = 1e-5
 	local k = 10
-	local Az = math.exp (-(k * R)^3)
+	local Az = B * math.exp (-(k * R)^3)
 	return {0.0, 0.0, Az}
 end
 

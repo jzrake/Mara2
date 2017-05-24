@@ -18,6 +18,16 @@ public:
     using Shape = Cow::Shape;
 
     /**
+    Data structure returned by methods which request fluxes.
+    */
+    struct FluxArrays
+    {
+        Cow::Array F1;
+        Cow::Array F2;
+        Cow::Array F3;
+    };
+
+    /**
     This function needs to be called before any of the algorithms are useful.
     The mesh geometry is not required at construction, so that algorithm
     choices may be sorted out before the domain size is known.
@@ -71,12 +81,12 @@ public:
     scheme of Toth (2000) Section 4.4, which may be used to advance the cell-
     centered magnetic field.
     */
-    void computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, Array& ctF3);
+    FluxArrays computeGodunovFluxesFieldCT();
 
     /**
     Retrieve the Godunov fluxes on faces.
     */
-    Cow::Array::Reference getGodunovFluxes (int axis);
+    FluxArrays getGodunovFluxes();
 
 private:
     std::shared_ptr<MeshGeometry> meshGeometry;

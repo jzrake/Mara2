@@ -21,9 +21,7 @@ void PeriodicBoundaryCondition::applyToCellCenteredB (Cow::Array& B, int numGuar
 
 void PeriodicBoundaryCondition::applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const
 {
-    if (F.size(0) > 1) applyToAxis (F, numGuard, 0);
-    if (F.size(1) > 1) applyToAxis (F, numGuard, 1);
-    if (F.size(2) > 1) applyToAxis (F, numGuard, 2);
+    applyToAxis (F, numGuard, axis);
 }
 
 void PeriodicBoundaryCondition::applyToAxis (Cow::Array& P, int numGuard, int axis) const

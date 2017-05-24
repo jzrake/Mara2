@@ -197,23 +197,21 @@ void UniformCartesianCT::assignEdgeCenteredE (Array newE)
     E = std::move (newE);
 }
 
-void UniformCartesianCT::computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, Array& ctF3)
+UniformCartesianCT::FluxArrays UniformCartesianCT::computeGodunovFluxesFieldCT()
 {
     // This function implements the stencil shown in Fig. 3 of Toth (2000), and
     // the formula in Equation (25).
 
-    ctF1 = F1[updateableRegionF1];
-    ctF2 = F2[updateableRegionF2];
-    ctF3 = F3[updateableRegionF3];
+    auto ctFluxes = FluxArrays();
+    ctFluxes.F1 = Cow::Array (F1[updateableRegionF1].shape());
+    ctFluxes.F2 = Cow::Array (F2[updateableRegionF2].shape());
+    ctFluxes.F3 = Cow::Array (F3[updateableRegionF3].shape());
 
-    // The work and output flux arrays for Fx have the same size in the x-axis
-    assert (ctF1.size(0) == F1.size(0));
-
-    for (int i = 0; i < ctF1.size(0); ++i)
+    for (int i = 0; i < ctFluxes.F1.size(0); ++i)
     {
-        for (int j = 0; j < ctF1.size(1); ++j)
+        for (int j = 0; j < ctFluxes.F1.size(1); ++j)
         {
-            ctF1 (i, j, 0, 1) = 0.125 * (0.0
+            ctFluxes.F1 (i, j, 0, 1) = 0.125 * (0.0
                 + 2 * F1(i + 0, j + 1, 0, 1)
                 + 1 * F1(i + 0, j + 2, 0, 1)
                 + 1 * F1(i + 0, j + 0, 0, 1)
@@ -224,14 +222,11 @@ void UniformCartesianCT::computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, 
         }
     }
 
-    // The work and output flux arrays for Fy have the same size in the y-axis
-    assert (ctF2.size(1) == F2.size(1));
-
-    for (int j = 0; j < ctF2.size(1); ++j)
+    for (int j = 0; j < ctFluxes.F2.size(1); ++j)
     {
-        for (int i = 0; i < ctF2.size(0); ++i)
+        for (int i = 0; i < ctFluxes.F2.size(0); ++i)
         {
-            ctF2 (i, j, 0, 0) = 0.125 * (0.0   // Fy_{i, j+1/2}
+            ctFluxes.F2 (i, j, 0, 0) = 0.125 * (0.0
                 + 2 * F2(i + 1, j + 0, 0, 0)   // Fy_{i, j+1/2}
                 + 1 * F2(i + 2, j + 0, 0, 0)   // Fy_{i+1, j+1/2}
                 + 1 * F2(i + 0, j + 0, 0, 0)   // Fy_{i-1, j+1/2}
@@ -241,16 +236,14 @@ void UniformCartesianCT::computeGodunovFluxesFieldCT (Array& ctF1, Array& ctF2, 
                 - 1 * F1(i + 0, j + 1, 0, 1)); // Fx_{i-1/2, j+1}
         }
     }
+    return ctFluxes;
 }
 
-Cow::Array::Reference UniformCartesianCT::getGodunovFluxes (int axis)
+UniformCartesianCT::FluxArrays UniformCartesianCT::getGodunovFluxes()
 {
-    switch (axis)
-    {
-        case 0: return F1[updateableRegionF1];
-        case 1: return F2[updateableRegionF2];
-        case 2: return F3[updateableRegionF3];
-        default: assert (false);
-    }
+    auto fluxes = FluxArrays();
+    fluxes.F1 = F1[updateableRegionF1];
+    fluxes.F2 = F2[updateableRegionF2];
+    fluxes.F3 = F3[updateableRegionF3];
+    return fluxes;
 }
-

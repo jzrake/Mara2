@@ -140,14 +140,11 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
 
         ct->assignVectorPotential (A, ConstrainedTransport::MeshLocation::face);
 
-        auto ctF1 = Cow::Array();
-        auto ctF2 = Cow::Array();
-        auto ctF3 = Cow::Array();
-        ct->computeGodunovFluxesFieldCT (ctF1, ctF2, ctF3);
-
-        F1[magneticIndices] = ctF1;
-        F2[magneticIndices] = ctF2;
-        F3[magneticIndices] = ctF3;
+        auto ctFluxes = ct->computeGodunovFluxesFieldCT();
+        //auto ctFluxes = ct->getGodunovFluxes();
+        F1[magneticIndices] = ctFluxes.F1;
+        F2[magneticIndices] = ctFluxes.F2;
+        F3[magneticIndices] = ctFluxes.F3;
 
         computeTimeDerivative();
         updateConserved (1.0);
@@ -252,16 +249,12 @@ void FluxConservativeSystem::computeIntercellFluxes()
     if (imag != -1)
     {
         auto ct = getCT();
-        auto ctF1 = Cow::Array();
-        auto ctF2 = Cow::Array();
-        auto ctF3 = Cow::Array();
-
         ct->assignGodunovFluxes (F1[magneticIndices], F2[magneticIndices], F3[magneticIndices]);
-        ct->computeGodunovFluxesFieldCT (ctF1, ctF2, ctF3);
+        auto ctFluxes = ct->computeGodunovFluxesFieldCT();
 
-        F1[magneticIndices] = ctF1;
-        F2[magneticIndices] = ctF2;
-        F3[magneticIndices] = ctF3;
+        F1[magneticIndices] = ctFluxes.F1;
+        F2[magneticIndices] = ctFluxes.F2;
+        F3[magneticIndices] = ctFluxes.F3;
     }
 }
 
