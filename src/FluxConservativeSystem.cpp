@@ -129,6 +129,32 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
     auto Ureg = U[updateableRegion];
     auto pit = Preg.begin();
     auto uit = Ureg.begin();
+    int imag = conservationLaw->getIndexFor (ConservationLaw::VariableType::magnetic);
+    bool useVectorPotential = A != nullptr && imag != -1;
+
+    // If there is a vector potential function, then cache the resulting
+    // magnetic field in the U array (cell centers).
+    if (useVectorPotential)
+    {
+        auto ct = getCT();
+
+        ct->assignVectorPotential (A, ConstrainedTransport::MeshLocation::face);
+
+        // auto ctF1 = Cow::Array();
+        // auto ctF2 = Cow::Array();
+        // auto ctF3 = Cow::Array();
+        // ct->computeGodunovFluxesFieldCT (ctF1, ctF2, ctF3);
+
+        Cow::Array ctF1 = ct->getGodunovFluxes (0);
+        Cow::Array ctF2 = ct->getGodunovFluxes (1);
+        Cow::Array ctF3 = ct->getGodunovFluxes (2);
+        F1[magneticIndices] = ctF1;
+        F2[magneticIndices] = ctF2;
+        F3[magneticIndices] = ctF3;
+
+        computeTimeDerivative();
+        updateConserved (1.0);
+    }
 
     for ( ; uit != Ureg.end(); ++uit, ++pit)
     {
@@ -139,6 +165,12 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
         if (P.size() != numConserved)
         {
             throw std::runtime_error ("initial data function returned vector of length != nq");
+        }
+        if (useVectorPotential)
+        {
+            P[imag + 0] = uit[imag + 0];
+            P[imag + 1] = uit[imag + 1];
+            P[imag + 2] = uit[imag + 2];
         }
 
         auto S = conservationLaw->fromPrimitive (request, &P[0]);
@@ -151,23 +183,6 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
     }
 
     applyBoundaryCondition();
-
-    if (A == nullptr)
-    {
-        uploadFieldsToCT();
-    }
-    else
-    {
-        auto ct = getCT();
-        ct->assignVectorPotential (A, ConstrainedTransport::MeshLocation::face);
-
-        F1[magneticIndices] = Cow::Array (ct->getGodunovFluxes (0));
-        F2[magneticIndices] = Cow::Array (ct->getGodunovFluxes (1));
-        F3[magneticIndices] = Cow::Array (ct->getGodunovFluxes (2));
-
-        computeTimeDerivative();
-        updateConserved (1.0);
-    }
 }
 
 double FluxConservativeSystem::getCourantTimestep()

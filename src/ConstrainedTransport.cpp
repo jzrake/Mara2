@@ -123,36 +123,56 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
 {
     assert (location == MeshLocation::face);
 
-    auto F1reg = F1[updateableRegionF1];
-    auto F2reg = F1[updateableRegionF2];
-    // auto F3reg = F1[updateableRegionF3];
-
-    for (auto fit = F1reg.begin(); fit != F1reg.end(); ++fit)
+    if (A(0, 0, 0).size() != 3)
     {
-        auto index = fit.relativeIndex();
-        auto coord = meshGeometry->coordinateAtIndex (index[0] - 0.5, index[1], index[2]);
-        auto a = A (coord[0], coord[1], coord[2]);
-
-        if (a.size() != 3)
-        {
-            throw std::runtime_error ("vector potential function returned vector of length != 3");
-        }
-
-        fit[2] = a[2];
+        throw std::runtime_error ("vector potential function returned vector of length != 3");
     }
 
-    for (auto fit = F2reg.begin(); fit != F2reg.end(); ++fit)
+
+    for (int i = 0; i < F1.size(0); ++i)
     {
-        auto index = fit.relativeIndex();
-        auto coord = meshGeometry->coordinateAtIndex (index[0], index[1] - 0.5, index[2]);
-        auto a = A (coord[0], coord[1], coord[2]);
-
-        if (a.size() != 3)
+        for (int j = 0; j < F1.size(1); ++j)
         {
-            throw std::runtime_error ("vector potential function returned vector of length != 3");
-        }
+            for (int k = 0; k < F1.size(2); ++k)
+            {
+                auto X = meshGeometry->coordinateAtIndex (i - 0.5, j - 1, k - 1);
+                auto a = A (X[0], X[1], X[2]);
 
-        fit[2] = a[2];
+                F1 (i, j, k, 1) = -a[2];
+                F1 (i, j, k, 2) = +a[1];
+            }
+        }
+    }
+
+    for (int i = 0; i < F2.size(0); ++i)
+    {
+        for (int j = 0; j < F2.size(1); ++j)
+        {
+            for (int k = 0; k < F2.size(2); ++k)
+            {
+                auto X = meshGeometry->coordinateAtIndex (i - 1, j - 0.5, k - 1);
+                auto a = A (X[0], X[1], X[2]);
+
+                F2 (i, j, k, 2) = -a[0];
+                F2 (i, j, k, 0) = +a[2];
+            }
+        }
+    }
+
+
+    for (int i = 0; i < F3.size(0); ++i)
+    {
+        for (int j = 0; j < F3.size(1); ++j)
+        {
+            for (int k = 0; k < F3.size(2); ++k)
+            {
+                auto X = meshGeometry->coordinateAtIndex (i - 1, j - 1, k - 0.5);
+                auto a = A (X[0], X[1], X[2]);
+
+                F3 (i, j, k, 0) = -a[1];
+                F3 (i, j, k, 1) = +a[0];
+            }
+        }
     }
 
     boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
