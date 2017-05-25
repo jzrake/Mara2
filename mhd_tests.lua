@@ -5,10 +5,19 @@ local fieldAmplitude = 1e-5
 
 
 local function background(x, y, z)
-	local v1 = 1.0
-	local v2 = 0.0
-	local v3 = 0.0
-	return {1.0, v1, v2, v3, 1.0, 0.0, 0.0, 0.0}
+	return {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0}
+end
+
+local function background_x(x, y, z)
+	return {1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0}
+end
+
+local function background_y(x, y, z)
+	return {1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0}
+end
+
+local function background_z(x, y, z)
+	return {1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0}
 end
 
 local function field_loop_x(x, y, z)
@@ -35,7 +44,6 @@ local setup = {
 	checkpoint_interval = 0.0,
 	vtk_output_interval = 0.025,
 	cfl_parameter = 0.3,
-	initial_data = background,
 	grid_geometry = 'cartesian',
 	resolution = {32, 32, 32},
 	domain_lower = {-0.5, -0.5, -0.5},
@@ -46,6 +54,8 @@ local setup = {
 	runge_kutta_order = 2,
 	boundary_condition = 'periodic',
 }
+
+
 
 
 --
@@ -60,17 +70,58 @@ local tests = {
 }
 
 for _, test in ipairs(tests) do
-	setup.output_directory = test.output_directory
+	setup.initial_data = background_x
 	setup.vector_potential = test.vector_potential
+	setup.output_directory = test.output_directory
 	mara.run(setup)
 end
 
 
+
 --
--- Do a single run in 2D advecting a field loop once around the domain
+-- Run a 2D advecting a field loop once around the domain, with
+-- the motion along along one axis in the plane. There is one run
+-- for each of the three axes, so we test all of the CT algorithm.
 --
-setup.resolution = {128, 128, 1}
-setup.vector_potential = field_loop_z
-setup.output_directory = 'field_loop_advect'
 setup.final_time = 1.0
+
+setup.resolution = {1, 64, 64}
+setup.initial_data = background_y
+setup.vector_potential = field_loop_x
+setup.output_directory = 'field_loop_advect_x'
+mara.run(setup)
+
+setup.resolution = {64, 1, 64}
+setup.initial_data = background_z
+setup.vector_potential = field_loop_y
+setup.output_directory = 'field_loop_advect_y'
+mara.run(setup)
+
+setup.resolution = {64, 64, 1}
+setup.initial_data = background_x
+setup.vector_potential = field_loop_z
+setup.output_directory = 'field_loop_advect_z'
+mara.run(setup)
+
+
+
+
+--
+-- These are 3D magnetic equilibrium tests.
+--
+local function abc_equilibrium_A(x, y, z)
+	local k = 4.0 * math.pi
+	local A = 0.1 / k
+	local B = 0.1 / k
+	local C = 0.1 / k
+	local a1 = C * math.cos(k * z) - B * math.sin(k * y)
+	local a2 = A * math.cos(k * x) - C * math.sin(k * z)
+	local a3 = B * math.cos(k * y) - A * math.sin(k * x)
+	return {a1, a2, a3}
+end
+setup.final_time = 1.0
+setup.resolution = {32, 32, 1}
+setup.initial_data = background
+setup.vector_potential = abc_equilibrium_A
+setup.output_directory = 'abc_equilibrium'
 mara.run(setup)

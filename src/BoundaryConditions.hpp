@@ -70,6 +70,8 @@ class DrivenMHDBoundary : public BoundaryCondition
 {
 public:
     void apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const override;
+    void applyToCellCenteredB (Cow::Array& B, int numGuard) const override;
+    void applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const override;
 };
 
 

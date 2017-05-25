@@ -5,6 +5,20 @@
 
 
 // ============================================================================
+void BoundaryCondition::applyToCellCenteredB (Cow::Array& B, int numGuard) const
+{
+    throw std::runtime_error ("BoundaryCondition::applyToCellCenteredB required but not implemented");
+}
+
+void BoundaryCondition::applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const
+{
+    throw std::runtime_error ("BoundaryCondition::applyToGodunovFluxes required but not implemented");
+}
+
+
+
+
+// ============================================================================
 void PeriodicBoundaryCondition::apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const
 {
     if (P.size(0) > 1) applyToAxis (P, numGuard, 0);
@@ -383,6 +397,7 @@ void DrivenMHDBoundary::apply (Cow::Array& P, const ConservationLaw& law, int nu
     if (P.size(2) > 1) vertical.applyToAxis (P, law, numGuard, 2);
 
     const int ivel = law.getIndexFor (ConservationLaw::VariableType::velocity);
+    const int imag = law.getIndexFor (ConservationLaw::VariableType::magnetic);
     const int ng = numGuard;
     const int ni = P.size(0) - 2 * ng;
     const int nj = P.size(1) - 2 * ng;
@@ -403,7 +418,35 @@ void DrivenMHDBoundary::apply (Cow::Array& P, const ConservationLaw& law, int nu
                 P (i, j, k + nk + ng, ivel + 0) = -vx;
                 P (i, j, k,           ivel + 1) =  vy;
                 P (i, j, k + nk + ng, ivel + 1) = -vy;
+
+                P (i, j, k,           imag + 0) = 0.0;
+                P (i, j, k + nk + ng, imag + 0) = 0.0;
+                P (i, j, k,           imag + 1) = 0.0;
+                P (i, j, k + nk + ng, imag + 1) = 0.0;
             }
         }
+    }
+}
+
+void DrivenMHDBoundary::applyToCellCenteredB (Cow::Array& B, int numGuard) const
+{
+    auto periodic = PeriodicBoundaryCondition();
+    auto outflow = OutflowBoundaryCondition();
+
+    periodic.applyToAxis (B, numGuard, 0);
+    periodic.applyToAxis (B, numGuard, 1);
+    outflow.applyToAxis (B, numGuard, 2);
+}
+
+void DrivenMHDBoundary::applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const
+{
+    auto periodic = PeriodicBoundaryCondition();
+    auto outflow = OutflowBoundaryCondition();
+
+    switch (axis)
+    {
+        case 0: periodic.applyToAxis (F, numGuard, 0);
+        case 1: periodic.applyToAxis (F, numGuard, 1);
+        case 2: outflow.applyToAxis (F, numGuard, 2);
     }
 }

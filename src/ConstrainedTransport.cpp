@@ -154,7 +154,7 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
 {
     assert (location == MeshLocation::face);
 
-    if (A(0, 0, 0).size() != 3)
+    if (A (0, 0, 0).size() != 3)
     {
         throw std::runtime_error ("vector potential function returned vector of length != 3");
     }
@@ -204,12 +204,12 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
         }
     }
 
-    boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
-    boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
-    boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
-    boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
-    boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
-    boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
+    // boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
+    // boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
+    // boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
+    // boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
+    // boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
+    // boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
 }
 
 void UniformCartesianCT::assignCellCenteredB (Array newB)
@@ -244,23 +244,23 @@ UniformCartesianCT::FluxArrays UniformCartesianCT::computeGodunovFluxesFieldCT()
         {
             for (int k = 0; k < ctFluxes.F1.size(2); ++k)
             {
-                ctFluxes.F1 (i, j, k, 1) = 0.125 * (0.0
-                    + 2 * F1(i + 0, j + 1, k, 1) // Fx(By)
-                    + 1 * F1(i + 0, j + 2, k, 1)
-                    + 1 * F1(i + 0, j + 0, k, 1)
-                    - 1 * F2(i + 0, j + 1, k, 0) // Fy(Bx)
-                    - 1 * F2(i + 1, j + 1, k, 0)
-                    - 1 * F2(i + 0, j + 0, k, 0)
-                    - 1 * F2(i + 1, j + 0, k, 0));
+                ctFluxes.F1 (i, j, k, 1) = 0.125 * (
+                    + 2 * F1(i + 0, j + 1, k + 1, 1) // Fx(By)
+                    + 1 * F1(i + 0, j + 2, k + 1, 1)
+                    + 1 * F1(i + 0, j + 0, k + 1, 1)
+                    - 1 * F2(i + 0, j + 1, k + 1, 0) // Fy(Bx)
+                    - 1 * F2(i + 1, j + 1, k + 1, 0)
+                    - 1 * F2(i + 0, j + 0, k + 1, 0)
+                    - 1 * F2(i + 1, j + 0, k + 1, 0));
 
-                ctFluxes.F1 (i, j, k, 2) = 0.125 * (0.0
-                    + 2 * F1(i + 0, j, k + 1, 2) // Fx(Bz)
-                    + 1 * F1(i + 0, j, k + 2, 2)
-                    + 1 * F1(i + 0, j, k + 0, 2)
-                    - 1 * F3(i + 0, j, k + 1, 0) // Fz(Bx)
-                    - 1 * F3(i + 1, j, k + 1, 0)
-                    - 1 * F3(i + 0, j, k + 0, 0)
-                    - 1 * F3(i + 1, j, k + 0, 0));
+                ctFluxes.F1 (i, j, k, 2) = 0.125 * (
+                    + 2 * F1(i + 0, j + 1, k + 1, 2) // Fx(Bz)
+                    + 1 * F1(i + 0, j + 1, k + 2, 2)
+                    + 1 * F1(i + 0, j + 1, k + 0, 2)
+                    - 1 * F3(i + 0, j + 1, k + 1, 0) // Fz(Bx)
+                    - 1 * F3(i + 1, j + 1, k + 1, 0)
+                    - 1 * F3(i + 0, j + 1, k + 0, 0)
+                    - 1 * F3(i + 1, j + 1, k + 0, 0));
             }
         }
     }
@@ -271,23 +271,23 @@ UniformCartesianCT::FluxArrays UniformCartesianCT::computeGodunovFluxesFieldCT()
         {
             for (int k = 0; k < ctFluxes.F2.size(2); ++k)
             {
-                ctFluxes.F2 (i, j, k, 2) = 0.125 * (0.0
-                    + 2 * F2(i, j + 0, k + 1, 2) // Fy(Bz)
-                    + 1 * F2(i, j + 0, k + 2, 2)
-                    + 1 * F2(i, j + 0, k + 0, 2)
-                    - 1 * F3(i, j + 0, k + 1, 1) // Fz(By)
-                    - 1 * F3(i, j + 1, k + 1, 1)
-                    - 1 * F3(i, j + 0, k + 0, 1)
-                    - 1 * F3(i, j + 1, k + 0, 1));
+                ctFluxes.F2 (i, j, k, 2) = 0.125 * (
+                    + 2 * F2(i + 1, j + 0, k + 1, 2) // Fy(Bz)
+                    + 1 * F2(i + 1, j + 0, k + 2, 2)
+                    + 1 * F2(i + 1, j + 0, k + 0, 2)
+                    - 1 * F3(i + 1, j + 0, k + 1, 1) // Fz(By)
+                    - 1 * F3(i + 1, j + 1, k + 1, 1)
+                    - 1 * F3(i + 1, j + 0, k + 0, 1)
+                    - 1 * F3(i + 1, j + 1, k + 0, 1));
 
-                ctFluxes.F2 (i, j, k, 0) = 0.125 * (0.0
-                    + 2 * F2(i + 1, j + 0, k, 0) // Fy(Bx)
-                    + 1 * F2(i + 2, j + 0, k, 0)
-                    + 1 * F2(i + 0, j + 0, k, 0)
-                    - 1 * F1(i + 1, j + 0, k, 1) // Fx(By)
-                    - 1 * F1(i + 1, j + 1, k, 1)
-                    - 1 * F1(i + 0, j + 0, k, 1)
-                    - 1 * F1(i + 0, j + 1, k, 1));
+                ctFluxes.F2 (i, j, k, 0) = 0.125 * (
+                    + 2 * F2(i + 1, j + 0, k + 1, 0) // Fy(Bx)
+                    + 1 * F2(i + 2, j + 0, k + 1, 0)
+                    + 1 * F2(i + 0, j + 0, k + 1, 0)
+                    - 1 * F1(i + 1, j + 0, k + 1, 1) // Fx(By)
+                    - 1 * F1(i + 1, j + 1, k + 1, 1)
+                    - 1 * F1(i + 0, j + 0, k + 1, 1)
+                    - 1 * F1(i + 0, j + 1, k + 1, 1));
             }
         }
     }
@@ -298,30 +298,26 @@ UniformCartesianCT::FluxArrays UniformCartesianCT::computeGodunovFluxesFieldCT()
         {
             for (int k = 0; k < ctFluxes.F3.size(2); ++k)
             {
-                ctFluxes.F3 (i, j, k, 0) = 0.125 * (0.0
-                    + 2 * F3(i + 1, j, k + 0, 0) // Fz(Bx)
-                    + 1 * F3(i + 2, j, k + 0, 0)
-                    + 1 * F3(i + 0, j, k + 0, 0)
-                    - 1 * F1(i + 1, j, k + 0, 2) // Fx(Bz)
-                    - 1 * F1(i + 1, j, k + 1, 2)
-                    - 1 * F1(i + 0, j, k + 0, 2)
-                    - 1 * F1(i + 0, j, k + 1, 2));
+                ctFluxes.F3 (i, j, k, 0) = 0.125 * (
+                    + 2 * F3(i + 1, j + 1, k + 0, 0) // Fz(Bx)
+                    + 1 * F3(i + 2, j + 1, k + 0, 0)
+                    + 1 * F3(i + 0, j + 1, k + 0, 0)
+                    - 1 * F1(i + 1, j + 1, k + 0, 2) // Fx(Bz)
+                    - 1 * F1(i + 1, j + 1, k + 1, 2)
+                    - 1 * F1(i + 0, j + 1, k + 0, 2)
+                    - 1 * F1(i + 0, j + 1, k + 1, 2));
 
-                ctFluxes.F3 (i, j, k, 1) = 0.125 * (0.0
-                    + 2 * F3(i, j + 1, k + 0, 1) // Fz(By)
-                    + 1 * F3(i, j + 2, k + 0, 1)
-                    + 1 * F3(i, j + 0, k + 0, 1)
-                    - 1 * F2(i, j + 1, k + 0, 2) // Fy(Bz)
-                    - 1 * F2(i, j + 1, k + 1, 2)
-                    - 1 * F2(i, j + 0, k + 0, 2)
-                    - 1 * F2(i, j + 0, k + 1, 2));
+                ctFluxes.F3 (i, j, k, 1) = 0.125 * (
+                    + 2 * F3(i + 1, j + 1, k + 0, 1) // Fz(By)
+                    + 1 * F3(i + 1, j + 2, k + 0, 1)
+                    + 1 * F3(i + 1, j + 0, k + 0, 1)
+                    - 1 * F2(i + 1, j + 1, k + 0, 2) // Fy(Bz)
+                    - 1 * F2(i + 1, j + 1, k + 1, 2)
+                    - 1 * F2(i + 1, j + 0, k + 0, 2)
+                    - 1 * F2(i + 1, j + 0, k + 1, 2));
             }
         }
     }
-
-    // ctFluxes.F1 = F1[updateableRegionF1];
-    // ctFluxes.F2 = F2[updateableRegionF2];
-    // ctFluxes.F3 = F3[updateableRegionF3];
 
     return ctFluxes;
 }

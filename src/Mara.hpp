@@ -96,8 +96,8 @@ class BoundaryCondition
 {
 public:
     virtual void apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const = 0;
-    virtual void applyToCellCenteredB (Cow::Array& B, int numGuard) const {}
-    virtual void applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const {}
+    virtual void applyToCellCenteredB (Cow::Array& B, int numGuard) const;
+    virtual void applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const;
 };
 
 

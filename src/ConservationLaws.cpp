@@ -186,9 +186,6 @@ ConservationLaw::State NewtonianHydro::fromPrimitive (const Request& request, co
     S.A[3] = vn;
     S.A[4] = vn + cs;
 
-    //S.L = Cow::Matrix (5, 5);
-    //S.R = Cow::Matrix (5, 5);
-
     return S;
 }
 
@@ -269,7 +266,7 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     const auto dAA = request.areaElement;
     const double gm0 = gammaLawIndex;
     const double gm1 = gammaLawIndex - 1.0;
-    const double cs = std::sqrt (gm0 * P[PRE] / P[RHO]);
+    const double cs2 = gm0 * P[PRE] / P[RHO];
     const double vv = P[V11] * P[V11] + P[V22] * P[V22] + P[V33] * P[V33];
     const double BB = P[B11] * P[B11] + P[B22] * P[B22] + P[B33] * P[B33];
     const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
@@ -305,20 +302,24 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     S.F[H22] = vn * S.U[H22] - Bn * P[V22];
     S.F[H33] = vn * S.U[H33] - Bn * P[V33];
 
+    // ------------------------------------------------------------------------
+    // See Antony Jameson's notes at
+    // http://aero-comlab.stanford.edu/Papers/jameson.mhd.pdf
+    // ------------------------------------------------------------------------
     const double Bn2 = Bn * Bn;
-    const double cs2 = cs * cs;
     const double ca2 = BB / P[RHO]; /* Alfven */
+    const double cn2 = Bn2 / P[RHO]; /* Alfven (in field direction) */
     const double cw4 = (cs2 + ca2) * (cs2 + ca2);
-    const double cF2 = 0.5 * (cs2 + ca2 + std::sqrt (cw4 - 4 * cs2 * Bn2 / P[RHO])); /* fast */
-    const double cS2 = 0.5 * (cs2 + ca2 - std::sqrt (cw4 - 4 * cs2 * Bn2 / P[RHO])); /* slow */
+    const double cF2 = 0.5 * (cs2 + ca2 + std::sqrt (cw4 - 4 * cs2 * cn2)); /* fast */
+    const double cS2 = 0.5 * (cs2 + ca2 - std::sqrt (cw4 - 4 * cs2 * cn2)); /* slow */
 
     S.A[0] = vn - std::sqrt (cF2);
-    S.A[1] = vn - std::sqrt (ca2);
+    S.A[1] = vn - std::sqrt (cn2);
     S.A[2] = vn - std::sqrt (cS2);
     S.A[3] = vn;
     S.A[4] = vn;
     S.A[5] = vn + std::sqrt (cS2);
-    S.A[6] = vn + std::sqrt (ca2);
+    S.A[6] = vn + std::sqrt (cn2);
     S.A[7] = vn + std::sqrt (cF2);
 
     return S;

@@ -353,6 +353,13 @@ void writeCheckpoint (SimulationSetup& setup, SimulationStatus& status, FluxCons
 // ============================================================================
 int MaraSession::launch (SimulationSetup& setup)
 {
+    // More general setup validation code should go here
+    if (setup.initialDataFunction == nullptr)
+    {
+        throw std::runtime_error ("No initial data function was provided");
+    }
+
+
     auto status = SimulationStatus();
     auto system = FluxConservativeSystem (setup); // This also initializes CT.
 

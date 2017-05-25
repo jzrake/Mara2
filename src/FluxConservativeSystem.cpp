@@ -251,6 +251,7 @@ void FluxConservativeSystem::computeIntercellFluxes()
         auto ct = getCT();
         ct->assignGodunovFluxes (F1[magneticIndices], F2[magneticIndices], F3[magneticIndices]);
         auto ctFluxes = ct->computeGodunovFluxesFieldCT();
+        //auto ctFluxes = ct->getGodunovFluxes();
 
         F1[magneticIndices] = ctFluxes.F1;
         F2[magneticIndices] = ctFluxes.F2;
@@ -449,6 +450,5 @@ UniformCartesianCT* FluxConservativeSystem::getCT()
     {
         return ct;
     }
-
     throw std::logic_error ("constrainedTransport must be UniformCartesianCT");
 }
