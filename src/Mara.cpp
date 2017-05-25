@@ -364,12 +364,12 @@ int MaraSession::launch (SimulationSetup& setup)
         double nextVtk = status.vtkOutputsWrittenSoFar * setup.vtkOutputInterval;
         double nextChkpt = status.checkpointsWrittenSoFar * setup.checkpointInterval;
 
-        if (setup.checkpointInterval > 0 && status.simulationTime >= nextVtk)
+        if (setup.vtkOutputInterval > 0 && status.simulationTime >= nextVtk)
         {
             writeVtkOutput (setup, status, system);
         }
 
-        if (setup.vtkOutputInterval > 0 && status.simulationTime >= nextChkpt)
+        if (setup.checkpointInterval > 0 && status.simulationTime >= nextChkpt)
         {
             writeCheckpoint (setup, status, system);
         }
