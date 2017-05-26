@@ -415,15 +415,12 @@ void FluxConservativeSystem::recoverPrimitive()
                 pit[q] = S.P[q];
             }
 
-            if (S.healthFlag != 0)
-            {
-                auto index = uit.relativeIndex();
-                zoneHealth (index[0], index[1], index[2]) = 1.0;
-            }
+            auto index = uit.relativeIndex();
+            zoneHealth (index[0], index[1], index[2]) = S.healthFlag;
         }
         catch (ConservationLaw::StateFailure& stateFailure)
         {
-            stateFailure.zoneIndex = uit.index();
+            stateFailure.zoneIndex = uit.relativeIndex();
             solverFailure.failedStates.push_back (stateFailure);
         }
     }

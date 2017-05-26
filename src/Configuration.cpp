@@ -193,6 +193,8 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     setup.cflParameter = cfg["cfl_parameter"];
     setup.rungeKuttaOrder = cfg["runge_kutta_order"];
     setup.disableCT = cfg["disable_ct"];
+    setup.runName = cfg["run_name"];
+    setup.vtkUseBinary = cfg["vtk_use_binary"].get_or (true);
 
     if (! (
         setup.rungeKuttaOrder == 1

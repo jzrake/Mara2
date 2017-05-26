@@ -43,6 +43,7 @@ local setup = {
 	final_time = 0.0,
 	checkpoint_interval = 0.0,
 	vtk_output_interval = 0.025,
+	vtk_use_binary = true,
 	cfl_parameter = 0.3,
 	grid_geometry = 'cartesian',
 	resolution = {32, 32, 32},
@@ -118,8 +119,8 @@ local function abc_equilibrium_A(x, y, z)
 	local a3 = B * math.cos(k * y) - A * math.sin(k * x)
 	return {a1, a2, a3}
 end
-setup.final_time = 1.0
-setup.resolution = {16, 16, 16}
+setup.final_time = 0.0
+setup.resolution = {256, 256, 1}
 setup.initial_data = background_x
 setup.vector_potential = abc_equilibrium_A
 setup.output_directory = 'abc_equilibrium'

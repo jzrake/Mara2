@@ -23,7 +23,12 @@ SimulationSetup::SimulationSetup()
     finalTime = 1.0;
     checkpointInterval = 1.0;
     vtkOutputInterval = 1.0;
+    vtkUseBinary = true;
     cflParameter = 0.25;
+    rungeKuttaOrder = 2;
+    outputDirectory = ".";
+    runName = "test";
+    disableCT = false;
 }
 
 
@@ -272,6 +277,7 @@ void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConse
     auto vtkStream = std::ofstream (vtkFilename);
     auto vtkDataSet = VTK::DataSet (setup.meshGeometry->domainShape());
     vtkDataSet.setTitle (setup.runName);
+    vtkDataSet.setUseBinaryFormat (setup.vtkUseBinary);
 
     using VT = ConservationLaw::VariableType;
     auto claw = setup.conservationLaw;

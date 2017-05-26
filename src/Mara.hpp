@@ -47,6 +47,7 @@ public:
     double vtkOutputInterval;
     double cflParameter;
     int rungeKuttaOrder;
+    bool vtkUseBinary;
     std::string outputDirectory;
     std::string runName;
 
