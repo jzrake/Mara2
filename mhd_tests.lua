@@ -73,7 +73,7 @@ for _, test in ipairs(tests) do
 	setup.initial_data = background_x
 	setup.vector_potential = test.vector_potential
 	setup.output_directory = test.output_directory
-	mara.run(setup)
+	--mara.run(setup)
 end
 
 
@@ -89,20 +89,19 @@ setup.resolution = {1, 64, 64}
 setup.initial_data = background_y
 setup.vector_potential = field_loop_x
 setup.output_directory = 'field_loop_advect_x'
-mara.run(setup)
+--mara.run(setup)
 
 setup.resolution = {64, 1, 64}
 setup.initial_data = background_z
 setup.vector_potential = field_loop_y
 setup.output_directory = 'field_loop_advect_y'
-mara.run(setup)
+--mara.run(setup)
 
 setup.resolution = {64, 64, 1}
 setup.initial_data = background_x
 setup.vector_potential = field_loop_z
 setup.output_directory = 'field_loop_advect_z'
-mara.run(setup)
-
+--mara.run(setup)
 
 
 
@@ -120,8 +119,8 @@ local function abc_equilibrium_A(x, y, z)
 	return {a1, a2, a3}
 end
 setup.final_time = 1.0
-setup.resolution = {32, 32, 1}
-setup.initial_data = background
+setup.resolution = {16, 16, 16}
+setup.initial_data = background_x
 setup.vector_potential = abc_equilibrium_A
 setup.output_directory = 'abc_equilibrium'
 mara.run(setup)

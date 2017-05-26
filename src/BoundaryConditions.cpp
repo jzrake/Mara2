@@ -397,7 +397,6 @@ void DrivenMHDBoundary::apply (Cow::Array& P, const ConservationLaw& law, int nu
     if (P.size(2) > 1) vertical.applyToAxis (P, law, numGuard, 2);
 
     const int ivel = law.getIndexFor (ConservationLaw::VariableType::velocity);
-    const int imag = law.getIndexFor (ConservationLaw::VariableType::magnetic);
     const int ng = numGuard;
     const int ni = P.size(0) - 2 * ng;
     const int nj = P.size(1) - 2 * ng;
@@ -409,8 +408,8 @@ void DrivenMHDBoundary::apply (Cow::Array& P, const ConservationLaw& law, int nu
         {
             const double x = (i - ng + 0.5) / ni - 0.5;
             const double y = (j - ng + 0.5) / nj - 0.5;
-            const double vx = 0.05 * std::sin (2 * M_PI * y);
-            const double vy = 0.05 * std::cos (2 * M_PI * x);
+            const double vx = 0.2 * std::sin (4 * M_PI * y);
+            const double vy = 0.2 * std::cos (4 * M_PI * x);
 
             for (int k = 0; k < ng; ++k)
             {
@@ -418,11 +417,6 @@ void DrivenMHDBoundary::apply (Cow::Array& P, const ConservationLaw& law, int nu
                 P (i, j, k + nk + ng, ivel + 0) = -vx;
                 P (i, j, k,           ivel + 1) =  vy;
                 P (i, j, k + nk + ng, ivel + 1) = -vy;
-
-                P (i, j, k,           imag + 0) = 0.0;
-                P (i, j, k + nk + ng, imag + 0) = 0.0;
-                P (i, j, k,           imag + 1) = 0.0;
-                P (i, j, k + nk + ng, imag + 1) = 0.0;
             }
         }
     }
@@ -445,8 +439,8 @@ void DrivenMHDBoundary::applyToGodunovFluxes (Cow::Array& F, int numGuard, int a
 
     switch (axis)
     {
-        case 0: periodic.applyToAxis (F, numGuard, 0);
-        case 1: periodic.applyToAxis (F, numGuard, 1);
-        case 2: outflow.applyToAxis (F, numGuard, 2);
+        case 0: periodic.applyToAxis (F, numGuard, 0); break;
+        case 1: periodic.applyToAxis (F, numGuard, 1); break;
+        case 2: outflow.applyToAxis (F, numGuard, 2); break;
     }
 }

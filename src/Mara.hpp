@@ -50,6 +50,9 @@ public:
     std::string outputDirectory;
     std::string runName;
 
+    // Solver options
+    bool disableCT;
+
     // Algorithms
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;
@@ -133,6 +136,7 @@ public:
         std::array<double, 8> A; // Eigenvalues
         Cow::Matrix L; // Left eigenvector matrix
         Cow::Matrix R; // Right eigenvector matrix
+        int healthFlag;
     };
 
     struct Request
@@ -155,6 +159,11 @@ public:
     };
 
     using StateVector = std::vector<State>;
+
+    /**
+    Derived classes may override this method to implement a pressure floor.
+    */
+    virtual void setPressureFloor (double) {}
 
     /**
     Generate a state from the given information request, and a double pointer

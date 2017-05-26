@@ -306,6 +306,8 @@ void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConse
         vtkDataSet.addScalarField ("monopole", M, VTK::DataSet::MeshLocation::vert);
     }
 
+    vtkDataSet.addScalarField ("health", system.getZoneHealth());
+
     std::cout << "writing VTK file " << vtkFilename << std::endl;
     vtkDataSet.write (vtkStream);
     ++status.vtkOutputsWrittenSoFar;

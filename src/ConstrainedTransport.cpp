@@ -204,12 +204,12 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
         }
     }
 
-    // boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
-    // boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
-    // boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
-    // boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
-    // boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
-    // boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
+    boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
+    boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
+    boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
+    boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
+    boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
+    boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
 }
 
 void UniformCartesianCT::assignCellCenteredB (Array newB)

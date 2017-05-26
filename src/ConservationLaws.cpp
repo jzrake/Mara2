@@ -222,9 +222,14 @@ std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const
 
 
 // ============================================================================
-NewtonianMHD::NewtonianMHD() : gammaLawIndex (5./3)
+NewtonianMHD::NewtonianMHD() : gammaLawIndex (5./3), pressureFloor (-1.0)
 {
 
+}
+
+void NewtonianMHD::setPressureFloor (double floorValueToUse)
+{
+    pressureFloor = floorValueToUse;
 }
 
 ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, const double* U) const
@@ -248,6 +253,13 @@ ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, cons
     // ------------------------------------------------------------------------
     if (P[PRE] < 0.0 || P[RHO] < 0.0 || U[DDD] < 0.0 || U[NRG] < 0.0)
     {
+        if (P[PRE] < 0.0 && pressureFloor > 0.0)
+        {
+            P[PRE] = pressureFloor * P[RHO];
+            auto S = fromPrimitive (request, P);
+            S.healthFlag = 1;
+            return S;
+        }
         State S;
 
         for (int q = 0; q < getNumConserved(); ++q)

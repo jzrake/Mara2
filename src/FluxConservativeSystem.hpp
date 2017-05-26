@@ -43,6 +43,12 @@ public:
     Cow::Array::Reference getPrimitiveVector (int fieldIndex);
 
     /**
+    Return an array indicating the health of corresponding zones. 0 means no
+    errors occured there.
+    */
+    Cow::Array::Reference getZoneHealth();
+
+    /**
     Set initial data on the primitive variable array.
     */
     void setInitialData (InitialDataFunction F, InitialDataFunction A);
@@ -84,6 +90,7 @@ private:
     int numConserved;
     int stencilSize;
     int rungeKuttaOrder;
+    bool disableCT;
 
     Cow::Shape domainShape;
     Cow::Region updateableRegion;
@@ -96,6 +103,7 @@ private:
     Cow::Array F1; // Flux along axis 1
     Cow::Array F2; // Flux along axis 2
     Cow::Array F3; // Flux along axis 3
+    Cow::Array zoneHealth; // Nonzero values indicate where failures are occuring
 
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;

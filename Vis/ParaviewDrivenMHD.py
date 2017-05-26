@@ -7,6 +7,7 @@ for slice, z in zip([slice1, slice2], [-0.49, 0.49]):
 	slice.SliceType = 'Plane'
 	slice.SliceType.Origin = [0, 0, z]
 	slice.SliceType.Normal = [0, 0, 1]
+	slice.Triangulatetheslice = False
 
 	sDisplay = Show(slice)
 	sDisplay.Representation = 'Outline'
@@ -15,6 +16,8 @@ for slice, z in zip([slice1, slice2], [-0.49, 0.49]):
 	glyph = Glyph(slice)
 	glyph.Scalars = ['POINTS', 'None']
 	glyph.Vectors = ['CELLS', 'velocity']
+	glyph.ScaleMode = 'vector'
+	glyph.ScaleFactor = 0.5
 
 	gDisplay = Show(glyph)
 	gDisplay.Representation = 'Surface'

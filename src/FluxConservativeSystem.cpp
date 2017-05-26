@@ -37,6 +37,7 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     constrainedTransport   = setup.constrainedTransport;
     boundaryCondition      = setup.boundaryCondition;
     rungeKuttaOrder        = setup.rungeKuttaOrder;
+    disableCT              = setup.disableCT;
 
     domainShape   = meshGeometry->domainShape();
     numConserved  = conservationLaw->getNumConserved();
@@ -83,6 +84,7 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     F1 = Array (shapeF1);
     F2 = Array (shapeF2);
     F3 = Array (shapeF3);
+    zoneHealth = Array (domainShape);
 
     // Initialize CT.
     auto ct = getCT();
@@ -122,6 +124,11 @@ Cow::Array::Reference FluxConservativeSystem::getPrimitiveVector (int fieldIndex
     return P[R];
 }
 
+Cow::Array::Reference FluxConservativeSystem::getZoneHealth()
+{
+    return zoneHealth[Region()];
+}
+
 void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataFunction A)
 {
     auto request = ConservationLaw::Request();
@@ -141,7 +148,6 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
         ct->assignVectorPotential (A, ConstrainedTransport::MeshLocation::face);
 
         auto ctFluxes = ct->computeGodunovFluxesFieldCT();
-        //auto ctFluxes = ct->getGodunovFluxes();
         F1[magneticIndices] = ctFluxes.F1;
         F2[magneticIndices] = ctFluxes.F2;
         F3[magneticIndices] = ctFluxes.F3;
@@ -246,12 +252,11 @@ void FluxConservativeSystem::computeIntercellFluxes()
 
     int imag = conservationLaw->getIndexFor (ConservationLaw::VariableType::magnetic);
 
-    if (imag != -1)
+    if (imag != -1 && ! disableCT)
     {
         auto ct = getCT();
         ct->assignGodunovFluxes (F1[magneticIndices], F2[magneticIndices], F3[magneticIndices]);
         auto ctFluxes = ct->computeGodunovFluxesFieldCT();
-        //auto ctFluxes = ct->getGodunovFluxes();
 
         F1[magneticIndices] = ctFluxes.F1;
         F2[magneticIndices] = ctFluxes.F2;
@@ -408,6 +413,12 @@ void FluxConservativeSystem::recoverPrimitive()
             for (int q = 0; q < numConserved; ++q)
             {
                 pit[q] = S.P[q];
+            }
+
+            if (S.healthFlag != 0)
+            {
+                auto index = uit.relativeIndex();
+                zoneHealth (index[0], index[1], index[2]) = 1.0;
             }
         }
         catch (ConservationLaw::StateFailure& stateFailure)

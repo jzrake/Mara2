@@ -124,6 +124,11 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
         throw std::runtime_error ("unrecognized option for conservation_law");
     }
 
+    if (cfg["pressure_floor"])
+    {
+        setup.conservationLaw->setPressureFloor (cfg["pressure_floor"]);
+    }
+
 
     // riemann solver
     // ------------------------------------------------------------------------
@@ -187,6 +192,7 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     setup.vtkOutputInterval = cfg["vtk_output_interval"];
     setup.cflParameter = cfg["cfl_parameter"];
     setup.rungeKuttaOrder = cfg["runge_kutta_order"];
+    setup.disableCT = cfg["disable_ct"];
 
     if (! (
         setup.rungeKuttaOrder == 1
