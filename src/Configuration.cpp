@@ -7,8 +7,6 @@
 #include "RiemannSolver.hpp"
 #include "sol.hpp"
 #define lua (luaState->L)
-#define PRINT_VEC3(v) "[" << v[0] << " " << v[1] << " " << v[2] << "]"
-
 
 
 

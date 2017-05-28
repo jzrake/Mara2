@@ -1,5 +1,6 @@
 #include <cmath>
 #include <sstream>
+#include <cassert>
 #include "ConservationLaws.hpp"
 
 // Indexes to primitive quanitites P
@@ -49,6 +50,64 @@ const char* ConservationLaw::StateFailure::what() const noexcept
 
     message = stream.str();
     return message.c_str();
+}
+
+
+
+
+// ============================================================================
+ConservationLaw::State ConservationLaw::averageStates (const Request& request,
+    const State& L, const State& R) const
+{
+    int nq = getNumConserved();
+    auto Paverage = std::vector<double> (nq);
+
+    for (int q = 0; q < nq; ++q)
+    {
+        Paverage[q] = 0.5 * (L.P[q] + R.P[q]);
+    }
+    return fromPrimitive (request, &Paverage[0]);
+}
+
+std::vector<ConservationLaw::State> ConservationLaw::fromPrimitive
+(const Request& request, const Cow::Array& P) const
+{
+    assert (P.size (1) == getNumConserved());
+    auto states = std::vector<ConservationLaw::State>(P.size (0));
+
+    for (int n = 0; n < P.size (0); ++n)
+    {
+        states[n] = fromPrimitive (request, &P(n));
+    }
+    return states;
+}
+
+double ConservationLaw::maxEigenvalueMagnitude (const State& state) const
+{
+    double maxLambda = 0.0;
+    int nq = getNumConserved();
+
+    for (int n = 0; n < nq; ++n)
+    {
+        if (maxLambda < std::fabs (state.A[n]))
+        {
+            maxLambda = std::fabs (state.A[n]);
+        }
+    }
+    return maxLambda;
+}
+
+double ConservationLaw::maxEigenvalueMagnitude (const StateVector& states) const
+{
+    double maxLambda = 0.0;
+
+    for (int n = 0; n < states.size(); ++n)
+    {
+        double A = maxEigenvalueMagnitude (states[n]);
+
+        if (maxLambda < A) maxLambda = A;
+    }
+    return maxLambda;
 }
 
 
@@ -369,5 +428,3 @@ std::string NewtonianMHD::getPrimitiveName (int fieldIndex) const
         default: return "";
     }
 }
-
-

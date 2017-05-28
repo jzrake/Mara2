@@ -2,16 +2,21 @@
 #include <fstream>
 #include <iomanip>
 #include <cmath>
+
+// Mara includes
 #include "Mara.hpp"
 #include "Configuration.hpp"
-#include "FileSystem.hpp"
 #include "FluxConservativeSystem.hpp"
 #include "RiemannSolver.hpp"
+#include "Matrix.hpp"
+#include "BlockDecomposition.hpp"
+
+// Cow includes
 #include "HDF5.hpp"
 #include "Timer.hpp"
 #include "VTK.hpp"
 #include "MPI.hpp"
-#include "Matrix.hpp"
+#include "FileSystem.hpp"
 #include "DebugHelper.hpp"
 
 
@@ -46,61 +51,6 @@ SimulationStatus::SimulationStatus()
 
 
 
-// ============================================================================
-ConservationLaw::State ConservationLaw::averageStates (const Request& request,
-    const State& L, const State& R) const
-{
-    int nq = getNumConserved();
-    auto Paverage = std::vector<double> (nq);
-
-    for (int q = 0; q < nq; ++q)
-    {
-        Paverage[q] = 0.5 * (L.P[q] + R.P[q]);
-    }
-    return fromPrimitive (request, &Paverage[0]);
-}
-
-std::vector<ConservationLaw::State> ConservationLaw::fromPrimitive
-(const Request& request, const Cow::Array& P) const
-{
-    assert (P.size (1) == getNumConserved());
-    auto states = std::vector<ConservationLaw::State>(P.size (0));
-
-    for (int n = 0; n < P.size (0); ++n)
-    {
-        states[n] = fromPrimitive (request, &P(n));
-    }
-    return states;
-}
-
-double ConservationLaw::maxEigenvalueMagnitude (const State& state) const
-{
-    double maxLambda = 0.0;
-    int nq = getNumConserved();
-
-    for (int n = 0; n < nq; ++n)
-    {
-        if (maxLambda < std::fabs (state.A[n]))
-        {
-            maxLambda = std::fabs (state.A[n]);
-        }
-    }
-    return maxLambda;
-}
-
-double ConservationLaw::maxEigenvalueMagnitude (const StateVector& states) const
-{
-    double maxLambda = 0.0;
-
-    for (int n = 0; n < states.size(); ++n)
-    {
-        double A = maxEigenvalueMagnitude (states[n]);
-
-        if (maxLambda < A) maxLambda = A;
-    }
-    return maxLambda;
-}
-
 
 
 
@@ -124,6 +74,7 @@ int ScalarUpwind::getStencilSize() const
 {
     return 1;
 }
+
 
 
 
@@ -363,17 +314,21 @@ int MaraSession::launch (SimulationSetup& setup)
 {
     using namespace Cow;
 
+
     // More general setup validation code should go here
+    // ------------------------------------------------------------------------
     if (setup.initialDataFunction == nullptr)
     {
         throw std::runtime_error ("No initial data function was provided");
     }
 
-    // Just some ideas on how to initialize MPI runs:
-    //
-    // auto distributedAxes = setup.meshGeometry->fleshedOutAxes();
-    // auto mpiCart = MpiCommunicator::world().createCartesian (3, distributedAxes);
-    // setup.localMeshGeometry = setup.meshGeometry->decompose (mpiCart);
+
+    // Mesh decomposition steps
+    // ------------------------------------------------------------------------
+    auto blockDecomposition = BlockDecomposition (setup.meshGeometry);
+    auto localGeometry = blockDecomposition.decompose();
+    setup.meshGeometry = localGeometry; // over-write global mesh geometry
+
 
     auto status = SimulationStatus();
     auto system = FluxConservativeSystem (setup); // This also initializes CT.
@@ -383,6 +338,8 @@ int MaraSession::launch (SimulationSetup& setup)
 
     while (status.simulationTime < setup.finalTime)
     {
+        // Perform output of different formats if necessary
+        // --------------------------------------------------------------------
         double nextVtk = status.vtkOutputsWrittenSoFar * setup.vtkOutputInterval;
         double nextChkpt = status.checkpointsWrittenSoFar * setup.checkpointInterval;
 
@@ -395,13 +352,19 @@ int MaraSession::launch (SimulationSetup& setup)
         {
             writeCheckpoint (setup, status, system);
         }
-        auto timer = Cow::Timer();
 
+
+        // Invoke the solver to advance the solution
+        // --------------------------------------------------------------------
+        auto timer = Cow::Timer();
         double dt = setup.cflParameter * system.getCourantTimestep();
         system.advance (dt);
         status.simulationTime += dt;
         status.simulationIter += 1;
 
+
+        // Generate iteration output message
+        // --------------------------------------------------------------------
         double kzps = 1e-3 * setup.meshGeometry->totalCellsInMesh() / timer.age();
         std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
         std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";

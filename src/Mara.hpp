@@ -18,6 +18,7 @@ class ConstrainedTransport;
 class IntercellFluxScheme;
 class MaraSession;
 class MeshGeometry;
+class MeshDecomposition;
 class RiemannSolver;
 class SimulationSetup;
 class SimulationStatus;
@@ -81,16 +82,65 @@ public:
 
 
 
+/**
+This class represents a decomposition of a global mesh into patches. There may
+be one patch per MPI process, or the decomposition may be more general.
+Currently there is only one implementation, which is a block decomposition.
+*/
+class MeshDecomposition
+{
+public:
+    std::shared_ptr<MeshGeometry> decompose() const;
+};
+
+
+
+
 class MeshGeometry
 {
 public:
     using Coordinate = std::array<double, 3>;
+
+    /**
+    A convenience method that returns a vector of 3 bool's, indicating which
+    of the axes have dimension greater than 1.
+    */
     std::vector<bool> fleshedOutAxes() const;
+
+    /**
+    Return an object that describes the number of cells (volumes) contained in
+    the mesh. For cartesian topology, this is just the number of cells in each
+    direction. This is not meant to include guard zone regions as may required
+    by various solvers.
+    */
     virtual Cow::Shape domainShape() const = 0;
+
+    /**
+    Return the total number of cells in the mesh.
+    */
     virtual unsigned long totalCellsInMesh() const = 0;
+
+    /**
+    Return the coordinates assocaited to a given index location in the mesh.
+    Integer values are generally used for cell centroids.
+    */
     virtual Coordinate coordinateAtIndex (double i, double j, double k) const = 0;
+
+    /**
+    Return the linear dimension of the cell with given index along a given axis.
+    */
     virtual double cellLength (int i, int j, int k, int axis) const = 0;
+
+    /**
+    Return the surface area of the face at the given index and axis. Indexing
+    convention is that a face with index i sits to the left of the cell with
+    index i (so that face and cell 0 are both left-most along a given axis).
+    */
     virtual double faceArea (int i, int j, int k, int axis) const = 0;
+
+    /**
+    Return the volume of the cell at the given index.
+    */
     virtual double cellVolume (int i, int j, int k) const = 0;
 };
 
@@ -260,11 +310,6 @@ public:
 
 
 // Classes below will be moved to implementation files soon
-// ============================================================================
-#include <iostream>
-
-
-
 
 // ============================================================================
 class ScalarUpwind : public IntercellFluxScheme
