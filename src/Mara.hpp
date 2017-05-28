@@ -85,6 +85,7 @@ class MeshGeometry
 {
 public:
     using Coordinate = std::array<double, 3>;
+    std::vector<bool> fleshedOutAxes() const;
     virtual Cow::Shape domainShape() const = 0;
     virtual unsigned long totalCellsInMesh() const = 0;
     virtual Coordinate coordinateAtIndex (double i, double j, double k) const = 0;

@@ -28,6 +28,10 @@ public:
 // ============================================================================
 InitialDataFunction Configuration::LuaState::makeIDF (sol::function& func)
 {
+    if (func == sol::nil)
+    {
+        return nullptr;
+    }
     return [=] (double x, double y, double z)
     {
         sol::table result = func (x, y, z);
@@ -50,8 +54,8 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     // ------------------------------------------------------------------------
     sol::function initial_data = cfg["initial_data"];
     sol::function vector_potential = cfg["vector_potential"];
-    setup.initialDataFunction = cfg["initial_data"] ? makeIDF (initial_data) : nullptr;
-    setup.vectorPotentialFunction = cfg["vector_potential"] ? makeIDF (vector_potential) : nullptr;
+    setup.initialDataFunction = makeIDF (initial_data);
+    setup.vectorPotentialFunction = makeIDF (vector_potential);
 
 
     // grid geometry
@@ -94,7 +98,10 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     }
     else if (boundary_condition == "driven_mhd")
     {
-        setup.boundaryCondition.reset (new DrivenMHDBoundary);
+        auto drvBoundary = new DrivenMHDBoundary;
+        sol::function F = cfg["boundary_velocity_function"];
+        drvBoundary->setVelocityFunction (makeIDF (F));
+        setup.boundaryCondition.reset (drvBoundary);
     }
     else
     {
