@@ -15,7 +15,7 @@ public:
         upper = {{1.0, 1.0, 1.0}};
     }
 
-    Cow::Shape domainShape() const override
+    Cow::Shape cellsShape() const override
     {
         return shape;
     }

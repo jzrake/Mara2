@@ -99,7 +99,19 @@ public:
 class MeshGeometry
 {
 public:
+
+    /**
+    A type to represent a three-component coordinate vector.
+    */
     using Coordinate = std::array<double, 3>;
+
+    /**
+    A type used to identify a patch in a global composite mesh.
+    */
+    using PatchIndex = std::array<int, 5>;
+
+    /** Default constructor, initializes private data members. */
+    MeshGeometry();
 
     /**
     A convenience method that returns a vector of 3 bool's, indicating which
@@ -108,12 +120,24 @@ public:
     std::vector<bool> fleshedOutAxes() const;
 
     /**
+    Assign a patch identifier to this mesh. A block decomposition object may
+    use the patch index to identify this mesh as a subset of a larger
+    composite mesh. By default, the patch index is all zeros.
+    */
+    void assignPatchIndex (PatchIndex newPatchIndex);
+
+    /**
+    Return the index of this patch in a global composite mesh.
+    */
+    PatchIndex getPatchIndex() const;
+
+    /**
     Return an object that describes the number of cells (volumes) contained in
     the mesh. For cartesian topology, this is just the number of cells in each
     direction. This is not meant to include guard zone regions as may required
     by various solvers.
     */
-    virtual Cow::Shape domainShape() const = 0;
+    virtual Cow::Shape cellsShape() const = 0;
 
     /**
     Return the total number of cells in the mesh.
@@ -142,6 +166,9 @@ public:
     Return the volume of the cell at the given index.
     */
     virtual double cellVolume (int i, int j, int k) const = 0;
+
+private:
+    PatchIndex patchIndex;
 };
 
 

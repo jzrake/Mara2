@@ -39,7 +39,7 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     rungeKuttaOrder        = setup.rungeKuttaOrder;
     disableCT              = setup.disableCT;
 
-    domainShape   = meshGeometry->domainShape();
+    domainShape   = meshGeometry->cellsShape();
     numConserved  = conservationLaw->getNumConserved();
     stencilSize   = intercellFluxScheme->getStencilSize();
 

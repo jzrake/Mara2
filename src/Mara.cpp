@@ -51,9 +51,6 @@ SimulationStatus::SimulationStatus()
 
 
 
-
-
-
 // ============================================================================
 ConservationLaw::State ScalarUpwind::intercellFlux (const FaceData& faceData) const
 {
@@ -226,7 +223,7 @@ void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConse
 
     auto vtkFilename = FileSystem::makeFilename (dir, "mesh", ".vtk", status.vtkOutputsWrittenSoFar);
     auto vtkStream = std::ofstream (vtkFilename);
-    auto vtkDataSet = VTK::DataSet (setup.meshGeometry->domainShape());
+    auto vtkDataSet = VTK::DataSet (setup.meshGeometry->cellsShape());
     vtkDataSet.setTitle (setup.runName);
     vtkDataSet.setUseBinaryFormat (setup.vtkUseBinary);
 
@@ -273,39 +270,96 @@ void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConse
 
 
 
-void writeCheckpoint (SimulationSetup& setup, SimulationStatus& status, FluxConservativeSystem& system)
+void writeCheckpoint (
+    SimulationSetup& setup,
+    SimulationStatus& status,
+    FluxConservativeSystem& system,
+    BlockDecomposition& block)
 {
     using namespace Cow;
     using VT = ConservationLaw::VariableType; // For VT::magnetic
+    using ML = ConstrainedTransport::MeshLocation; // For ML::cell
 
-    auto mpiWorld = MpiCommunicator::world();
-    auto dir = setup.outputDirectory;
-
-    mpiWorld.onMasterOnly ([&] () { FileSystem::ensureDirectoryExists (dir); });
-
-    auto h5Filename = FileSystem::makeFilename (dir, "chkpt", ".h5", status.checkpointsWrittenSoFar);
-    auto file = H5::File (h5Filename, "w");
-
-    std::cout << "writing checkpoint file " << h5Filename << std::endl;
-
-    for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
-    {
-        auto field = setup.conservationLaw->getPrimitiveName(q);
-        file.write (field, system.getPrimitive(q));
-    }
-
-
+    auto comm = block.getCommunicator();
+    auto outdir = setup.outputDirectory;
+    auto filename = FileSystem::makeFilename (outdir, "chkpt", ".h5", status.checkpointsWrittenSoFar);
     auto indexB = setup.conservationLaw->getIndexFor (VT::magnetic);
 
-    if (indexB != -1)
+    comm.onMasterOnly ([&] ()
     {
-        auto M = setup.constrainedTransport->computeMonopole (ConstrainedTransport::MeshLocation::vert);
-        file.write ("monopole", M);
-    }
+        std::cout << "writing checkpoint file " << filename << std::endl;
+
+        // Create data directory, HDF5 checkpoint file, and groups
+        // --------------------------------------------------------------------
+        FileSystem::ensureDirectoryExists (outdir);
+        auto file = H5::File (filename, "w");
+        auto statusGroup = file.createGroup ("status");
+        auto primitiveGroup = file.createGroup ("primitive");
+        auto diagnosticGroup = file.createGroup ("diagnostic");
+        auto globalShape = Array::vectorFromShape (block.getGlobalShape());
+
+        // Create data sets for the primitive and diagnostic data
+        // --------------------------------------------------------------------
+        for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
+        {
+            auto field = setup.conservationLaw->getPrimitiveName(q);
+            primitiveGroup.createDataSet (field, globalShape);
+        }
+
+        if (indexB != -1)
+        {
+            diagnosticGroup.createDataSet ("monopole", globalShape);
+        }
+
+        // Write the simulation status data into the checkpoint
+        // --------------------------------------------------------------------
+        statusGroup.write ("vtkOutputsWrittenSoFar", status.vtkOutputsWrittenSoFar);
+        statusGroup.write ("checkpointsWrittenSoFar", status.checkpointsWrittenSoFar);
+        statusGroup.write ("simulationIter", status.simulationIter);
+        statusGroup.write ("simulationTime", status.simulationTime);
+    });
+
+
+    comm.inSequence ([&] (int rank)
+    {
+        // Open the file and groups
+        // --------------------------------------------------------------------
+        auto file = H5::File (filename, "a");
+        auto primitiveGroup = file.getGroup ("primitive");
+        auto diagnosticGroup = file.getGroup ("diagnostic");
+        auto targetRegion = block.getPatchRegion();
+
+        // Create data sets for the primitive and diagnostic data
+        // --------------------------------------------------------------------
+        for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
+        {
+            auto field = setup.conservationLaw->getPrimitiveName(q);
+            auto dset = primitiveGroup.getDataSet (field);
+            dset[targetRegion] = system.getPrimitive(q);
+        }
+
+        if (indexB != -1)
+        {
+            auto dset = diagnosticGroup.getDataSet ("monopole");
+            auto M = setup.constrainedTransport->computeMonopole (ML::cell);
+            dset[targetRegion] = M;
+        }        
+    });
 
     ++status.checkpointsWrittenSoFar;
 }
 
+
+
+
+class SessionAlgorithms
+{
+public:
+    SimulationSetup setup;
+    SimulationStatus status;
+    BlockDecomposition blockDecomposition;
+    FluxConservativeSystem system;
+};
 
 
 
@@ -322,6 +376,7 @@ int MaraSession::launch (SimulationSetup& setup)
         throw std::runtime_error ("No initial data function was provided");
     }
 
+    //SessionAlgorithms alg;
 
     // Mesh decomposition steps
     // ------------------------------------------------------------------------
@@ -329,12 +384,20 @@ int MaraSession::launch (SimulationSetup& setup)
     auto localGeometry = blockDecomposition.decompose();
     setup.meshGeometry = localGeometry; // over-write global mesh geometry
 
-
     auto status = SimulationStatus();
     auto system = FluxConservativeSystem (setup); // This also initializes CT.
 
     system.setInitialData (setup.initialDataFunction, setup.vectorPotentialFunction);
-    writeVtkOutput (setup, status, system);
+
+    if (setup.vtkOutputInterval > 0)
+    {
+        writeVtkOutput (setup, status, system);
+    }
+    if (setup.checkpointInterval > 0)
+    {
+        writeCheckpoint (setup, status, system, blockDecomposition);
+    }
+
 
     while (status.simulationTime < setup.finalTime)
     {
@@ -350,7 +413,7 @@ int MaraSession::launch (SimulationSetup& setup)
 
         if (setup.checkpointInterval > 0 && status.simulationTime >= nextChkpt)
         {
-            writeCheckpoint (setup, status, system);
+            writeCheckpoint (setup, status, system, blockDecomposition);
         }
 
 

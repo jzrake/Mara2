@@ -11,7 +11,7 @@ using namespace Cow;
 void UniformCartesianCT::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry)
 {
     meshGeometry = geometry;
-    auto domainShape = meshGeometry->domainShape();
+    auto domainShape = meshGeometry->cellsShape();
 
 
     // The flux arrays we work with will have one more face than cells in the
@@ -270,7 +270,6 @@ UniformCartesianCT::FluxArrays UniformCartesianCT::computeGodunovFluxesFieldCT()
             }
         }
     }
-
     return ctFluxes;
 }
 

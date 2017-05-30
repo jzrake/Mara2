@@ -1,4 +1,8 @@
-src/*.o
-mara
-Makefile.in
+/src/*.o
+/mara
+/Makefile.in
+/.DS_Store
+/mara.dSYM
+/data
+
 *.h5
