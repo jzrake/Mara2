@@ -94,6 +94,8 @@ public:
     FluxArrays getGodunovFluxes();
 
 private:
+    Cow::Array computeMonopoleVert() const;
+    Cow::Array computeMonopoleCell() const;
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
 

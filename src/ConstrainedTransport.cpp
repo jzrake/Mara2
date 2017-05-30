@@ -80,60 +80,12 @@ void UniformCartesianCT::setBoundaryCondition (std::shared_ptr<BoundaryCondition
 
 Array UniformCartesianCT::computeMonopole (MeshLocation location) const
 {
-    assert (location == MeshLocation::vert);
-
-    auto Mshape = meshGeometry->domainShape();
-    Mshape[0] += 1;
-    Mshape[1] += 1;
-    Mshape[2] += 1;
-
-    auto M = Array (Mshape);
-
-    for (int i = 0; i < M.size(0); ++i)
+    switch (location)
     {
-        for (int j = 0; j < M.size(1); ++j)
-        {
-            for (int k = 0; k < M.size(2); ++k)
-            {
-                const double B0x00 = B(i + 0, j + 0, k + 0, 0);
-                const double B0x01 = B(i + 0, j + 0, k + 1, 0);
-                const double B0x10 = B(i + 0, j + 1, k + 0, 0);
-                const double B0x11 = B(i + 0, j + 1, k + 1, 0);
-                const double B1x00 = B(i + 1, j + 0, k + 0, 0);
-                const double B1x01 = B(i + 1, j + 0, k + 1, 0);
-                const double B1x10 = B(i + 1, j + 1, k + 0, 0);
-                const double B1x11 = B(i + 1, j + 1, k + 1, 0);
-
-                const double B0y00 = B(i + 0, j + 0, k + 0, 1);
-                const double B0y01 = B(i + 1, j + 0, k + 0, 1);
-                const double B0y10 = B(i + 0, j + 0, k + 1, 1);
-                const double B0y11 = B(i + 1, j + 0, k + 1, 1);
-                const double B1y00 = B(i + 0, j + 1, k + 0, 1);
-                const double B1y01 = B(i + 1, j + 1, k + 0, 1);
-                const double B1y10 = B(i + 0, j + 1, k + 1, 1);
-                const double B1y11 = B(i + 1, j + 1, k + 1, 1);
-
-                const double B0z00 = B(i + 0, j + 0, k + 0, 2);
-                const double B0z01 = B(i + 0, j + 1, k + 0, 2);
-                const double B0z10 = B(i + 1, j + 0, k + 0, 2);
-                const double B0z11 = B(i + 1, j + 1, k + 0, 2);
-                const double B1z00 = B(i + 0, j + 0, k + 1, 2);
-                const double B1z01 = B(i + 0, j + 1, k + 1, 2);
-                const double B1z10 = B(i + 1, j + 0, k + 1, 2);
-                const double B1z11 = B(i + 1, j + 1, k + 1, 2);
-
-                const double Bx0 = B0x00 + B0x01 + B0x10 + B0x11;
-                const double Bx1 = B1x00 + B1x01 + B1x10 + B1x11;
-                const double By0 = B0y00 + B0y01 + B0y10 + B0y11;
-                const double By1 = B1y00 + B1y01 + B1y10 + B1y11;
-                const double Bz0 = B0z00 + B0z01 + B0z10 + B0z11;
-                const double Bz1 = B1z00 + B1z01 + B1z10 + B1z11;
-
-                M (i, j, k) = 0.25 * ((Bx1 - Bx0) + (By1 - By0) + (Bz1 - Bz0));
-            }
-        }
+        case MeshLocation::vert: return computeMonopoleVert();
+        case MeshLocation::cell: return computeMonopoleCell();
+        default: assert (false);
     }
-    return M;
 }
 
 void UniformCartesianCT::assignGodunovFluxes (Array newF1, Array newF2, Array newF3)
@@ -329,4 +281,81 @@ UniformCartesianCT::FluxArrays UniformCartesianCT::getGodunovFluxes()
     fluxes.F2 = F2[updateableRegionF2];
     fluxes.F3 = F3[updateableRegionF3];
     return fluxes;
+}
+
+Cow::Array UniformCartesianCT::computeMonopoleVert() const
+{
+    auto Mshape = meshGeometry->cellsShape();
+    Mshape[0] += 1;
+    Mshape[1] += 1;
+    Mshape[2] += 1;
+
+    auto M = Array (Mshape);
+
+    for (int i = 0; i < M.size(0); ++i)
+    {
+        for (int j = 0; j < M.size(1); ++j)
+        {
+            for (int k = 0; k < M.size(2); ++k)
+            {
+                const double B0x00 = B(i + 0, j + 0, k + 0, 0);
+                const double B0x01 = B(i + 0, j + 0, k + 1, 0);
+                const double B0x10 = B(i + 0, j + 1, k + 0, 0);
+                const double B0x11 = B(i + 0, j + 1, k + 1, 0);
+                const double B1x00 = B(i + 1, j + 0, k + 0, 0);
+                const double B1x01 = B(i + 1, j + 0, k + 1, 0);
+                const double B1x10 = B(i + 1, j + 1, k + 0, 0);
+                const double B1x11 = B(i + 1, j + 1, k + 1, 0);
+
+                const double B0y00 = B(i + 0, j + 0, k + 0, 1);
+                const double B0y01 = B(i + 1, j + 0, k + 0, 1);
+                const double B0y10 = B(i + 0, j + 0, k + 1, 1);
+                const double B0y11 = B(i + 1, j + 0, k + 1, 1);
+                const double B1y00 = B(i + 0, j + 1, k + 0, 1);
+                const double B1y01 = B(i + 1, j + 1, k + 0, 1);
+                const double B1y10 = B(i + 0, j + 1, k + 1, 1);
+                const double B1y11 = B(i + 1, j + 1, k + 1, 1);
+
+                const double B0z00 = B(i + 0, j + 0, k + 0, 2);
+                const double B0z01 = B(i + 0, j + 1, k + 0, 2);
+                const double B0z10 = B(i + 1, j + 0, k + 0, 2);
+                const double B0z11 = B(i + 1, j + 1, k + 0, 2);
+                const double B1z00 = B(i + 0, j + 0, k + 1, 2);
+                const double B1z01 = B(i + 0, j + 1, k + 1, 2);
+                const double B1z10 = B(i + 1, j + 0, k + 1, 2);
+                const double B1z11 = B(i + 1, j + 1, k + 1, 2);
+
+                const double Bx0 = B0x00 + B0x01 + B0x10 + B0x11;
+                const double Bx1 = B1x00 + B1x01 + B1x10 + B1x11;
+                const double By0 = B0y00 + B0y01 + B0y10 + B0y11;
+                const double By1 = B1y00 + B1y01 + B1y10 + B1y11;
+                const double Bz0 = B0z00 + B0z01 + B0z10 + B0z11;
+                const double Bz1 = B1z00 + B1z01 + B1z10 + B1z11;
+
+                M (i, j, k) = 0.25 * ((Bx1 - Bx0) + (By1 - By0) + (Bz1 - Bz0));
+            }
+        }
+    }
+    return M;
+}
+
+Cow::Array UniformCartesianCT::computeMonopoleCell() const
+{
+    auto Mv = computeMonopoleVert();
+    auto Mc = Array (Mv.size(0) - 1, Mv.size(1) - 1, Mv.size(2) - 1);
+
+    for (int i = 0; i < Mc.size(0); ++i)
+    {
+        for (int j = 0; j < Mc.size(1); ++j)
+        {
+            for (int k = 0; k < Mc.size(2); ++k)
+            {
+                const double Mi = 0.5 * (Mv(i, j, k) + Mv(i + 1, j, k));
+                const double Mj = 0.5 * (Mv(i, j, k) + Mv(i, j + 1, k));
+                const double Mk = 0.5 * (Mv(i, j, k) + Mv(i, j, k + 1));
+                Mc (i, j, k) = 1. / 3 * (Mi + Mj + Mk);
+            }
+        }
+    }
+    return Mc;
 }
