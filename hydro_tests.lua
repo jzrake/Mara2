@@ -1,6 +1,6 @@
 local mara = require 'mara'
 
-local densityWaveNumber = 5.0
+local densityWaveNumber = 2.0
 local densityAmplitude = 5e-1
 
 local function density_loop(x, y, z)
@@ -11,22 +11,31 @@ local function density_loop(x, y, z)
 end
 
 local function density_wave(x, y, z)
-	local d = 1.0 + 0.5 * math.sin(densityWaveNumber * math.pi * x)
+	local d = 1.0 + 0.5 * math.sin(densityWaveNumber * 2 * math.pi * x)
 	local p = 1.0
 	return {d, 1.0, 0.0, 0.0, p}
 end
 
+function shocktube(x, y, z)
+	local d = x < 0.0 and 1.0 or 0.1
+	local u = 0.0
+	local v = 0.0
+	local w = 0.0
+	local p = x < 0.0 and 1.0 or 0.125
+	return {d, u, v, w, p}
+end
+
 local setup = {
-	run_name = 'DensityWaveTest',
-	output_directory = 'data/density_wave',
-	initial_data = density_wave,
-	final_time = 0.0,
-	checkpoint_interval = 1.0,
+	run_name = 'ShcktubeTest',
+	output_directory = 'data/shocktube',
+	initial_data = shocktube,
+	final_time = 0.12,
+	checkpoint_interval = 0.1,
 	vtk_output_interval = 0,--0.025,
 	vtk_use_binary = true,
 	cfl_parameter = 0.3,
 	grid_geometry = 'cartesian',
-	resolution = {99, 1, 1},
+	resolution = {333, 1, 1},
 	domain_lower = {-0.5, -0.5, -0.5},
 	domain_upper = { 0.5,  0.5,  0.5},
 	conservation_law = {'newtonian_hydro'},

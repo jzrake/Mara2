@@ -49,8 +49,7 @@ SimulationStatus::SimulationStatus()
 
 
 
-
-
+// ============================================================================
 void writeVtkOutput (
     SimulationSetup& setup,
     SimulationStatus& status,
@@ -110,6 +109,7 @@ void writeVtkOutput (
 
 
 
+// ============================================================================
 void writeCheckpoint (
     SimulationSetup& setup,
     SimulationStatus& status,
@@ -212,6 +212,7 @@ int MaraSession::launch (SimulationSetup& setup)
     // Mesh decomposition steps
     // ------------------------------------------------------------------------
     auto blockDecomposition = BlockDecomposition (setup.meshGeometry);
+    auto blockCommunicator = blockDecomposition.getCommunicator();
     setup.meshGeometry = blockDecomposition.decompose();
     setup.boundaryCondition = blockDecomposition.createBoundaryCondition (setup.boundaryCondition);
 
@@ -252,7 +253,7 @@ int MaraSession::launch (SimulationSetup& setup)
         // Invoke the solver to advance the solution
         // --------------------------------------------------------------------
         auto timer = Cow::Timer();
-        double dt = setup.cflParameter * system.getCourantTimestep();
+        double dt = blockCommunicator.minimum (setup.cflParameter * system.getCourantTimestep());
         system.advance (dt);
         status.simulationTime += dt;
         status.simulationIter += 1;

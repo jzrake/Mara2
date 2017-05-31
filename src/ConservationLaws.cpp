@@ -340,6 +340,7 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     const double cs2 = gm0 * P[PRE] / P[RHO];
     const double vv = P[V11] * P[V11] + P[V22] * P[V22] + P[V33] * P[V33];
     const double BB = P[B11] * P[B11] + P[B22] * P[B22] + P[B33] * P[B33];
+    const double Bv = P[B11] * P[V11] + P[B22] * P[V22] + P[B33] * P[V33];
     const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
     const double Bn = P[B11] * dAA[0] + P[B22] * dAA[1] + P[B33] * dAA[2];
     const double ps = P[PRE] + 0.5 * BB; // total pressure
@@ -368,10 +369,19 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     S.F[S11] = vn * S.U[S11] - Bn * P[B11] + ps * dAA[0];
     S.F[S22] = vn * S.U[S22] - Bn * P[B22] + ps * dAA[1];
     S.F[S33] = vn * S.U[S33] - Bn * P[B33] + ps * dAA[2];
-    S.F[NRG] = vn * S.U[NRG] + vn * ps;
+    S.F[NRG] = vn * S.U[NRG] - Bn * Bv     + ps * vn;
     S.F[H11] = vn * S.U[H11] - Bn * P[V11];
     S.F[H22] = vn * S.U[H22] - Bn * P[V22];
     S.F[H33] = vn * S.U[H33] - Bn * P[V33];
+
+    // S.F[DDD] = vn * S.U[DDD];
+    // S.F[S11] = vn * S.U[S11] - Bn * P[B11] + ps * dAA[0];
+    // S.F[S22] = vn * S.U[S22] - Bn * P[B22] + ps * dAA[1];
+    // S.F[S33] = vn * S.U[S33] - Bn * P[B33] + ps * dAA[2];
+    // S.F[NRG] = vn * S.U[NRG] + vn * ps; // NOTE: MISSING TERM
+    // S.F[H11] = vn * S.U[H11] - Bn * P[V11];
+    // S.F[H22] = vn * S.U[H22] - Bn * P[V22];
+    // S.F[H33] = vn * S.U[H33] - Bn * P[V33];
 
     // ------------------------------------------------------------------------
     // See Antony Jameson's notes at
