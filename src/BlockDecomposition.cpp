@@ -15,21 +15,21 @@ public:
 
     void apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const override
     {
-        // if (P.size(0) > 1) applyToAxis (P, numGuard, 0);
-        // if (P.size(1) > 1) applyToAxis (P, numGuard, 1);
-        // if (P.size(2) > 1) applyToAxis (P, numGuard, 2);
+        if (P.size(0) > 1) applyToAxis (P, numGuard, 0);
+        if (P.size(1) > 1) applyToAxis (P, numGuard, 1);
+        if (P.size(2) > 1) applyToAxis (P, numGuard, 2);
     }
 
     void applyToCellCenteredB (Cow::Array& B, int numGuard) const override
     {
-        // if (B.size(0) > 1) applyToAxis (B, numGuard, 0);
-        // if (B.size(1) > 1) applyToAxis (B, numGuard, 1);
-        // if (B.size(2) > 1) applyToAxis (B, numGuard, 2);
+        if (B.size(0) > 1) applyToAxis (B, numGuard, 0);
+        if (B.size(1) > 1) applyToAxis (B, numGuard, 1);
+        if (B.size(2) > 1) applyToAxis (B, numGuard, 2);
     }
 
     void applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const override
     {
-        // if (F.size (axis) > 1) applyToAxis (F, numGuard, axis);
+        if (F.size (axis) > 1) applyToAxis (F, numGuard, axis);
     }
 
     void applyToAxis (Cow::Array& P, int numGuard, int axis) const
@@ -72,12 +72,23 @@ globalGeometry (globalGeometry)
     {
         std::cout
         << "[BlockDecomposition] running on "
-        << communicator.size()
-        << " MPI processes ["
+        << communicator.size() << " "
+        << "MPI processes ["
         << communicator.getDimensions()[0] << " "
         << communicator.getDimensions()[1] << " "
         << communicator.getDimensions()[2] << "]\n";
     });
+
+    // communicator.inSequence ( [&] (int rank)
+    // {
+    //     auto R = getPatchRegion();
+    //     std::cout
+    //     << "[BlockDecomposition] "
+    //     << "rank " << rank << " / " << communicator.size() << ", "
+    //     << "coordinate " << communicator.getCoordinates()[0] << ", "
+    //     << "index range " << "[" << R.lower[0] << " " << R.upper[0]
+    //     << "]\n";
+    // });
 }
 
 std::shared_ptr<BoundaryCondition> BlockDecomposition::createBoundaryCondition (
@@ -148,7 +159,7 @@ int BlockDecomposition::startIndex (int numElements, int numPartitions, int whic
     const int i = whichPartition;
     const int n = numElements / numPartitions;
     const int r = numElements % numPartitions;
-    const int s = i - r; // number of partitions of size n
-    const int t = i - s; // number of partitions of size n + 1
+    const int s = i - r > 0 ? i - r : 0; // number of partitions of size n
+    const int t = i - s;                 // number of partitions of size n + 1
     return n * s + (n + 1) * t;
 }

@@ -106,6 +106,7 @@ setup.output_directory = 'field_loop_advect_z'
 
 
 
+
 --
 -- These are 3D magnetic equilibrium tests.
 --

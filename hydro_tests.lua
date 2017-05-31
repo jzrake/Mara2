@@ -10,17 +10,23 @@ local function density_loop(x, y, z)
 	return {d, 1.0, 0.0, 0.0, p}
 end
 
+local function density_wave(x, y, z)
+	local d = 1.0 + 0.5 * math.sin(densityWaveNumber * math.pi * x)
+	local p = 1.0
+	return {d, 1.0, 0.0, 0.0, p}
+end
+
 local setup = {
-	run_name = 'DensityLoopTest',
-	output_directory = 'data/density_loop',
-	initial_data = density_loop,
+	run_name = 'DensityWaveTest',
+	output_directory = 'data/density_wave',
+	initial_data = density_wave,
 	final_time = 0.0,
 	checkpoint_interval = 1.0,
 	vtk_output_interval = 0,--0.025,
 	vtk_use_binary = true,
 	cfl_parameter = 0.3,
 	grid_geometry = 'cartesian',
-	resolution = {32, 32, 1},
+	resolution = {99, 1, 1},
 	domain_lower = {-0.5, -0.5, -0.5},
 	domain_upper = { 0.5,  0.5,  0.5},
 	conservation_law = {'newtonian_hydro'},
