@@ -34,7 +34,7 @@ def plot(args):
 
     plot_function = { 'linear': plot_linear, 'image': plot_image}[args.command]
 
-    for checkpoint in args.checkpoints:
+    for checkpoint in args.checkpoints[::-1]:
         fig = plt.figure()
         plot_function(fig, checkpoint, args)
 

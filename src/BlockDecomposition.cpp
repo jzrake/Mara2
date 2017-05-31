@@ -11,49 +11,76 @@ using namespace Cow;
 class BlockDecomposedBC : public BoundaryCondition
 {
 public:
-    BlockDecomposedBC (const BlockDecomposition& block) : block (block) {}
-
-    void apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const override
+    BlockDecomposedBC (const BlockDecomposition& block, std::shared_ptr<BoundaryCondition> physicalBC)
+    : block (block), physicalBC (physicalBC)
     {
-        if (P.size(0) > 1) applyToAxis (P, numGuard, 0);
-        if (P.size(1) > 1) applyToAxis (P, numGuard, 1);
-        if (P.size(2) > 1) applyToAxis (P, numGuard, 2);
+
     }
 
-    void applyToCellCenteredB (Cow::Array& B, int numGuard) const override
+    void apply (
+        Cow::Array& A,
+        MeshLocation location,
+        MeshBoundary boundary,
+        int axis,
+        int numGuard,
+        const MeshGeometry& geometry,
+        const ConservationLaw& law) const
     {
-        if (B.size(0) > 1) applyToAxis (B, numGuard, 0);
-        if (B.size(1) > 1) applyToAxis (B, numGuard, 1);
-        if (B.size(2) > 1) applyToAxis (B, numGuard, 2);
+        auto send = Region(); // region to send (valid region)
+        auto recv = Region(); // region to receive (guard region)
+
+        switch (boundary)
+        {
+            // ----------------------------------------------------------------
+            // Send to the right, receive from the left. Note the 'R' in the
+            // shiftExchange call refers to the send direction, while the
+            // boundary function argument (left in this case) refers to which
+            // boundary of our mesh needs to be filled.
+            // ----------------------------------------------------------------
+            case MeshBoundary::left:
+            {
+                send.lower[axis] = -2 * numGuard;
+                send.upper[axis] = -1 * numGuard;
+                recv.lower[axis] = +0;
+                recv.upper[axis] = +1 * numGuard;
+                block.communicator.shiftExchange (A, axis, 'R', send, recv);
+                break;
+            }
+            // ----------------------------------------------------------------
+            // Send to the left, receive from the right. Note the 'L' in the
+            // shiftExchange call refers to the send direction, while the
+            // boundary function argument (right in this case) refers to which
+            // boundary of our mesh needs to be filled.
+            // ----------------------------------------------------------------
+            case MeshBoundary::right:
+            {
+                send.lower[axis] = +1 * numGuard;
+                send.upper[axis] = +2 * numGuard;
+                recv.lower[axis] = -1 * numGuard;
+                recv.upper[axis] = -0;
+                block.communicator.shiftExchange (A, axis, 'L', send, recv);
+                break;
+            }
+        }
+
+        // --------------------------------------------------------------------
+        // We apply physical boundary conditions if we are at the edge of the
+        // block-decomposed domain.
+        // --------------------------------------------------------------------
+        auto C = block.communicator;
+        bool isWallL = C.getCoordinates()[axis] == 0;
+        bool isWallR = C.getCoordinates()[axis] == C.getDimensions()[axis] - 1;
+
+        if (   (boundary == MeshBoundary::left  && isWallL)
+            || (boundary == MeshBoundary::right && isWallR))
+        {
+            physicalBC->apply (A, location, boundary, axis, numGuard, geometry, law);
+        }
     }
 
-    void applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const override
-    {
-        if (F.size (axis) > 1) applyToAxis (F, numGuard, axis);
-    }
-
-    void applyToAxis (Cow::Array& P, int numGuard, int axis) const
-    {
-        auto sendL = Region(); // region to send to the left
-        auto sendR = Region(); // region to send to the right
-        auto recvL = Region(); // region to receive from the left
-        auto recvR = Region(); // region to receive from the right
-
-        sendR.lower[axis] = -2 * numGuard;
-        sendR.upper[axis] = -1 * numGuard;
-        sendL.lower[axis] = +1 * numGuard;
-        sendL.upper[axis] = +2 * numGuard;
-
-        recvR.lower[axis] = -1 * numGuard;
-        recvR.upper[axis] = -0;
-        recvL.lower[axis] = +0;
-        recvL.upper[axis] = +1 * numGuard;
-
-        block.communicator.shiftExchange (P, axis, 'L', sendL, recvR);
-        block.communicator.shiftExchange (P, axis, 'R', sendR, recvL);
-    }
 private:
     const BlockDecomposition& block;
+    std::shared_ptr<BoundaryCondition> physicalBC;
 };
 
 
@@ -78,23 +105,12 @@ globalGeometry (globalGeometry)
         << communicator.getDimensions()[1] << " "
         << communicator.getDimensions()[2] << "]\n";
     });
-
-    // communicator.inSequence ( [&] (int rank)
-    // {
-    //     auto R = getPatchRegion();
-    //     std::cout
-    //     << "[BlockDecomposition] "
-    //     << "rank " << rank << " / " << communicator.size() << ", "
-    //     << "coordinate " << communicator.getCoordinates()[0] << ", "
-    //     << "index range " << "[" << R.lower[0] << " " << R.upper[0]
-    //     << "]\n";
-    // });
 }
 
 std::shared_ptr<BoundaryCondition> BlockDecomposition::createBoundaryCondition (
     std::shared_ptr<BoundaryCondition> physicalBC) const
 {
-    return std::make_shared<BlockDecomposedBC> (*this);
+    return std::make_shared<BlockDecomposedBC> (*this, physicalBC);
 }
 
 Cow::Shape BlockDecomposition::getGlobalShape() const

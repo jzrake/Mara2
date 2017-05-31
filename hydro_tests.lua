@@ -1,4 +1,4 @@
-local mara = require 'mara'
+--local mara = require 'mara'
 
 local densityWaveNumber = 2.0
 local densityAmplitude = 5e-1
@@ -29,8 +29,8 @@ local setup = {
 	run_name = 'ShcktubeTest',
 	output_directory = 'data/shocktube',
 	initial_data = shocktube,
-	final_time = 0.12,
-	checkpoint_interval = 0.1,
+	final_time = 0.61,
+	checkpoint_interval = 0.05,
 	vtk_output_interval = 0,--0.025,
 	vtk_use_binary = true,
 	cfl_parameter = 0.3,
@@ -41,8 +41,12 @@ local setup = {
 	conservation_law = {'newtonian_hydro'},
 	riemann_solver = 'hlle',
 	flux_scheme = {'method_of_lines_plm', plm_theta=1.5},
-	runge_kutta_order = 2,
-	boundary_condition = 'periodic',
+	runge_kutta_order = 3,
+	boundary_condition = 'reflecting',
 }
 
-mara.run(setup)
+for k, v in pairs(setup) do
+	_G[k] = v
+end
+
+--mara.run(setup)

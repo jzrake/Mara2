@@ -177,9 +177,51 @@ private:
 class BoundaryCondition
 {
 public:
-    virtual void apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const = 0;
-    virtual void applyToCellCenteredB (Cow::Array& B, int numGuard) const;
-    virtual void applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const;
+    enum class MeshLocation { vert, edge, face, cell };
+    enum class MeshBoundary { left, right };
+
+    /**
+    This is the only method that needs to be implemented by BoundaryCondition
+    derived classes.
+
+    @param A                The full array of data on which to apply the
+                            boundary condition.
+
+    @param location         MeshLocation flag, whether the supplied data
+                            exists on mesh verts, edges, faces, or cells.
+                            Implementations should throw std::runtime_error if
+                            they cannot apply boundary conditions at the
+                            requested mesh location.
+
+    @param boundary         Which boundary of the mesh needs to be filled,
+                            either left or right.
+
+    @param axis             Which axis of the array to apply boundary
+                            conditions to. For a rectilinear mesh this is 0,
+                            1, or 2.
+
+    @param numGuard         Width of the guard zone region the caller expects
+                            to be replaced with valid data. The caller
+                            promises that A contains a region of valid data,
+                            of at least the same width, adjacent to the guard
+                            zone region.
+
+    @param geometry         A mesh geometry instance, which may be used to
+                            determine physical coordinates of mesh locations.
+
+    @param law              The conservation law for which data is supplied.
+                            Implementations may use this to determine the
+                            layout of the supplied data array, or perform
+                            physics operations on it.
+    */
+    virtual void apply (
+        Cow::Array& A,
+        MeshLocation location,
+        MeshBoundary boundary,
+        int axis,
+        int numGuard,
+        const MeshGeometry& geometry,
+        const ConservationLaw& law) const = 0;
 };
 
 

@@ -28,7 +28,7 @@ public:
     };
 
     /**
-    This function needs to be called before any of the algorithms are useful.
+    Assign a mesh geometry. This must be done before CT operations are used.
     The mesh geometry is not required at construction, so that algorithm
     choices may be sorted out before the domain size is known.
     */
@@ -36,9 +36,14 @@ public:
 
     /**
     Assign a boundary condition to use for Godunov fluxes and magnetic field
-    values.
+    values. This must be done before CT operations are used.
     */
     void setBoundaryCondition (std::shared_ptr<BoundaryCondition>);
+
+    /**
+    Assign a conservation law. This must be done before CT operations are used.
+    */
+    void setConservationLaw (std::shared_ptr<ConservationLaw>);
 
     /**
     Compute monopole at the given mesh location (vert or cell) from the given
@@ -98,6 +103,7 @@ private:
     Cow::Array computeMonopoleCell() const;
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
+    std::shared_ptr<ConservationLaw> conservationLaw;
 
     Cow::Region updateableRegionF1;
     Cow::Region updateableRegionF2;

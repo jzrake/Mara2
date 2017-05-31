@@ -73,6 +73,11 @@ void UniformCartesianCT::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry
     updateableRegionB.upper[2] = -1;
 }
 
+void UniformCartesianCT::setConservationLaw (std::shared_ptr<ConservationLaw> newCL)
+{
+    conservationLaw = newCL;
+}
+
 void UniformCartesianCT::setBoundaryCondition (std::shared_ptr<BoundaryCondition> newBC)
 {
     boundaryCondition = newBC;
@@ -94,12 +99,13 @@ void UniformCartesianCT::assignGodunovFluxes (Array newF1, Array newF2, Array ne
     F2[updateableRegionF2] = newF2;
     F3[updateableRegionF3] = newF3;
 
-    boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
-    boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
-    boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
-    boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
-    boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
-    boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
+    throw std::runtime_error ("NEED CONS LAW");
+    // boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
+    // boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
+    // boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
+    // boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
+    // boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
+    // boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
 }
 
 void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocation location)
@@ -156,18 +162,21 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
         }
     }
 
-    boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
-    boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
-    boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
-    boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
-    boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
-    boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
+    throw std::runtime_error ("NEED CONS LAW");
+    // boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
+    // boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
+    // boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
+    // boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
+    // boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
+    // boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
 }
 
 void UniformCartesianCT::assignCellCenteredB (Array newB)
 {
     B[updateableRegionB] = newB;
-    boundaryCondition->applyToCellCenteredB (B, 1);
+
+    throw std::runtime_error ("NEED CONS LAW");
+    // boundaryCondition->applyToCellCenteredB (B, 1);
 }
 
 void UniformCartesianCT::assignFaceCenteredH (Array newH)
