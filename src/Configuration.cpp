@@ -4,7 +4,8 @@
 #include "BoundaryConditions.hpp"
 #include "ConservationLaws.hpp"
 #include "ConstrainedTransport.hpp"
-#include "RiemannSolver.hpp"
+#include "IntercellFluxSchemes.hpp"
+#include "RiemannSolvers.hpp"
 #include "sol.hpp"
 #define lua (luaState->L)
 

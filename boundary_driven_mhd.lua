@@ -26,7 +26,7 @@ end
 local function single_vortex_pair(x, y, z)
 	local sgnz = z > 0 and 1 or -1
 	local R = (x^2 + y^2)^0.5
-	local k = 5
+	local k = 10
 	local v = 0.2 / k
 	local vf = v * 3 * k * (k * R)^2 * math.exp (-(k * R)^3) -- v-phi
 	local vx = vf * (-y / R) * sgnz
@@ -36,16 +36,16 @@ end
 
 local setup = {
 	run_name = 'BoundaryDrivenMHD',
-	output_directory = 'data/bdrv-vortex-pair-164z',
+	output_directory = 'data/bdrv-vortex-pair-324z',
 	final_time = 64.,
 	checkpoint_interval = 0.0,
 	vtk_output_interval = 0.1,
 	cfl_parameter = 0.3,
 	initial_data = background,
 	grid_geometry = 'cartesian',
-	resolution = {16, 16, 64},
-	domain_lower = {-0.5, -0.5, -1.0},
-	domain_upper = { 0.5,  0.5,  1.0},
+	resolution = {32, 32, 128},
+	domain_lower = {-0.5, -0.5, -2.0},
+	domain_upper = { 0.5,  0.5,  2.0},
 	conservation_law = {'newtonian_mhd'},
 	riemann_solver = 'hlle',
 	flux_scheme = {'method_of_lines_plm', plm_theta=1.5},

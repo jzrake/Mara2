@@ -146,7 +146,6 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
         auto ct = getCT();
 
         ct->assignVectorPotential (A, ConstrainedTransport::MeshLocation::face);
-
         auto ctFluxes = ct->computeGodunovFluxesFieldCT();
         F1[magneticIndices] = ctFluxes.F1;
         F2[magneticIndices] = ctFluxes.F2;

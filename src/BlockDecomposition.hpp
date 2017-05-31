@@ -30,6 +30,16 @@ public:
     Cow::Shape getGlobalShape() const;
 
     /**
+    Generate a new BoundaryCondition object based on the one given, and this
+    BlockDecomposition. The returned BoundaryCondition will access data from
+    neighboring grid patches if they exist, or otherwise will delegate to the
+    physicalBC object. The caller must ensure this BlockDecomposition object
+    lives longer than the returned object.
+    */
+    std::shared_ptr<BoundaryCondition> createBoundaryCondition (
+        std::shared_ptr<BoundaryCondition> physicalBC) const;
+
+    /**
     Return a MeshGeometry::MeshGeometry object which corresponds to a patch in
     the global mesh. The patch index is assumed to be the MPI rank of this
     processes in the cartesian communicator.
@@ -54,6 +64,7 @@ public:
     Cow::Region getPatchRegion() const;
 
 private:
+    friend class BlockDecomposedBC;
     int partition (int numElements, int numPartitions, int whichPartition) const;
     int startIndex (int numElements, int numPartitions, int whichPartition) const;
     const std::shared_ptr<MeshGeometry> globalGeometry;

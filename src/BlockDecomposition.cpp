@@ -1,7 +1,60 @@
+#include <iostream>
 #include "BlockDecomposition.hpp"
 #include "CartesianMeshGeometry.hpp"
 
 using namespace Cow;
+
+
+
+
+// ============================================================================
+class BlockDecomposedBC : public BoundaryCondition
+{
+public:
+    BlockDecomposedBC (const BlockDecomposition& block) : block (block) {}
+
+    void apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const override
+    {
+        // if (P.size(0) > 1) applyToAxis (P, numGuard, 0);
+        // if (P.size(1) > 1) applyToAxis (P, numGuard, 1);
+        // if (P.size(2) > 1) applyToAxis (P, numGuard, 2);
+    }
+
+    void applyToCellCenteredB (Cow::Array& B, int numGuard) const override
+    {
+        // if (B.size(0) > 1) applyToAxis (B, numGuard, 0);
+        // if (B.size(1) > 1) applyToAxis (B, numGuard, 1);
+        // if (B.size(2) > 1) applyToAxis (B, numGuard, 2);
+    }
+
+    void applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const override
+    {
+        // if (F.size (axis) > 1) applyToAxis (F, numGuard, axis);
+    }
+
+    void applyToAxis (Cow::Array& P, int numGuard, int axis) const
+    {
+        auto sendL = Region(); // region to send to the left
+        auto sendR = Region(); // region to send to the right
+        auto recvL = Region(); // region to receive from the left
+        auto recvR = Region(); // region to receive from the right
+
+        sendR.lower[axis] = -2 * numGuard;
+        sendR.upper[axis] = -1 * numGuard;
+        sendL.lower[axis] = +1 * numGuard;
+        sendL.upper[axis] = +2 * numGuard;
+
+        recvR.lower[axis] = -1 * numGuard;
+        recvR.upper[axis] = -0;
+        recvL.lower[axis] = +0;
+        recvL.upper[axis] = +1 * numGuard;
+
+        block.communicator.shiftExchange (P, axis, 'L', sendL, recvR);
+        block.communicator.shiftExchange (P, axis, 'R', sendR, recvL);
+    }
+private:
+    const BlockDecomposition& block;
+};
 
 
 
@@ -15,6 +68,22 @@ globalGeometry (globalGeometry)
 
     auto world = MpiCommunicator::world();
     communicator = world.createCartesian (3, globalGeometry->fleshedOutAxes());
+    communicator.onMasterOnly ( [&] ()
+    {
+        std::cout
+        << "[BlockDecomposition] running on "
+        << communicator.size()
+        << " MPI processes ["
+        << communicator.getDimensions()[0] << " "
+        << communicator.getDimensions()[1] << " "
+        << communicator.getDimensions()[2] << "]\n";
+    });
+}
+
+std::shared_ptr<BoundaryCondition> BlockDecomposition::createBoundaryCondition (
+    std::shared_ptr<BoundaryCondition> physicalBC) const
+{
+    return std::make_shared<BlockDecomposedBC> (*this);
 }
 
 Cow::Shape BlockDecomposition::getGlobalShape() const

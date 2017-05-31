@@ -1,22 +1,39 @@
-import matplotlib.pyplot as plt
-import h5py
-import numpy as np
+
+def get_image_data(checkpoint, field):
+    import h5py
+    h5f = h5py.File(checkpoint, 'r')
+
+    if field == 'B':
+        B1 = h5f['primitive']['magnetic1'][...]
+        B2 = h5f['primitive']['magnetic2'][...]
+        B3 = h5f['primitive']['magnetic3'][...]
+        return (B1**2 + B2**2 + B3**2)**0.5
+
+    elif field == 'd':
+        return h5f['primitive']['density']
+
+def plot(args):
+    import matplotlib.pyplot as plt
+
+    for checkpoint in args.checkpoints:
+        fig = plt.figure()
+        ax1 = fig.add_axes([0.05, 0.05, 0.9, 0.9])
+        img = get_image_data(checkpoint, args.field)
+        iax = ax1.imshow(img, interpolation='none')
+        ax1.xaxis.set_ticklabels([])
+        ax1.yaxis.set_ticklabels([])
+        fig.colorbar(iax)
+
+    plt.show()
 
 
 def main():
-    chkpt0 = h5py.File("chkpt.0000.h5", "r")
-    chkpt1 = h5py.File("chkpt.0001.h5", "r")
-    P0 = chkpt0["primitive"][:,0,0,0]
-    P1 = chkpt1["primitive"][:,0,0,0]
-    plt.plot(P0, 'o', mec='k', mfc='none')
-    plt.plot(P1, 'x', mec='b', mfc='none')
-
-    # xt = chkpt1["t"].value
-    # x = np.linspace(-1, 1, P0.size)
-    # y = np.exp (-(x - xt)**2 / 0.025)
-    # plt.plot(y)
-
-    plt.show()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('checkpoints', nargs='+')
+    parser.add_argument('--field', '-f', default='B', choices=['B', 'v', 'd'])
+    args = parser.parse_args()
+    plot(args)
 
 
 if __name__ == "__main__":

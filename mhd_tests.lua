@@ -41,8 +41,8 @@ end
 local setup = {
 	run_name = 'FieldLoopTest',
 	final_time = 0.0,
-	checkpoint_interval = 0.0,
-	vtk_output_interval = 0.025,
+	checkpoint_interval = 1.0,
+	vtk_output_interval = 0,--0.025,
 	vtk_use_binary = true,
 	cfl_parameter = 0.3,
 	grid_geometry = 'cartesian',

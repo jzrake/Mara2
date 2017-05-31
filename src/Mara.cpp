@@ -7,8 +7,6 @@
 #include "Mara.hpp"
 #include "Configuration.hpp"
 #include "FluxConservativeSystem.hpp"
-#include "RiemannSolver.hpp"
-#include "Matrix.hpp"
 #include "BlockDecomposition.hpp"
 
 // Cow includes
@@ -51,170 +49,12 @@ SimulationStatus::SimulationStatus()
 
 
 
-// ============================================================================
-ConservationLaw::State ScalarUpwind::intercellFlux (const FaceData& faceData) const
-{
-    ConservationLaw::Request request;
-    request.areaElement = faceData.areaElement;
-
-    const double* PL = &faceData.stencilData (0);
-    const double* PR = &faceData.stencilData (1);
-
-    auto L = faceData.conservationLaw->fromPrimitive (request, PL);
-    auto R = faceData.conservationLaw->fromPrimitive (request, PR);
-
-    UpwindRiemannSolver riemannSolver;
-    return riemannSolver.solve (L, R, faceData.areaElement);
-}
-
-int ScalarUpwind::getStencilSize() const
-{
-    return 1;
-}
 
 
-
-
-// ============================================================================
-MethodOfLines::MethodOfLines()
-{
-    riemannSolver.reset (new HlleRiemannSolver);
-}
-
-void MethodOfLines::setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse)
-{
-    riemannSolver = solverToUse;
-}
-
-ConservationLaw::State MethodOfLines::intercellFlux (const FaceData& faceData) const
-{
-    ConservationLaw::Request request;
-    request.areaElement = faceData.areaElement;
-
-    const double* P0 = &faceData.stencilData(0);
-    const double* P1 = &faceData.stencilData(1);
-
-    auto L = faceData.conservationLaw->fromPrimitive (request, P0);
-    auto R = faceData.conservationLaw->fromPrimitive (request, P1);
-
-    return riemannSolver->solve (L, R, faceData.areaElement);
-}
-
-int MethodOfLines::getStencilSize() const
-{
-    return 1;
-}
-
-
-
-
-// ============================================================================
-MethodOfLinesPlm::MethodOfLinesPlm (double plmTheta)
-{
-    plm.setPlmTheta (plmTheta);
-    riemannSolver.reset (new HlleRiemannSolver);
-}
-
-void MethodOfLinesPlm::setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse)
-{
-    riemannSolver = solverToUse;
-}
-
-ConservationLaw::State MethodOfLinesPlm::intercellFlux (const FaceData& faceData) const
-{
-    ConservationLaw::Request request;
-    request.areaElement = faceData.areaElement;
-
-    const double* P0 = &faceData.stencilData(0);
-    const double* P1 = &faceData.stencilData(1);
-    const double* P2 = &faceData.stencilData(2);
-    const double* P3 = &faceData.stencilData(3);
-    const int nq = faceData.conservationLaw->getNumConserved();
-
-    std::vector<double> PL(nq);
-    std::vector<double> PR(nq);
-
-    for (int q = 0; q < nq; ++q)
-    {
-        const double ps[4] = {P0[q], P1[q], P2[q], P3[q]};
-        PL[q] = plm.reconstruct (&ps[1], Reconstruction::PLM_C2R);
-        PR[q] = plm.reconstruct (&ps[2], Reconstruction::PLM_C2L);
-    }
-    auto L = faceData.conservationLaw->fromPrimitive (request, &PL[0]);
-    auto R = faceData.conservationLaw->fromPrimitive (request, &PR[0]);
-
-    return riemannSolver->solve (L, R, faceData.areaElement);
-}
-
-int MethodOfLinesPlm::getStencilSize() const
-{
-    return 2;
-}
-
-
-
-
-// ============================================================================
-MethodOfLinesWeno::MethodOfLinesWeno (double shenZhaA)
-{
-    weno.setSmoothnessIndicator (Reconstruction::ImprovedShenZha10);
-    weno.setShenZha10A (shenZhaA);
-}
-
-ConservationLaw::State MethodOfLinesWeno::intercellFlux (const FaceData& faceData) const
-{
-    auto request = ConservationLaw::Request();
-    request.areaElement = faceData.areaElement;
-
-    const auto claw = faceData.conservationLaw;
-    const auto states = claw->fromPrimitive (request, faceData.stencilData);
-    const auto maxLam = claw->maxEigenvalueMagnitude (states);
-    const auto Shat = claw->averageStates (request, states[2], states[3]);
-    const int nq = claw->getNumConserved();
-
-    Cow::Matrix Fp (nq, 6);
-    Cow::Matrix Fm (nq, 6);
-
-    for (int n = 0; n < 6; ++n)
-    {
-        for (int q = 0; q < nq; ++q)
-        {
-            const auto& S = states[n];
-            Fp (q, n) = S.F[q] + maxLam * S.U[q]; // Lax-Friedrichs flux splitting
-            Fm (q, n) = S.F[q] - maxLam * S.U[q];
-        }
-    }
-
-    auto fp = Shat.L * Fp;
-    auto fm = Shat.L * Fm;
-    auto fhat = Cow::Matrix (nq, 1); // column vector (nq rows)
-
-    for (int q = 0; q < nq; ++q)
-    {
-        double fhatp = weno.reconstruct (&fp (q, 2), Reconstruction::WENO5_FD_C2R);
-        double fhatm = weno.reconstruct (&fm (q, 3), Reconstruction::WENO5_FD_C2L);
-        fhat (q, 0) = 0.5 * (fhatp + fhatm);
-    }
-
-    auto Fhat = Shat.R * fhat;
-    auto S = ConservationLaw::State();
-
-    for (int q = 0; q < nq; ++q)
-    {
-        S.F[q] = Fhat (q, 0);
-    }
-    return S;
-}
-
-int MethodOfLinesWeno::getStencilSize() const
-{
-    return 3;
-}
-
-
-
-
-void writeVtkOutput (SimulationSetup& setup, SimulationStatus& status, FluxConservativeSystem& system)
+void writeVtkOutput (
+    SimulationSetup& setup,
+    SimulationStatus& status,
+    FluxConservativeSystem& system)
 {
     using namespace Cow;
     auto mpiWorld = MpiCommunicator::world();
@@ -287,7 +127,8 @@ void writeCheckpoint (
 
     comm.onMasterOnly ([&] ()
     {
-        std::cout << "writing checkpoint file " << filename << std::endl;
+        std::cout << "[Mara] writing checkpoint file " << filename << std::endl;
+
 
         // Create data directory, HDF5 checkpoint file, and groups
         // --------------------------------------------------------------------
@@ -297,6 +138,7 @@ void writeCheckpoint (
         auto primitiveGroup = file.createGroup ("primitive");
         auto diagnosticGroup = file.createGroup ("diagnostic");
         auto globalShape = Array::vectorFromShape (block.getGlobalShape());
+
 
         // Create data sets for the primitive and diagnostic data
         // --------------------------------------------------------------------
@@ -311,6 +153,7 @@ void writeCheckpoint (
             diagnosticGroup.createDataSet ("monopole", globalShape);
         }
 
+
         // Write the simulation status data into the checkpoint
         // --------------------------------------------------------------------
         statusGroup.write ("vtkOutputsWrittenSoFar", status.vtkOutputsWrittenSoFar);
@@ -318,7 +161,6 @@ void writeCheckpoint (
         statusGroup.write ("simulationIter", status.simulationIter);
         statusGroup.write ("simulationTime", status.simulationTime);
     });
-
 
     comm.inSequence ([&] (int rank)
     {
@@ -328,6 +170,7 @@ void writeCheckpoint (
         auto primitiveGroup = file.getGroup ("primitive");
         auto diagnosticGroup = file.getGroup ("diagnostic");
         auto targetRegion = block.getPatchRegion();
+
 
         // Create data sets for the primitive and diagnostic data
         // --------------------------------------------------------------------
@@ -352,17 +195,6 @@ void writeCheckpoint (
 
 
 
-class SessionAlgorithms
-{
-public:
-    SimulationSetup setup;
-    SimulationStatus status;
-    BlockDecomposition blockDecomposition;
-    FluxConservativeSystem system;
-};
-
-
-
 // ============================================================================
 int MaraSession::launch (SimulationSetup& setup)
 {
@@ -376,13 +208,12 @@ int MaraSession::launch (SimulationSetup& setup)
         throw std::runtime_error ("No initial data function was provided");
     }
 
-    //SessionAlgorithms alg;
 
     // Mesh decomposition steps
     // ------------------------------------------------------------------------
     auto blockDecomposition = BlockDecomposition (setup.meshGeometry);
-    auto localGeometry = blockDecomposition.decompose();
-    setup.meshGeometry = localGeometry; // over-write global mesh geometry
+    setup.meshGeometry = blockDecomposition.decompose();
+    setup.boundaryCondition = blockDecomposition.createBoundaryCondition (setup.boundaryCondition);
 
     auto status = SimulationStatus();
     auto system = FluxConservativeSystem (setup); // This also initializes CT.
@@ -393,6 +224,7 @@ int MaraSession::launch (SimulationSetup& setup)
     {
         writeVtkOutput (setup, status, system);
     }
+
     if (setup.checkpointInterval > 0)
     {
         writeCheckpoint (setup, status, system, blockDecomposition);
@@ -428,11 +260,14 @@ int MaraSession::launch (SimulationSetup& setup)
 
         // Generate iteration output message
         // --------------------------------------------------------------------
-        double kzps = 1e-3 * setup.meshGeometry->totalCellsInMesh() / timer.age();
-        std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
-        std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
-        std::cout << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
-        std::cout << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
+        blockDecomposition.getCommunicator().onMasterOnly ([&] ()
+        {
+            double kzps = 1e-3 * setup.meshGeometry->totalCellsInMesh() / timer.age();
+            std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
+            std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
+            std::cout << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
+            std::cout << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
+        });
     }
 
     return 0;
@@ -465,8 +300,8 @@ int main (int argc, const char* argv[])
     if (command == "help")
     {
         std::cout <<
-        "Mara is an astrophysics code for gas and magnetofluid "
-        "dynamics simulations.\n";
+        "Mara is an astrophysics code for multi-dimensional "
+        "gas and magnetofluid dynamics.\n";
         return 0;
     }
     else if (command == "run")
