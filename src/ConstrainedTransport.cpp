@@ -98,14 +98,7 @@ void UniformCartesianCT::assignGodunovFluxes (Array newF1, Array newF2, Array ne
     F1[updateableRegionF1] = newF1;
     F2[updateableRegionF2] = newF2;
     F3[updateableRegionF3] = newF3;
-
-    throw std::runtime_error ("NEED CONS LAW");
-    // boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
-    // boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
-    // boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
-    // boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
-    // boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
-    // boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
+    setFaceBC();
 }
 
 void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocation location)
@@ -161,22 +154,13 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
             }
         }
     }
-
-    throw std::runtime_error ("NEED CONS LAW");
-    // boundaryCondition->applyToGodunovFluxes (F1, 1, 1);
-    // boundaryCondition->applyToGodunovFluxes (F1, 1, 2);
-    // boundaryCondition->applyToGodunovFluxes (F2, 1, 2);
-    // boundaryCondition->applyToGodunovFluxes (F2, 1, 0);
-    // boundaryCondition->applyToGodunovFluxes (F3, 1, 0);
-    // boundaryCondition->applyToGodunovFluxes (F3, 1, 1);
+    setFaceBC();
 }
 
 void UniformCartesianCT::assignCellCenteredB (Array newB)
 {
     B[updateableRegionB] = newB;
-
-    throw std::runtime_error ("NEED CONS LAW");
-    // boundaryCondition->applyToCellCenteredB (B, 1);
+    setCellBC();
 }
 
 void UniformCartesianCT::assignFaceCenteredH (Array newH)
@@ -366,4 +350,55 @@ Cow::Array UniformCartesianCT::computeMonopoleCell() const
         }
     }
     return Mc;
+}
+
+void UniformCartesianCT::setFaceBC()
+{
+    auto callBC = [&] (Cow::Array& F, int axis)
+    {
+        boundaryCondition->apply (F,
+            BoundaryCondition::MeshLocation::face,
+            BoundaryCondition::MeshBoundary::left,
+            axis,
+            1,
+            *meshGeometry,
+            *conservationLaw);
+        boundaryCondition->apply (F,
+            BoundaryCondition::MeshLocation::face,
+            BoundaryCondition::MeshBoundary::right,
+            axis,
+            1,
+            *meshGeometry,
+            *conservationLaw);
+    };
+    callBC (F1, 1);
+    callBC (F1, 2);
+    callBC (F2, 2);
+    callBC (F2, 0);
+    callBC (F3, 0);
+    callBC (F3, 1);
+}
+
+void UniformCartesianCT::setCellBC()
+{
+    auto callBC = [&] (Cow::Array& BB, int axis)
+    {
+        boundaryCondition->apply (BB,
+            BoundaryCondition::MeshLocation::cell,
+            BoundaryCondition::MeshBoundary::left,
+            axis,
+            1,
+            *meshGeometry,
+            *conservationLaw);
+        boundaryCondition->apply (BB,
+            BoundaryCondition::MeshLocation::cell,
+            BoundaryCondition::MeshBoundary::right,
+            axis,
+            1,
+            *meshGeometry,
+            *conservationLaw);
+    };
+    callBC (B, 0);
+    callBC (B, 1);
+    callBC (B, 2);
 }

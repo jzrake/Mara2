@@ -101,6 +101,8 @@ public:
 private:
     Cow::Array computeMonopoleVert() const;
     Cow::Array computeMonopoleCell() const;
+    void setFaceBC();
+    void setCellBC();
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
     std::shared_ptr<ConservationLaw> conservationLaw;
