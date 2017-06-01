@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "Configuration.hpp"
 #include "CartesianMeshGeometry.hpp"
 #include "BoundaryConditions.hpp"
@@ -6,6 +7,9 @@
 #include "ConstrainedTransport.hpp"
 #include "IntercellFluxSchemes.hpp"
 #include "RiemannSolvers.hpp"
+
+#include "HDF5.hpp"
+
 #include "sol.hpp"
 #define lua (luaState->L)
 
@@ -107,6 +111,7 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     //     drvBoundary->setVelocityFunction (makeIDF (F));
     //     setup.boundaryCondition.reset (drvBoundary);
     // }
+
     else
     {
         throw std::runtime_error ("unrecognized option for boundary_condition");
@@ -233,10 +238,28 @@ Configuration::~Configuration()
 
 }
 
+SimulationSetup Configuration::fromCheckpoint (std::string filename)
+{
+    auto file = Cow::H5::File (filename, "r");
+    auto script = file.readString ("script");
+    lua.script (script);
+    auto setup = luaState->fromLuaTable (lua.globals());
+    setup.luaScript = script;
+    setup.restartFile = filename;
+    setup.initialDataFunction = nullptr;
+    setup.vectorPotentialFunction = nullptr;
+    return setup;
+}
+
 SimulationSetup Configuration::fromLuaFile (std::string filename)
 {
     lua.script_file (filename);
-    return luaState->fromLuaTable (lua.globals());
+    auto setup = luaState->fromLuaTable (lua.globals());
+    auto stream = std::ifstream (filename);
+    auto c0 = std::istreambuf_iterator<char>(stream);
+    auto c1 = std::istreambuf_iterator<char>();
+    setup.luaScript = std::string (c0, c1);
+    return setup;
 }
 
 int Configuration::launchFromScript (MaraSession& session, std::string filename)

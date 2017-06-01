@@ -11,6 +11,7 @@ class Configuration
 public:
     Configuration();
     ~Configuration();
+    SimulationSetup fromCheckpoint (std::string filename);
     SimulationSetup fromLuaFile (std::string filename);
     int launchFromScript (MaraSession& mara, std::string filename);
 

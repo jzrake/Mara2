@@ -51,7 +51,9 @@ public:
     bool vtkUseBinary;
     std::string outputDirectory;
     std::string runName;
-
+    std::string luaScript;
+    std::string restartFile;
+    
     // Solver options
     bool disableCT;
 

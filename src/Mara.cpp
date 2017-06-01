@@ -160,6 +160,8 @@ void writeCheckpoint (
         statusGroup.write ("checkpointsWrittenSoFar", status.checkpointsWrittenSoFar);
         statusGroup.write ("simulationIter", status.simulationIter);
         statusGroup.write ("simulationTime", status.simulationTime);
+
+        file.write ("script", setup.luaScript);
     });
 
     comm.inSequence ([&] (int rank)
@@ -190,6 +192,19 @@ void writeCheckpoint (
     });
 
     ++status.checkpointsWrittenSoFar;
+}
+
+
+
+
+// ============================================================================
+void readCheckpoint (
+    SimulationSetup& setup,
+    SimulationStatus& status,
+    FluxConservativeSystem& system,
+    BlockDecomposition& block)
+{
+
 }
 
 
@@ -290,6 +305,7 @@ int main (int argc, const char* argv[])
         std::cout << "usages: \n";
         std::cout << "\tmara config.lua\n";
         std::cout << "\tmara run script.lua\n";
+        std::cout << "\tmara chkpt.0000.h5\n";
         std::cout << "\tmara help\n";
         return 0;
     }
@@ -297,6 +313,7 @@ int main (int argc, const char* argv[])
     auto session = MaraSession();
     auto configuration = Configuration();
     auto command = std::string (argv[1]);
+    auto extension = command.substr (command.rfind ('.'));
 
     if (command == "help")
     {
@@ -309,15 +326,24 @@ int main (int argc, const char* argv[])
     {
         if (argc < 3)
         {
-            std::cout << "'run': no script provided\n";
+            std::cout << "'run': no script provided" << std::endl;
             return 0;
         }
         return configuration.launchFromScript (session, argv[2]);
     }
-    else
+    else if (extension == ".lua")
     {
         auto setup = configuration.fromLuaFile (argv[1]);
         return session.launch (setup);
+    }
+    else if (extension == ".h5")
+    {
+        auto setup = configuration.fromCheckpoint (argv[1]);
+        return session.launch (setup);
+    }
+    else
+    {
+        std::cout << "unrecognized command " << command << std::endl;
     }
 
     return 0;
