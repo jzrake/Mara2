@@ -1,0 +1,70 @@
+===============================================
+Mara: astrophysics gas and plasma dynamics code
+===============================================
+
+Author: Jonathan Zrake
+
+New York University (2009 - 2013)
+Stanford University (2013 - 2017)
+Columbia University (2017 - present)
+
+
+
+
+What is Mara?
+-----------------------------------------------
+
+Mara is a multidimensional Godunov-type code that solves the equations of
+compressible gasdynamics and magnetohydrodynamics (MHD).
+
+
+
+
+Basic usage
+-----------------------------------------------
+
+1. mara config.lua
+2. mara run problem.lua
+
+In config mode (1), the user provides a Lua file which declares global
+variables describing the run (see example_cfg.lua). The executable will launch
+a single run from the parameters listed in that file. In scripted mode (2) the
+lua environment will be populated with a limited API that allows the user to
+script the execution with finer granularity. Any number of sequential runs may
+by launched by providing a Lua table of parameters to the mara.run function.
+
+
+
+
+Code base
+-----------------------------------------------
+
+Mara's source code is written in C++, with some limited usage of C++11
+features: lambda functions, auto keyword, std::shared_ptr, and move semantics.
+The root directory contains source files that provide physics solvers and the
+application logic. These classes depend on lower-level facilities provided in
+the Cow (stands for "cube of wonder") library. Cow contains physics agnostic
+classes for things like multidimensional arrays, data formats (HDF5, VTK), and
+distributed memory parallelism (through a thin MPI wrapper). Having this layer
+helps in the "separation of concerns"; physics solvers delegate menial tasks
+like array allocation and interprocess communication to facilities in the Cow
+namespace, which keeps the solver code clean and expressive.
+
+
+
+
+Data visualization
+-----------------------------------------------
+
+Mara provides output data in HDF5 and VTK formats. ParaView is recommended for
+2D and 3D visualization tasks.
+
+Notes:
+- To use Python "programmable source" code in ParaView, the h5py module must
+  be available to Paraview. One way to do this is to copy your h5py
+  installation directory to the Python directory used by ParaView. For exmaple,
+  on OSX, run
+
+  cp -r ~/Your/h5py-2.x/lib/python2.7/site-packages/h5py /Applications/ParaView.app/Contents/Python
+
+- More to come...
