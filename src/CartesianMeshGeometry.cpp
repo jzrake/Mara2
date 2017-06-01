@@ -28,3 +28,72 @@ MeshGeometry::PatchIndex MeshGeometry::getPatchIndex() const
 {
     return patchIndex;
 }
+
+
+
+
+// ============================================================================
+CartesianMeshGeometry::CartesianMeshGeometry()
+{
+    shape = {{128, 1, 1, 1, 1}};
+    lower = {{0.0, 0.0, 0.0}};
+    upper = {{1.0, 1.0, 1.0}};
+}
+
+Cow::Shape CartesianMeshGeometry::cellsShape() const
+{
+    return shape;
+}
+
+unsigned long CartesianMeshGeometry::totalCellsInMesh() const
+{
+    return shape[0] * shape[1] * shape[2];
+}
+
+MeshGeometry::Coordinate CartesianMeshGeometry::coordinateAtIndex (double i, double j, double k) const
+{
+    return Coordinate ({{
+        lower[0] + (upper[0] - lower[0]) * (i + 0.5) / shape[0],
+        lower[1] + (upper[1] - lower[1]) * (j + 0.5) / shape[1],
+        lower[2] + (upper[2] - lower[2]) * (k + 0.5) / shape[2]}});
+}
+
+double CartesianMeshGeometry::faceArea (int i, int j, int k, int axis) const
+{
+    const double dx = cellLength (i, j, k, 0);
+    const double dy = cellLength (i, j, k, 1);
+    const double dz = cellLength (i, j, k, 2);
+
+    switch (axis)
+    {
+        case 0: return dy * dz;
+        case 1: return dz * dx;
+        case 2: return dx * dy;
+        default: assert (false);
+    }
+}
+
+double CartesianMeshGeometry::cellLength (int i, int j, int k, int axis) const
+{
+    return (upper[axis] - lower[axis]) / shape[axis];
+}
+
+double CartesianMeshGeometry::cellVolume (int i, int j, int k) const
+{
+    const double dx = cellLength (i, j, k, 0);
+    const double dy = cellLength (i, j, k, 1);
+    const double dz = cellLength (i, j, k, 2);
+    return dx * dy * dz;
+}
+
+Cow::Array CartesianMeshGeometry::getPointCoordinates (int axis) const
+{
+    assert (0 <= axis && axis < 3);
+    auto coords = Cow::Array (shape[axis] + 1);
+
+    for (int n = 0; n < coords.size(); ++n)
+    {
+        coords[n] = coordinateAtIndex (n - 0.5, n - 0.5, n - 0.5)[axis];
+    }
+    return coords;
+}

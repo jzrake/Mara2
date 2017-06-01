@@ -328,7 +328,6 @@ ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, cons
         }
         throw ConservationLaw::StateFailure (S);
     }
-
     return fromPrimitive (request, P);
 }
 

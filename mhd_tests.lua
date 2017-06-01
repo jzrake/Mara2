@@ -38,79 +38,7 @@ local function field_loop_z(x, y, z)
 	return {0.0, 0.0, A}
 end
 
-local setup = {
-	run_name = 'FieldLoopTest',
-	final_time = 0.0,
-	checkpoint_interval = 1.0,
-	vtk_output_interval = 0,--0.025,
-	vtk_use_binary = true,
-	cfl_parameter = 0.3,
-	grid_geometry = 'cartesian',
-	resolution = {32, 32, 32},
-	domain_lower = {-0.5, -0.5, -0.5},
-	domain_upper = { 0.5,  0.5,  0.5},
-	conservation_law = {'newtonian_mhd'},
-	riemann_solver = 'hlle',
-	flux_scheme = {'method_of_lines_plm', plm_theta=1.5},
-	runge_kutta_order = 2,
-	boundary_condition = 'periodic',
-}
-
-
-
-
---
--- Generate initial data for field loops around each axis. No evolution is
--- done here, we just inspect the output files to ensure the magnetic field
--- is divergenceless.
---
-local tests = {
-	{vector_potential = field_loop_x, output_directory = 'field_loop_x'},
-	{vector_potential = field_loop_y, output_directory = 'field_loop_y'},
-	{vector_potential = field_loop_z, output_directory = 'field_loop_z'},
-}
-
-for _, test in ipairs(tests) do
-	setup.initial_data = background_x
-	setup.vector_potential = test.vector_potential
-	setup.output_directory = test.output_directory
-	--mara.run(setup)
-end
-
-
-
---
--- Run a 2D advecting a field loop once around the domain, with
--- the motion along along one axis in the plane. There is one run
--- for each of the three axes, so we test all of the CT algorithm.
---
-setup.final_time = 1.0
-
-setup.resolution = {1, 64, 64}
-setup.initial_data = background_y
-setup.vector_potential = field_loop_x
-setup.output_directory = 'field_loop_advect_x'
---mara.run(setup)
-
-setup.resolution = {64, 1, 64}
-setup.initial_data = background_z
-setup.vector_potential = field_loop_y
-setup.output_directory = 'field_loop_advect_y'
---mara.run(setup)
-
-setup.resolution = {64, 64, 1}
-setup.initial_data = background_x
-setup.vector_potential = field_loop_z
-setup.output_directory = 'field_loop_advect_z'
---mara.run(setup)
-
-
-
-
---
--- These are 3D magnetic equilibrium tests.
---
-local function abc_equilibrium_A(x, y, z)
+local function abc_equilibrium(x, y, z)
 	local k = 4.0 * math.pi
 	local A = 0.1 / k
 	local B = 0.1 / k
@@ -120,9 +48,57 @@ local function abc_equilibrium_A(x, y, z)
 	local a3 = B * math.cos(k * y) - A * math.sin(k * x)
 	return {a1, a2, a3}
 end
-setup.final_time = 0.0
-setup.resolution = {256, 256, 1}
-setup.initial_data = background_x
-setup.vector_potential = abc_equilibrium_A
-setup.output_directory = 'abc_equilibrium'
-mara.run(setup)
+
+local function new_setup(args)
+	local setup = {
+		run_name = args['run_name'],
+		output_directory = 'data/' .. args['run_name'],
+		final_time = 1.0,
+		checkpoint_interval = 1.0,
+		vtk_output_interval = 0.025,
+		vtk_use_binary = true,
+		cfl_parameter = 0.3,
+		grid_geometry = 'cartesian',
+		resolution = {32, 32, 32},
+		domain_lower = {-0.5, -0.5, -0.5},
+		domain_upper = { 0.5,  0.5,  0.5},
+		conservation_law = {'newtonian_mhd'},
+		riemann_solver = 'hlle',
+		flux_scheme = {'method_of_lines_plm', plm_theta=1.5},
+		runge_kutta_order = 2,
+		boundary_condition = 'periodic',
+	}
+	for k, v in pairs(args) do
+		setup[k] = v
+	end
+	return setup
+end
+
+local tests = { }
+
+--
+-- Generate initial data for field loops around each axis. No evolution is
+-- done here, we just inspect the output files to ensure the magnetic field
+-- is divergenceless.
+--
+tests[1] = new_setup {run_name='field_loop_x', final_time=0.0, initial_data=background, vector_potential=field_loop_x}
+tests[2] = new_setup {run_name='field_loop_y', final_time=0.0, initial_data=background, vector_potential=field_loop_y}
+tests[3] = new_setup {run_name='field_loop_z', final_time=0.0, initial_data=background, vector_potential=field_loop_z}
+
+--
+-- Run a 2D advecting a field loop once around the domain, with
+-- the motion along along one axis in the plane. There is one run
+-- for each of the three axes, so we test all of the CT algorithm.
+--
+tests[4] = new_setup {run_name='field_loop_advect_x', resolution={1, 64, 64}, initial_data=background_x, vector_potential=field_loop_x}
+tests[5] = new_setup {run_name='field_loop_advect_y', resolution={64, 1, 64}, initial_data=background_y, vector_potential=field_loop_y}
+tests[6] = new_setup {run_name='field_loop_advect_z', resolution={64, 64, 1}, initial_data=background_z, vector_potential=field_loop_z}
+
+--
+-- These are 3D magnetic equilibrium tests.
+--
+tests[7] = new_setup {run_name='abc_equilibrium', initial_data=background, vector_potential=abc_equilibrium}
+
+for _, setup in pairs (tests) do
+	mara.run(setup)
+end

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <sstream>
 #include <cmath>
 
 // Mara includes
@@ -8,6 +9,7 @@
 #include "Configuration.hpp"
 #include "FluxConservativeSystem.hpp"
 #include "BlockDecomposition.hpp"
+#include "CartesianMeshGeometry.hpp"
 
 // Cow includes
 #include "HDF5.hpp"
@@ -53,18 +55,42 @@ SimulationStatus::SimulationStatus()
 void writeVtkOutput (
     SimulationSetup& setup,
     SimulationStatus& status,
-    FluxConservativeSystem& system)
+    FluxConservativeSystem& system,
+    BlockDecomposition& block)
 {
     using namespace Cow;
-    auto mpiWorld = MpiCommunicator::world();
+
+
+    if (block.getCommunicator().size() != 1)
+    {
+        block.getCommunicator().onMasterOnly ([&] ()
+        {
+            // NOTE: possible future syntax for logging
+            // Log::warning ("Mara") << "no support for VTK output\n";
+            std::cout << "[Mara] Warning: no support for VTK output in parallel runs\n";
+        });
+        return;
+    }
+
+    auto geometry = dynamic_cast<const CartesianMeshGeometry*> (setup.meshGeometry.get());
+
+    if (geometry == nullptr)
+    {
+        std::cout << "[Mara] Warning: only CartesianMeshGeometry supports VTK output\n";
+        return;
+    }
+
     auto dir = setup.outputDirectory;
-    mpiWorld.onMasterOnly ([&] () { FileSystem::ensureDirectoryExists (dir); });
+    FileSystem::ensureDirectoryExists (dir);
 
     auto vtkFilename = FileSystem::makeFilename (dir, "mesh", ".vtk", status.vtkOutputsWrittenSoFar);
     auto vtkStream = std::ofstream (vtkFilename);
-    auto vtkDataSet = VTK::DataSet (setup.meshGeometry->cellsShape());
-    vtkDataSet.setTitle (setup.runName);
-    vtkDataSet.setUseBinaryFormat (setup.vtkUseBinary);
+    auto vtkMesh = VTK::RectilinearGrid (setup.meshGeometry->cellsShape());
+    vtkMesh.setTitle (setup.runName);
+    vtkMesh.setUseBinaryFormat (setup.vtkUseBinary);
+    vtkMesh.setPointCoordinates (geometry->getPointCoordinates(0), 0);
+    vtkMesh.setPointCoordinates (geometry->getPointCoordinates(1), 1);
+    vtkMesh.setPointCoordinates (geometry->getPointCoordinates(2), 2);
 
     using VT = ConservationLaw::VariableType;
     auto claw = setup.conservationLaw;
@@ -77,32 +103,32 @@ void writeVtkOutput (
     if (indexD != -1)
     {
         auto D = system.getPrimitive (indexD);
-        vtkDataSet.addScalarField ("density", D);
+        vtkMesh.addScalarField ("density", D);
     }
     if (indexP != -1)
     {
         auto P = system.getPrimitive (indexP);
-        vtkDataSet.addScalarField ("pressure", P);
+        vtkMesh.addScalarField ("pressure", P);
     }
     if (indexV != -1)
     {
         auto V = system.getPrimitiveVector (indexV);
-        vtkDataSet.addVectorField ("velocity", V);
+        vtkMesh.addVectorField ("velocity", V);
     }
     if (indexB != -1)
     {
         auto B = system.getPrimitiveVector (indexB);
-        vtkDataSet.addVectorField ("magnetic", B);
+        vtkMesh.addVectorField ("magnetic", B);
 
         // Write divergence of magnetic field (at mesh vertices)
         auto M = setup.constrainedTransport->computeMonopole (ConstrainedTransport::MeshLocation::vert);
-        vtkDataSet.addScalarField ("monopole", M, VTK::DataSet::MeshLocation::vert);
+        vtkMesh.addScalarField ("monopole", M, VTK::RectilinearGrid::MeshLocation::vert);
     }
 
-    vtkDataSet.addScalarField ("health", system.getZoneHealth());
+    vtkMesh.addScalarField ("health", system.getZoneHealth());
 
-    std::cout << "writing VTK file " << vtkFilename << std::endl;
-    vtkDataSet.write (vtkStream);
+    std::cout << "[Mara] writing VTK file " << vtkFilename << std::endl;
+    vtkMesh.write (vtkStream);
     ++status.vtkOutputsWrittenSoFar;
 }
 
@@ -137,7 +163,20 @@ void writeCheckpoint (
         auto statusGroup = file.createGroup ("status");
         auto primitiveGroup = file.createGroup ("primitive");
         auto diagnosticGroup = file.createGroup ("diagnostic");
+        auto meshGroup = file.createGroup ("mesh");
         auto globalShape = Array::vectorFromShape (block.getGlobalShape());
+
+
+        // Write misc data like date and run script
+        // --------------------------------------------------------------------
+        auto t = std::time (nullptr);
+        auto tm = *std::localtime (&t);
+        std::ostringstream oss;
+        oss << std::put_time (&tm, "%m-%d-%Y %H:%M:%S");
+
+        file.write ("run_name", setup.runName);
+        file.write ("date", oss.str());
+        file.write ("script", setup.luaScript);
 
 
         // Create data sets for the primitive and diagnostic data
@@ -161,7 +200,16 @@ void writeCheckpoint (
         statusGroup.write ("simulationIter", status.simulationIter);
         statusGroup.write ("simulationTime", status.simulationTime);
 
-        file.write ("script", setup.luaScript);
+
+        // Write the mesh information (needs to be generalized to non-rectilinear meshes)
+        // --------------------------------------------------------------------
+        meshGroup.write ("type", "CartesianMeshGeometry");
+
+        auto geometry = dynamic_cast<const CartesianMeshGeometry*> (block.getGlobalGeometry().get());
+        auto pointGroup = meshGroup.createGroup ("points");
+        pointGroup.write ("x", geometry->getPointCoordinates (0));
+        pointGroup.write ("y", geometry->getPointCoordinates (1));
+        pointGroup.write ("z", geometry->getPointCoordinates (2));
     });
 
     comm.inSequence ([&] (int rank)
@@ -192,6 +240,58 @@ void writeCheckpoint (
     });
 
     ++status.checkpointsWrittenSoFar;
+}
+
+
+
+
+// ============================================================================
+void checkpointToVtk (std::string filename)
+{
+    using namespace Cow;
+
+    auto h5Filename = filename;
+    auto doth5 = filename.find (".h5");
+    auto vtkFilename = filename.replace (doth5, 5, ".vtk");
+
+    auto file = H5::File (h5Filename, "r");
+    auto points = file.getGroup ("mesh").getGroup ("points");
+    auto X = points.readArray ("x");
+    auto Y = points.readArray ("y");
+    auto Z = points.readArray ("z");
+    auto cellsShape = Shape {{X.size() - 1, Y.size() - 1, Z.size() - 1, 1, 1}};
+    auto primitive = file.getGroup ("primitive");
+
+    auto vtkStream = std::ofstream (vtkFilename);
+    auto vtkMesh = VTK::RectilinearGrid (cellsShape);
+    vtkMesh.setTitle (file.readString ("run_name"));
+    vtkMesh.setUseBinaryFormat (true);
+    vtkMesh.setPointCoordinates (X, 0);
+    vtkMesh.setPointCoordinates (Y, 1);
+    vtkMesh.setPointCoordinates (Z, 2);
+
+    auto velocityNames = std::vector<std::string> {"velocity1", "velocity2", "velocity3"};
+    auto magneticNames = std::vector<std::string> {"magnetic1", "magnetic2", "magnetic3"};
+
+    if (primitive.hasDataSet ("density"))
+    {
+        vtkMesh.addScalarField ("density", primitive.readArray ("density"));
+    }
+    if (primitive.hasDataSet ("pressure"))
+    {
+        vtkMesh.addScalarField ("pressure", primitive.readArray ("pressure"));
+    }
+    if (primitive.hasDataSets (velocityNames))
+    {
+        vtkMesh.addVectorField ("velocity", primitive.readArrays (velocityNames, 3));
+    }
+    if (primitive.hasDataSets (magneticNames))
+    {
+        vtkMesh.addVectorField ("magnetic", primitive.readArrays (magneticNames, 3));
+    }
+
+    std::cout << "[Mara] " << h5Filename << " -> " << vtkFilename << std::endl;
+    vtkMesh.write (vtkStream);
 }
 
 
@@ -238,7 +338,7 @@ int MaraSession::launch (SimulationSetup& setup)
 
     if (setup.vtkOutputInterval > 0)
     {
-        writeVtkOutput (setup, status, system);
+        writeVtkOutput (setup, status, system, blockDecomposition);
     }
 
     if (setup.checkpointInterval > 0)
@@ -256,7 +356,7 @@ int MaraSession::launch (SimulationSetup& setup)
 
         if (setup.vtkOutputInterval > 0 && status.simulationTime >= nextVtk)
         {
-            writeVtkOutput (setup, status, system);
+            writeVtkOutput (setup, status, system, blockDecomposition);
         }
 
         if (setup.checkpointInterval > 0 && status.simulationTime >= nextChkpt)
@@ -305,6 +405,7 @@ int main (int argc, const char* argv[])
         std::cout << "usages: \n";
         std::cout << "\tmara config.lua\n";
         std::cout << "\tmara run script.lua\n";
+        std::cout << "\tmara tovtk chkpt.*.h5\n";
         std::cout << "\tmara chkpt.0000.h5\n";
         std::cout << "\tmara help\n";
         return 0;
@@ -331,6 +432,13 @@ int main (int argc, const char* argv[])
         }
         return configuration.launchFromScript (session, argv[2]);
     }
+    else if (command == "tovtk")
+    {
+        for (int n = 2; n < argc; ++n)
+        {
+            checkpointToVtk (argv[n]);
+        }
+    }
     else if (extension == ".lua")
     {
         auto setup = configuration.fromLuaFile (argv[1]);
@@ -345,6 +453,5 @@ int main (int argc, const char* argv[])
     {
         std::cout << "unrecognized command " << command << std::endl;
     }
-
     return 0;
 }

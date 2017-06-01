@@ -25,6 +25,11 @@ public:
     const Cow::MpiCommunicator& getCommunicator() const { return communicator; }
 
     /**
+    Return the global mesh geometry.
+    */
+    const std::shared_ptr<MeshGeometry> getGlobalGeometry() const { return globalGeometry; }
+
+    /**
     Return the shape of the global domain.
     */
     Cow::Shape getGlobalShape() const;
