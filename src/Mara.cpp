@@ -313,7 +313,7 @@ int main (int argc, const char* argv[])
     auto session = MaraSession();
     auto configuration = Configuration();
     auto command = std::string (argv[1]);
-    auto extension = command.substr (command.rfind ('.'));
+    auto extension = FileSystem::fileExtension (command);
 
     if (command == "help")
     {

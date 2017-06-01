@@ -3,6 +3,36 @@
 #include <sys/stat.h>
 #include "FileSystem.hpp"
 
+std::vector<std::string> FileSystem::splitPath (std::string pathName)
+{
+    auto remaining = pathName;
+    auto dirs = std::vector<std::string>();
+
+    while (true)
+    {
+        auto slash = remaining.find ('/');
+
+        if (slash == std::string::npos)
+        {
+            dirs.push_back (remaining);
+            break;
+        }
+        dirs.push_back (remaining.substr (0, slash));
+        remaining = remaining.substr (slash + 1);
+    }
+    return dirs;
+}
+
+std::string FileSystem::fileExtension (std::string pathName)
+{
+    auto dot = pathName.rfind ('.');
+
+    if (dot != std::string::npos)
+    {
+        return pathName.substr (dot);
+    }
+    return "";
+}
 
 std::string FileSystem::getParentDirectory (std::string pathName)
 {
@@ -12,7 +42,13 @@ std::string FileSystem::getParentDirectory (std::string pathName)
 
 void FileSystem::ensureDirectoryExists (std::string dirName)
 {
-    mkdir (dirName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    auto path = std::string (".");
+
+    for (auto dir : splitPath (dirName))
+    {
+        path += "/" + dir;
+        mkdir (path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    }
 }
 
 void FileSystem::ensureParentDirectoryExists (std::string pathName)
