@@ -201,7 +201,6 @@ void writeCheckpoint (
     auto comm = block.getCommunicator();
     auto outdir = setup.outputDirectory;
     auto filename = FileSystem::makeFilename (outdir, "chkpt", ".h5", status.checkpointsWrittenSoFar);
-    auto indexB = setup.conservationLaw->getIndexFor (VT::magnetic);
 
     comm.onMasterOnly ([&] ()
     {
@@ -211,12 +210,11 @@ void writeCheckpoint (
         // Create data directory, HDF5 checkpoint file, and groups
         // --------------------------------------------------------------------
         FileSystem::ensureDirectoryExists (outdir);
-        auto file = H5::File (filename, "w");
-        auto statusGroup = file.createGroup ("status");
-        auto primitiveGroup = file.createGroup ("primitive");
+        auto file            = H5::File (filename, "w");
+        auto statusGroup     = file.createGroup ("status");
+        auto primitiveGroup  = file.createGroup ("primitive");
         auto diagnosticGroup = file.createGroup ("diagnostic");
-        auto meshGroup = file.createGroup ("mesh");
-        auto globalShape = Array::vectorFromShape (block.getGlobalShape());
+        auto meshGroup       = file.createGroup ("mesh");
 
 
         // Write misc data like date and run script
@@ -233,13 +231,15 @@ void writeCheckpoint (
 
         // Create data sets for the primitive and diagnostic data
         // --------------------------------------------------------------------
+        auto globalShape = Array::vectorFromShape (block.getGlobalShape());
+
         for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
         {
             auto field = setup.conservationLaw->getPrimitiveName(q);
             primitiveGroup.createDataSet (field, globalShape);
         }
 
-        if (indexB != -1)
+        if (setup.conservationLaw->getIndexFor (VT::magnetic) != -1)
         {
             diagnosticGroup.createDataSet ("monopole", globalShape);
         }
@@ -268,14 +268,15 @@ void writeCheckpoint (
     {
         // Open the file and groups
         // --------------------------------------------------------------------
-        auto file = H5::File (filename, "a");
-        auto primitiveGroup = file.getGroup ("primitive");
+        auto file            = H5::File (filename, "a");
+        auto primitiveGroup  = file.getGroup ("primitive");
         auto diagnosticGroup = file.getGroup ("diagnostic");
-        auto targetRegion = block.getPatchRegion();
 
 
         // Create data sets for the primitive and diagnostic data
         // --------------------------------------------------------------------
+        auto targetRegion = block.getPatchRegion();
+
         for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
         {
             auto field = setup.conservationLaw->getPrimitiveName(q);
@@ -283,7 +284,7 @@ void writeCheckpoint (
             dset[targetRegion] = system.getPrimitive(q);
         }
 
-        if (indexB != -1)
+        if (setup.conservationLaw->getIndexFor (VT::magnetic) != -1)
         {
             auto dset = diagnosticGroup.getDataSet ("monopole");
             auto M = setup.constrainedTransport->computeMonopole (ML::cell);
@@ -304,7 +305,25 @@ void readCheckpoint (
     FluxConservativeSystem& system,
     BlockDecomposition& block)
 {
+    block.getCommunicator().onMasterOnly ([&] ()
+    {
+        std::cout << "[Mara] reading checkpoint file " << setup.restartFile << std::endl;
+    });
 
+    block.getCommunicator().inSequence ([&] (int rank)
+    {
+        auto file            = Cow::H5::File (setup.restartFile, "r");
+        auto statusGroup     = file.getGroup ("status");
+        auto primitiveGroup  = file.getGroup ("primitive");
+
+        system.assignPrimitive (primitiveGroup.readArrays (
+            setup.conservationLaw->getPrimitiveNames(), 3, block.getPatchRegion()));
+
+        status.vtkOutputsWrittenSoFar  = statusGroup.readInt ("vtkOutputsWrittenSoFar");
+        status.checkpointsWrittenSoFar = statusGroup.readInt ("checkpointsWrittenSoFar");
+        status.simulationIter          = statusGroup.readInt ("simulationIter");
+        status.simulationTime          = statusGroup.readDouble ("simulationTime");
+    });
 }
 
 
@@ -313,18 +332,7 @@ void readCheckpoint (
 // ============================================================================
 int MaraSession::launch (SimulationSetup& setup)
 {
-    using namespace Cow;
-
-
-    // More general setup validation code should go here
-    // ------------------------------------------------------------------------
-    if (setup.initialDataFunction == nullptr)
-    {
-        throw std::runtime_error ("No initial data function was provided");
-    }
-
-
-    // Dependency injection
+    // "Dependency injection"
     // ------------------------------------------------------------------------
     auto blockDecomposition = BlockDecomposition (setup.meshGeometry);
     auto blockCommunicator = blockDecomposition.getCommunicator();
@@ -341,13 +349,29 @@ int MaraSession::launch (SimulationSetup& setup)
     auto status = SimulationStatus();
     auto system = FluxConservativeSystem (setup);
 
-    system.setInitialData (setup.initialDataFunction, setup.vectorPotentialFunction);
 
+    // Initial solution data
+    // ------------------------------------------------------------------------
+    if (setup.initialDataFunction != nullptr)
+    {
+        system.setInitialData (setup.initialDataFunction, setup.vectorPotentialFunction);
+    }
+    else if (! setup.restartFile.empty())
+    {
+        readCheckpoint (setup, status, system, blockDecomposition);
+    }
+    else
+    {
+        throw std::runtime_error ("No initial data function or restart file was given");
+    }
+
+
+    // Initial output stage
+    // --------------------------------------------------------------------
     if (setup.vtkOutputInterval > 0)
     {
         writeVtkOutput (setup, status, system, blockDecomposition);
     }
-
     if (setup.checkpointInterval > 0)
     {
         writeCheckpoint (setup, status, system, blockDecomposition);
@@ -419,7 +443,7 @@ int main (int argc, const char* argv[])
     }
 
     auto session = MaraSession();
-    auto configuration = Configuration();
+    auto configuration = Configuration (argc, argv);
     auto command = std::string (argv[1]);
     auto extension = FileSystem::fileExtension (command);
 

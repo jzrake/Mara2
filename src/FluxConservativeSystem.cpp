@@ -98,7 +98,6 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
 Cow::Array::Reference FluxConservativeSystem::getPrimitive (int fieldIndex)
 {
     Region R = updateableRegion;
-
     R.stride[3] = 1;
 
     if (fieldIndex != -1)
@@ -176,7 +175,31 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
             uit[q] = S.U[q];
         }
     }
+    applyBoundaryCondition();
+    uploadFieldsToCT();
+}
 
+void FluxConservativeSystem::assignPrimitive (Cow::Array primitiveData)
+{
+    auto R = updateableRegion;
+    R.stride[3] = 1;
+    P[R] = primitiveData;
+
+    auto request = ConservationLaw::Request();
+    auto Preg = P[updateableRegion];
+    auto Ureg = U[updateableRegion];
+    auto pit = Preg.begin();
+    auto uit = Ureg.begin();
+
+    for ( ; uit != Ureg.end(); ++uit, ++pit)
+    {
+        auto S = conservationLaw->fromPrimitive (request, pit);
+
+        for (int q = 0; q < numConserved; ++q)
+        {
+            uit[q] = S.U[q];
+        }
+    }
     applyBoundaryCondition();
     uploadFieldsToCT();
 }
@@ -424,13 +447,12 @@ void FluxConservativeSystem::recoverPrimitive()
             {
                 pit[q] = S.P[q];
             }
-
             auto index = uit.relativeIndex();
             zoneHealth (index[0], index[1], index[2]) = S.healthFlag;
         }
         catch (ConservationLaw::StateFailure& stateFailure)
         {
-            stateFailure.zoneIndex = uit.relativeIndex();
+            stateFailure.setZoneIndex (uit.relativeIndex());
             solverFailure.failedStates.push_back (stateFailure);
         }
     }

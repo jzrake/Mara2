@@ -27,11 +27,30 @@
 
 
 // ============================================================================
+ConservationLaw::StateFailure::StateFailure (const State& failedState) : failedState (failedState)
+{
+    zoneIndex[0] = 0;
+    zoneIndex[1] = 0;
+    zoneIndex[2] = 0;
+    zoneIndex[3] = 0;
+    zoneIndex[4] = 0;
+    updateWhatMessage();
+}
+
 const char* ConservationLaw::StateFailure::what() const noexcept
 {
-    std::ostringstream stream;
-    static std::string message;
+    return whatMessage.c_str();
+}
 
+void ConservationLaw::StateFailure::setZoneIndex (Cow::Index I)
+{
+    zoneIndex = I;
+    updateWhatMessage();
+}
+
+void ConservationLaw::StateFailure::updateWhatMessage()
+{
+    auto stream = std::ostringstream();
     stream << "at zone index [" << zoneIndex[0] << " " << zoneIndex[1] << " " << zoneIndex[2] << "]\n";
     stream << "P = {";
 
@@ -48,14 +67,24 @@ const char* ConservationLaw::StateFailure::what() const noexcept
     }
     stream << "}";
 
-    message = stream.str();
-    return message.c_str();
+    whatMessage = stream.str();
 }
 
 
 
 
 // ============================================================================
+std::vector<std::string> ConservationLaw::getPrimitiveNames() const
+{
+    auto names = std::vector<std::string>();
+
+    for (int q = 0; q < getNumConserved(); ++q)
+    {
+        names.push_back (getPrimitiveName (q));
+    }
+    return names;
+}
+
 ConservationLaw::State ConservationLaw::averageStates (const Request& request,
     const State& L, const State& R) const
 {

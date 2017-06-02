@@ -9,7 +9,7 @@
 class Configuration
 {
 public:
-    Configuration();
+    Configuration (int argc, const char* argv[]);
     ~Configuration();
     SimulationSetup fromCheckpoint (std::string filename);
     SimulationSetup fromLuaFile (std::string filename);
@@ -18,6 +18,7 @@ public:
 private:
     class LuaState;
     std::shared_ptr<LuaState> luaState;
+    std::string commandLineLuaString;
 };
 
 

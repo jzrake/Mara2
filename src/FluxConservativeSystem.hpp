@@ -54,6 +54,14 @@ public:
     void setInitialData (InitialDataFunction F, InitialDataFunction A);
 
     /**
+    Assign a block of primitive data. The size of the array must be the number
+    of cells in the mesh, with the size of axis 3 being the number of
+    primitive variable fields. This is the same shape as the array returned by
+    getPrimitive() when fieldIndex=-1.
+    */
+    void assignPrimitive (Cow::Array primitiveData);
+
+    /**
     Get the shortest time a wave to cross a cell.
     */
     double getCourantTimestep();

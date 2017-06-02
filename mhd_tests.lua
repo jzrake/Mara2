@@ -54,7 +54,7 @@ local function new_setup(args)
 		run_name = args['run_name'],
 		output_directory = 'data/' .. args['run_name'],
 		final_time = 1.0,
-		checkpoint_interval = 1.0,
+		checkpoint_interval = 0.1,
 		vtk_output_interval = 0.025,
 		vtk_use_binary = true,
 		cfl_parameter = 0.3,

@@ -279,8 +279,12 @@ public:
     class StateFailure : public std::exception
     {
     public:
-        StateFailure (const State& failedState) : failedState (failedState) {}
+        StateFailure (const State& failedState);
         const char* what() const noexcept override;
+        void setZoneIndex (Cow::Index I);
+    private:
+        void updateWhatMessage();
+        std::string whatMessage;
         Cow::Index zoneIndex;
         State failedState;
     };
@@ -326,6 +330,12 @@ public:
     Return a name for the primitive variable at the given index.
     */
     virtual std::string getPrimitiveName (int fieldIndex) const = 0;
+
+    /**
+    Convenience function to return the field variable names. The vector is
+    ordered the same way as the field indexes.
+    */
+    std::vector<std::string> getPrimitiveNames() const;
 
     /**
     Return the numeric average the primitive quantities from the two given

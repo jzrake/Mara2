@@ -4,14 +4,14 @@ local setups = require 'setups'
 run_name = 'ShocktubeTest'
 
 -- directory where output should go
-output_directory = 'test'
+output_directory = 'data/test'
 
 -- Time at which to terminate simulation
 final_time = 0.0
 
 -- How frequently to output full simulation snapshot (set to 0 to disable
 -- checkpoints)
-checkpoint_interval = 0.0
+checkpoint_interval = 1.0
 
 -- How frequently to write VTK data (set to 0 to disable VTK output)
 vtk_output_interval = 0.0

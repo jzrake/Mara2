@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include "Configuration.hpp"
 #include "CartesianMeshGeometry.hpp"
 #include "BoundaryConditions.hpp"
@@ -227,10 +228,27 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
 
 
 // ============================================================================
-Configuration::Configuration()
+Configuration::Configuration (int argc, const char* argv[])
 {
     luaState.reset (new LuaState);
     lua.open_libraries (sol::lib::base, sol::lib::math, sol::lib::package);
+
+    auto luaTableStream = std::ostringstream();
+    bool passedDoubleDash = false;
+
+    for (int n = 0; n < argc; ++n)
+    {
+        if (argv[n] == std::string ("--"))
+        {
+            passedDoubleDash = true;
+            continue;
+        }
+        if (passedDoubleDash)
+        {
+            luaTableStream << argv[n] << "; ";
+        }
+    }
+    commandLineLuaString = luaTableStream.str();
 }
 
 Configuration::~Configuration()
@@ -243,6 +261,7 @@ SimulationSetup Configuration::fromCheckpoint (std::string filename)
     auto file = Cow::H5::File (filename, "r");
     auto script = file.readString ("script");
     lua.script (script);
+    lua.script (commandLineLuaString);
     auto setup = luaState->fromLuaTable (lua.globals());
     setup.luaScript = script;
     setup.restartFile = filename;
@@ -254,6 +273,7 @@ SimulationSetup Configuration::fromCheckpoint (std::string filename)
 SimulationSetup Configuration::fromLuaFile (std::string filename)
 {
     lua.script_file (filename);
+    lua.script (commandLineLuaString);
     auto setup = luaState->fromLuaTable (lua.globals());
     auto stream = std::ifstream (filename);
     auto c0 = std::istreambuf_iterator<char>(stream);
@@ -264,6 +284,12 @@ SimulationSetup Configuration::fromLuaFile (std::string filename)
 
 int Configuration::launchFromScript (MaraSession& session, std::string filename)
 {
+    if (! commandLineLuaString.empty())
+    {
+        std::cout << "[Configuration] Warning: command line string ignored in run mode" << std::endl;
+        std::cout << "[Configuration] " << commandLineLuaString << std::endl;
+    }
+
     sol::table mara = lua.require_script ("mara", "return {}", false);
 
     mara["run"] = [&] (sol::table T)
