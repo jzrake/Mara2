@@ -191,7 +191,7 @@ public:
 
     @param location         MeshLocation flag, whether the supplied data
                             exists on mesh verts, edges, faces, or cells.
-                            Implementations should throw std::runtime_error if
+                            Implementations should throw std::logic_error if
                             they cannot apply boundary conditions at the
                             requested mesh location.
 
@@ -222,8 +222,8 @@ public:
     virtual void setMeshGeometry (std::shared_ptr<MeshGeometry> geometry) {}
 
     /**
-    Assign a conservation law instance. Derived classes may re-implement
-    this method and keep a shared pointer to the geometry if they need it.
+    Assign a conservation law instance. Derived classes may re-implement this
+    method and keep a shared pointer to the conservation law if they need it.
     */
     virtual void setConservationLaw (std::shared_ptr<ConservationLaw> law) {}
 };

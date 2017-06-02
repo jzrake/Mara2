@@ -9,10 +9,15 @@
 #include "IntercellFluxSchemes.hpp"
 #include "RiemannSolvers.hpp"
 
+// Cow
 #include "HDF5.hpp"
 
-#include "sol.hpp"
+// Lua
 #define lua (luaState->L)
+// #define SOL_CHECK_ARGUMENTS // <-- causes stack error?
+#define SOL_SAFE_USERTYPES
+#define SOL_SAFE_FUNCTION
+#include "sol.hpp"
 
 
 
@@ -289,6 +294,201 @@ int Configuration::launchFromScript (MaraSession& session, std::string filename)
     }
 
     sol::table mara = lua.require_script ("mara", "return {}", false);
+    mara["run"] = [&] (sol::table T)
+    {
+        auto setup = luaState->fromLuaTable (T);
+        return session.launch (setup);
+    };
+
+    lua.script_file (filename);
+    return 0;
+}
+
+
+
+
+
+// ============================================================================
+#define NO_EXPERIMENT_CFG
+#ifndef NO_EXPERIMENT_CFG
+
+#include <iomanip>
+
+#define SCL(nm) cout << left << setw(W) << setfill('.') << #nm << " " << nm << endl
+#define VCI(nm) cout << left << setw(W) << setfill('.') << #nm << " " << nm[0] << " " << nm[1] << " " << nm[2] << " " << endl
+#define VCD(nm) cout << left << setw(W) << setfill('.') << #nm << " " << showpos << nm[0] << " " << nm[1] << " " << nm[2] << " " << endl
+#define FUN(nm) cout << left << setw(W) << setfill('.') << #nm << " " << (nm ? "f(...)" : "nil") << std::endl;
+#define MEM(nm) #nm, &UserConfiguration::nm
+
+namespace sol
+{
+    template <> struct lua_size<std::array<int, 3>> : std::integral_constant<int, 1> {};
+    template <> struct lua_type_of<std::array<int, 3>> : std::integral_constant<sol::type, sol::type::table> {};
+
+    namespace stack
+    {
+        template <>
+        struct checker<std::array<int, 3>>
+        {
+            template <typename Handler>
+            static bool check(lua_State* L, int index, Handler&& handler, record& tracking)
+            {
+                tracking.use(1);
+                return stack::check<sol::table> (L, index, handler);
+            }
+        };
+
+        template <>
+        struct getter<std::array<int, 3>>
+        {
+            static std::array<int, 3> get(lua_State* L, int index, record& tracking)
+            {
+                sol::table tab = stack::get<sol::table> (L, index);
+                tracking.use(1);
+                return {{tab[1], tab[2], tab[3]}};
+            }
+        };
+
+        template <>
+        struct pusher<std::array<int, 3>>
+        {
+            static int push(lua_State* L, const std::array<int, 3>& arr)
+            {
+                return stack::push (L, sol::as_table (arr));
+            }
+        };
+
+        template <>
+        struct checker<std::array<double, 3>>
+        {
+            template <typename Handler>
+            static bool check(lua_State* L, int index, Handler&& handler, record& tracking)
+            {
+                tracking.use(1);
+                return stack::check<sol::table> (L, index, handler);
+            }
+        };
+
+        template <>
+        struct getter<std::array<double, 3>>
+        {
+            static std::array<double, 3> get(lua_State* L, int index, record& tracking)
+            {
+                sol::table tab = stack::get<sol::table> (L, index);
+                tracking.use(1);
+                return {{tab[1], tab[2], tab[3]}};
+            }
+        };
+
+        template <>
+        struct pusher<std::array<double, 3>>
+        {
+            static int push(lua_State* L, const std::array<double, 3>& arr)
+            {
+                return stack::push (L, sol::as_table (arr));
+            }
+        };
+    }
+}
+
+class UserConfiguration
+{
+public:
+    double final_time;
+    double checkpoint_interval;
+    double vtk_output_interval;
+    double cfl_parameter;
+    double pressure_floor;
+    int runge_kutta_order;
+    bool vtk_use_binary;
+    bool disable_ct;
+    std::string output_directory;
+    std::string run_name;
+    std::string lua_script;
+    std::string restart_file;
+    std::array<int, 3> domain_shape;
+    std::array<double, 3> domain_lower;
+    std::array<double, 3> domain_upper;
+    InitialDataFunction initial_data_function;
+    InitialDataFunction vector_potential_function;
+    InitialDataFunction boundary_value_function;
+
+    UserConfiguration()
+    {
+        final_time = 0;
+        checkpoint_interval = 1.0;
+        vtk_output_interval = 1.0;
+        cfl_parameter = 0.25;
+        pressure_floor = 0.0;
+        runge_kutta_order = 0;
+        vtk_use_binary = true;
+        disable_ct = false;
+        output_directory = "data";
+        run_name = "test";
+        lua_script = "";
+        restart_file = "";
+        domain_shape = {{ 128, 1, 1 }};
+        domain_lower = {{-0.5,-0.5,-0.5 }};
+        domain_upper = {{ 0.5, 0.5, 0.5 }};
+        initial_data_function = nullptr;
+        vector_potential_function = nullptr;
+        boundary_value_function = nullptr;
+    }
+
+    void describe() const
+    {
+        using std::cout;
+        using std::endl;
+        using std::left;
+        using std::setw;
+        using std::setfill;
+        using std::showpos;
+        const int W = 32;
+
+        SCL(final_time);
+        SCL(checkpoint_interval);
+        SCL(vtk_output_interval);
+        SCL(cfl_parameter);
+        SCL(pressure_floor);
+        SCL(runge_kutta_order);
+        SCL(vtk_use_binary);
+        SCL(disable_ct);
+        SCL(output_directory);
+        SCL(run_name);
+        SCL(lua_script);
+        SCL(restart_file);
+        VCI(domain_shape);
+        VCD(domain_lower);
+        VCD(domain_upper);
+        FUN(initial_data_function);
+        FUN(vector_potential_function);
+        FUN(boundary_value_function);
+    }
+};
+
+int Configuration::experiment (MaraSession& session, std::string filename)
+{
+    sol::table mara = lua.require_script ("mara", "return {}", false);
+    mara.new_simple_usertype<UserConfiguration> ("Configuration",
+        MEM(final_time),
+        MEM(checkpoint_interval),
+        MEM(vtk_output_interval),
+        MEM(cfl_parameter),
+        MEM(pressure_floor),
+        MEM(runge_kutta_order),
+        MEM(vtk_use_binary),
+        MEM(disable_ct),
+        MEM(output_directory),
+        MEM(run_name),
+        MEM(lua_script),
+        MEM(restart_file),
+        MEM(domain_shape),
+        MEM(domain_lower),
+        MEM(domain_upper),
+        MEM(initial_data_function),
+        MEM(vector_potential_function),
+        MEM(boundary_value_function),
+        MEM(describe));
 
     mara["run"] = [&] (sol::table T)
     {
@@ -299,3 +499,11 @@ int Configuration::launchFromScript (MaraSession& session, std::string filename)
     lua.script_file (filename);
     return 0;
 }
+
+#else
+int Configuration::experiment (MaraSession& session, std::string filename)
+{
+    std::cout << "experimental config is disabled";
+    return 0;
+}
+#endif

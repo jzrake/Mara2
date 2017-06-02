@@ -439,6 +439,7 @@ int main (int argc, const char* argv[])
         std::cout << "\tmara run script.lua\n";
         std::cout << "\tmara tovtk chkpt.*.h5\n";
         std::cout << "\tmara chkpt.0000.h5\n";
+        std::cout << "\tmara exper\n";
         std::cout << "\tmara help\n";
         return 0;
     }
@@ -454,6 +455,10 @@ int main (int argc, const char* argv[])
         "Mara is an astrophysics code for multi-dimensional "
         "gas and magnetofluid dynamics.\n";
         return 0;
+    }
+    else if (command == "exper")
+    {
+        return configuration.experiment (session, argv[2]);
     }
     else if (command == "run")
     {

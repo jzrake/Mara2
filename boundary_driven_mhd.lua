@@ -33,23 +33,22 @@ local function single_vortex_pair(x, y, z)
 	return {vx, vy}
 end
 
-
 run_name = 'BoundaryDrivenMHD'
-output_directory = 'data/bdrv-vortex-pair-324z'
-final_time = 0.5
-checkpoint_interval = 0.1
-vtk_output_interval = 0.1
-cfl_parameter = 0.3
+output_directory = 'data/bdrv-noceil-64'
+final_time = 32
+checkpoint_interval = 0.25
+vtk_output_interval = 0.00
+cfl_parameter = 0.33
 initial_data = background
 grid_geometry = 'cartesian'
-resolution = {16, 16, 16}
+resolution = {64, 64, 64}
 domain_lower = {-0.5, -0.5, -0.5}
 domain_upper = { 0.5,  0.5,  0.5}
 conservation_law = {'newtonian_mhd'}
 riemann_solver = 'hlle'
-flux_scheme = {'method_of_lines_plm', plm_theta=1.5}
+flux_scheme = {'method_of_lines_plm', plm_theta=1.75}
 runge_kutta_order = 2
 boundary_condition = 'driven_mhd'
-boundary_velocity_function = single_vortex_pair
+boundary_velocity_function = abc_driving_floor_only
 disable_ct = false
 pressure_floor = 1e-2

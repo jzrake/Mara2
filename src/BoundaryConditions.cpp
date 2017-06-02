@@ -75,7 +75,7 @@ void ReflectingBoundaryCondition::apply (
 {
     if (A.size (axis) == 1)
     {
-        throw std::runtime_error ("Attempt to apply boundary "
+        throw std::logic_error ("Attempt to apply boundary "
             "condition on flattened axis " + std::to_string (axis));
     }
 
