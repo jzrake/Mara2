@@ -13,7 +13,6 @@ void UniformCartesianCT::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry
     meshGeometry = geometry;
     auto domainShape = meshGeometry->cellsShape();
 
-
     // The flux arrays we work with will have one more face than cells in the
     // longitudinal direction, and two more faces than cells in the transverse
     // directions.
@@ -71,11 +70,6 @@ void UniformCartesianCT::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry
     updateableRegionB.upper[1] = -1;
     updateableRegionB.lower[2] =  1;
     updateableRegionB.upper[2] = -1;
-}
-
-void UniformCartesianCT::setConservationLaw (std::shared_ptr<ConservationLaw> newCL)
-{
-    conservationLaw = newCL;
 }
 
 void UniformCartesianCT::setBoundaryCondition (std::shared_ptr<BoundaryCondition> newBC)
@@ -360,16 +354,12 @@ void UniformCartesianCT::setFaceBC()
             BoundaryCondition::MeshLocation::face,
             BoundaryCondition::MeshBoundary::left,
             axis,
-            1,
-            *meshGeometry,
-            *conservationLaw);
+            1);
         boundaryCondition->apply (F,
             BoundaryCondition::MeshLocation::face,
             BoundaryCondition::MeshBoundary::right,
             axis,
-            1,
-            *meshGeometry,
-            *conservationLaw);
+            1);
     };
     callBC (F1, 1);
     callBC (F1, 2);
@@ -387,16 +377,12 @@ void UniformCartesianCT::setCellBC()
             BoundaryCondition::MeshLocation::cell,
             BoundaryCondition::MeshBoundary::left,
             axis,
-            1,
-            *meshGeometry,
-            *conservationLaw);
+            1);
         boundaryCondition->apply (BB,
             BoundaryCondition::MeshLocation::cell,
             BoundaryCondition::MeshBoundary::right,
             axis,
-            1,
-            *meshGeometry,
-            *conservationLaw);
+            1);
     };
     callBC (B, 0);
     callBC (B, 1);

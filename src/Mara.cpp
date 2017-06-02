@@ -52,6 +52,58 @@ SimulationStatus::SimulationStatus()
 
 
 // ============================================================================
+void checkpointToVtk (std::string filename)
+{
+    using namespace Cow;
+
+    auto h5Filename = filename;
+    auto doth5 = filename.find (".h5");
+    auto vtkFilename = filename.replace (doth5, 5, ".vtk");
+
+    auto file = H5::File (h5Filename, "r");
+    auto points = file.getGroup ("mesh").getGroup ("points");
+    auto X = points.readArray ("x");
+    auto Y = points.readArray ("y");
+    auto Z = points.readArray ("z");
+    auto cellsShape = Shape {{X.size() - 1, Y.size() - 1, Z.size() - 1, 1, 1}};
+    auto primitive = file.getGroup ("primitive");
+
+    auto vtkStream = std::ofstream (vtkFilename);
+    auto vtkMesh = VTK::RectilinearGrid (cellsShape);
+    vtkMesh.setTitle (file.readString ("run_name"));
+    vtkMesh.setUseBinaryFormat (true);
+    vtkMesh.setPointCoordinates (X, 0);
+    vtkMesh.setPointCoordinates (Y, 1);
+    vtkMesh.setPointCoordinates (Z, 2);
+
+    auto velocityNames = std::vector<std::string> {"velocity1", "velocity2", "velocity3"};
+    auto magneticNames = std::vector<std::string> {"magnetic1", "magnetic2", "magnetic3"};
+
+    if (primitive.hasDataSet ("density"))
+    {
+        vtkMesh.addScalarField ("density", primitive.readArray ("density"));
+    }
+    if (primitive.hasDataSet ("pressure"))
+    {
+        vtkMesh.addScalarField ("pressure", primitive.readArray ("pressure"));
+    }
+    if (primitive.hasDataSets (velocityNames))
+    {
+        vtkMesh.addVectorField ("velocity", primitive.readArrays (velocityNames, 3));
+    }
+    if (primitive.hasDataSets (magneticNames))
+    {
+        vtkMesh.addVectorField ("magnetic", primitive.readArrays (magneticNames, 3));
+    }
+
+    std::cout << "[Mara] " << h5Filename << " -> " << vtkFilename << std::endl;
+    vtkMesh.write (vtkStream);
+}
+
+
+
+
+// ============================================================================
 void writeVtkOutput (
     SimulationSetup& setup,
     SimulationStatus& status,
@@ -246,58 +298,6 @@ void writeCheckpoint (
 
 
 // ============================================================================
-void checkpointToVtk (std::string filename)
-{
-    using namespace Cow;
-
-    auto h5Filename = filename;
-    auto doth5 = filename.find (".h5");
-    auto vtkFilename = filename.replace (doth5, 5, ".vtk");
-
-    auto file = H5::File (h5Filename, "r");
-    auto points = file.getGroup ("mesh").getGroup ("points");
-    auto X = points.readArray ("x");
-    auto Y = points.readArray ("y");
-    auto Z = points.readArray ("z");
-    auto cellsShape = Shape {{X.size() - 1, Y.size() - 1, Z.size() - 1, 1, 1}};
-    auto primitive = file.getGroup ("primitive");
-
-    auto vtkStream = std::ofstream (vtkFilename);
-    auto vtkMesh = VTK::RectilinearGrid (cellsShape);
-    vtkMesh.setTitle (file.readString ("run_name"));
-    vtkMesh.setUseBinaryFormat (true);
-    vtkMesh.setPointCoordinates (X, 0);
-    vtkMesh.setPointCoordinates (Y, 1);
-    vtkMesh.setPointCoordinates (Z, 2);
-
-    auto velocityNames = std::vector<std::string> {"velocity1", "velocity2", "velocity3"};
-    auto magneticNames = std::vector<std::string> {"magnetic1", "magnetic2", "magnetic3"};
-
-    if (primitive.hasDataSet ("density"))
-    {
-        vtkMesh.addScalarField ("density", primitive.readArray ("density"));
-    }
-    if (primitive.hasDataSet ("pressure"))
-    {
-        vtkMesh.addScalarField ("pressure", primitive.readArray ("pressure"));
-    }
-    if (primitive.hasDataSets (velocityNames))
-    {
-        vtkMesh.addVectorField ("velocity", primitive.readArrays (velocityNames, 3));
-    }
-    if (primitive.hasDataSets (magneticNames))
-    {
-        vtkMesh.addVectorField ("magnetic", primitive.readArrays (magneticNames, 3));
-    }
-
-    std::cout << "[Mara] " << h5Filename << " -> " << vtkFilename << std::endl;
-    vtkMesh.write (vtkStream);
-}
-
-
-
-
-// ============================================================================
 void readCheckpoint (
     SimulationSetup& setup,
     SimulationStatus& status,
@@ -324,15 +324,22 @@ int MaraSession::launch (SimulationSetup& setup)
     }
 
 
-    // Mesh decomposition steps
+    // Dependency injection
     // ------------------------------------------------------------------------
     auto blockDecomposition = BlockDecomposition (setup.meshGeometry);
     auto blockCommunicator = blockDecomposition.getCommunicator();
+
     setup.meshGeometry = blockDecomposition.decompose();
+
+    setup.boundaryCondition->setMeshGeometry (setup.meshGeometry);
+    setup.boundaryCondition->setConservationLaw (setup.conservationLaw);
     setup.boundaryCondition = blockDecomposition.createBoundaryCondition (setup.boundaryCondition);
 
+    setup.constrainedTransport->setMeshGeometry (setup.meshGeometry);
+    setup.constrainedTransport->setBoundaryCondition (setup.boundaryCondition);
+
     auto status = SimulationStatus();
-    auto system = FluxConservativeSystem (setup); // This also initializes CT.
+    auto system = FluxConservativeSystem (setup);
 
     system.setInitialData (setup.initialDataFunction, setup.vectorPotentialFunction);
 

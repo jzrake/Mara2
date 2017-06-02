@@ -32,18 +32,13 @@ public:
     The mesh geometry is not required at construction, so that algorithm
     choices may be sorted out before the domain size is known.
     */
-    void setMeshGeometry (std::shared_ptr<MeshGeometry>);
+    void setMeshGeometry (std::shared_ptr<MeshGeometry>) override;
 
     /**
     Assign a boundary condition to use for Godunov fluxes and magnetic field
     values. This must be done before CT operations are used.
     */
-    void setBoundaryCondition (std::shared_ptr<BoundaryCondition>);
-
-    /**
-    Assign a conservation law. This must be done before CT operations are used.
-    */
-    void setConservationLaw (std::shared_ptr<ConservationLaw>);
+    void setBoundaryCondition (std::shared_ptr<BoundaryCondition>) override;
 
     /**
     Compute monopole at the given mesh location (vert or cell) from the given
@@ -105,7 +100,6 @@ private:
     void setCellBC();
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
-    std::shared_ptr<ConservationLaw> conservationLaw;
 
     Cow::Region updateableRegionF1;
     Cow::Region updateableRegionF2;

@@ -11,9 +11,7 @@ void PeriodicBoundaryCondition::apply (
     MeshLocation location,
     MeshBoundary boundary,
     int axis,
-    int numGuard,
-    const MeshGeometry& geometry,
-    const ConservationLaw& law) const
+    int numGuard) const
 {
 
 };
@@ -27,9 +25,7 @@ void OutflowBoundaryCondition::apply (
     MeshLocation location,
     MeshBoundary boundary,
     int axis,
-    int numGuard,
-    const MeshGeometry& geometry,
-    const ConservationLaw& law) const
+    int numGuard) const
 {
     if (A.size (axis) == 1)
     {
@@ -75,9 +71,7 @@ void ReflectingBoundaryCondition::apply (
     MeshLocation location,
     MeshBoundary boundary,
     int axis,
-    int numGuard,
-    const MeshGeometry& geometry,
-    const ConservationLaw& law) const
+    int numGuard) const
 {
     if (A.size (axis) == 1)
     {
@@ -110,16 +104,18 @@ void ReflectingBoundaryCondition::apply (
             }
         }
 
-        A[guardZone] = reflect (A[validZone], law, axis);
+        A[guardZone] = reflect (A[validZone], axis);
     }
 };
 
-Cow::Array ReflectingBoundaryCondition::reflect (
-    const Cow::Array::Reference& validData,
-    const ConservationLaw& law,
-    int axis) const
+void ReflectingBoundaryCondition::setConservationLaw (std::shared_ptr<ConservationLaw> law)
 {
-    const int ivel = law.getIndexFor (ConservationLaw::VariableType::velocity);
+    conservationLaw = law;
+}
+
+Cow::Array ReflectingBoundaryCondition::reflect (const Cow::Array::Reference& validData, int axis) const
+{
+    const int ivel = conservationLaw->getIndexFor (ConservationLaw::VariableType::velocity);
 
     auto reflectedData = Cow::Array (validData);
     auto fieldAxis = Cow::Region();
@@ -131,7 +127,6 @@ Cow::Array ReflectingBoundaryCondition::reflect (
     {
         it[ivel + axis] *= -1;
     }
-
     return reflectedData;
 }
 

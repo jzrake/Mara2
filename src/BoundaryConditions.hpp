@@ -18,9 +18,7 @@ public:
         MeshLocation location,
         MeshBoundary boundary,
         int axis,
-        int numGuard,
-        const MeshGeometry& geometry,
-        const ConservationLaw& law) const override;
+        int numGuard) const override;
 };
 
 
@@ -37,9 +35,7 @@ public:
         MeshLocation location,
         MeshBoundary boundary,
         int axis,
-        int numGuard,
-        const MeshGeometry& geometry,
-        const ConservationLaw& law) const override;
+        int numGuard) const override;
 };
 
 
@@ -57,14 +53,13 @@ public:
         MeshLocation location,
         MeshBoundary boundary,
         int axis,
-        int numGuard,
-        const MeshGeometry& geometry,
-        const ConservationLaw& law) const override;
+        int numGuard) const override;
+
+    void setConservationLaw (std::shared_ptr<ConservationLaw> law) override;
+
 private:
-    Cow::Array reflect (
-        const Cow::Array::Reference& validData,
-        const ConservationLaw& law,
-        int axis) const;
+    Cow::Array reflect (const Cow::Array::Reference& validData, int axis) const;
+    std::shared_ptr<ConservationLaw> conservationLaw;
 };
 
 

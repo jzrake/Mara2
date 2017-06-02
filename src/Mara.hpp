@@ -207,23 +207,25 @@ public:
                             promises that A contains a region of valid data,
                             of at least the same width, adjacent to the guard
                             zone region.
-
-    @param geometry         A mesh geometry instance, which may be used to
-                            determine physical coordinates of mesh locations.
-
-    @param law              The conservation law for which data is supplied.
-                            Implementations may use this to determine the
-                            layout of the supplied data array, or perform
-                            physics operations on it.
     */
     virtual void apply (
         Cow::Array& A,
         MeshLocation location,
         MeshBoundary boundary,
         int axis,
-        int numGuard,
-        const MeshGeometry& geometry,
-        const ConservationLaw& law) const = 0;
+        int numGuard) const = 0;
+
+    /**
+    Assign a mesh geometry instance. Derived classes may re-implement
+    this method and keep a shared pointer to the geometry if they need it.
+    */
+    virtual void setMeshGeometry (std::shared_ptr<MeshGeometry> geometry) {}
+
+    /**
+    Assign a conservation law instance. Derived classes may re-implement
+    this method and keep a shared pointer to the geometry if they need it.
+    */
+    virtual void setConservationLaw (std::shared_ptr<ConservationLaw> law) {}
 };
 
 
@@ -235,6 +237,8 @@ public:
     enum class MeshLocation { vert, edge, face, cell };
     virtual void assignCellCenteredB (Cow::Array) = 0;
     virtual Cow::Array computeMonopole (MeshLocation) const = 0;
+    virtual void setMeshGeometry (std::shared_ptr<MeshGeometry>) {}
+    virtual void setBoundaryCondition (std::shared_ptr<BoundaryCondition>) {}
 };
 
 

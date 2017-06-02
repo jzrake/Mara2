@@ -22,9 +22,7 @@ public:
         MeshLocation location,
         MeshBoundary boundary,
         int axis,
-        int numGuard,
-        const MeshGeometry& geometry,
-        const ConservationLaw& law) const
+        int numGuard) const
     {
         auto send = Region(); // region to send (valid region)
         auto recv = Region(); // region to receive (guard region)
@@ -74,7 +72,7 @@ public:
         if (   (boundary == MeshBoundary::left  && isWallL)
             || (boundary == MeshBoundary::right && isWallR))
         {
-            physicalBC->apply (A, location, boundary, axis, numGuard, geometry, law);
+            physicalBC->apply (A, location, boundary, axis, numGuard);
         }
     }
 

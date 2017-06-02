@@ -86,12 +86,6 @@ FluxConservativeSystem::FluxConservativeSystem (SimulationSetup setup)
     F3 = Array (shapeF3);
     zoneHealth = Array (domainShape);
 
-    // Initialize CT.
-    auto ct = getCT();
-    ct->setMeshGeometry (meshGeometry);
-    ct->setBoundaryCondition (boundaryCondition);
-    ct->setConservationLaw (conservationLaw);
-
     int imag = conservationLaw->getIndexFor (ConservationLaw::VariableType::magnetic);
 
     if (imag != -1)
@@ -384,17 +378,13 @@ void FluxConservativeSystem::applyBoundaryCondition()
                 BoundaryCondition::MeshLocation::cell,
                 BoundaryCondition::MeshBoundary::left,
                 axis,
-                stencilSize,
-                *meshGeometry,
-                *conservationLaw);
+                stencilSize);
 
             boundaryCondition->apply (P,
                 BoundaryCondition::MeshLocation::cell,
                 BoundaryCondition::MeshBoundary::right,
                 axis,
-                stencilSize,
-                *meshGeometry,
-                *conservationLaw);
+                stencilSize);
         }
     }
 }
