@@ -10,6 +10,7 @@
 #include "FluxConservativeSystem.hpp"
 #include "BlockDecomposition.hpp"
 #include "CartesianMeshGeometry.hpp"
+#include "UserConfiguration.hpp"
 
 // Cow includes
 #include "HDF5.hpp"
@@ -458,7 +459,9 @@ int main (int argc, const char* argv[])
     }
     else if (command == "exper")
     {
-        return configuration.experiment (session, argv[2]);
+        UserConfiguration cfg;
+        cfg.describe();
+        //return configuration.experiment (session, argv[2]);
     }
     else if (command == "run")
     {
