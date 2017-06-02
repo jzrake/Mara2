@@ -133,89 +133,99 @@ Cow::Array ReflectingBoundaryCondition::reflect (const Cow::Array::Reference& va
 
 
 
-// // ============================================================================
-// #define SIGN(x) ((x > 0.) - (x < 0.))
+// ============================================================================
+#define SIGN(x) ((x > 0.) - (x < 0.))
 
-// DrivenMHDBoundary::DrivenMHDBoundary()
-// {
-//     setVelocityFunction (nullptr);
-// }
+DrivenMHDBoundary::DrivenMHDBoundary()
+{
+    setVelocityFunction (nullptr);
+}
 
-// void DrivenMHDBoundary::setVelocityFunction (InitialDataFunction newVelocityFunction)
-// {
-//     if (newVelocityFunction == nullptr)
-//     {
-//         velocityFunction = [] (double x, double y, double z)
-//         {
-//             const double vx = 0.2 * std::sin (4 * M_PI * y) * SIGN(z);
-//             const double vy = 0.2 * std::cos (4 * M_PI * x) * SIGN(z);
-//             return std::vector<double> {{vx, vy}};
-//         };
-//         return;
-//     }
-//     else if (newVelocityFunction (0, 0, 0).size() != 2)
-//     {
-//         throw std::runtime_error ("DrivenMHDBoundary: "
-//             "velocityFunction returned a vector of length != 2 (should be [vx, vy])");
-//     }
+void DrivenMHDBoundary::setConservationLaw (std::shared_ptr<ConservationLaw> law)
+{
+    conservationLaw = law;
+}
 
-//     velocityFunction = newVelocityFunction;
-// }
+void DrivenMHDBoundary::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry)
+{
+    meshGeometry = geometry;
+}
 
-// void DrivenMHDBoundary::apply (Cow::Array& P, const ConservationLaw& law, int numGuard) const
-// {
-//     const auto periodic = PeriodicBoundaryCondition();
-//     const auto vertical = ReflectingBoundaryCondition();
+void DrivenMHDBoundary::setVelocityFunction (InitialDataFunction newVelocityFunction)
+{
+    if (newVelocityFunction == nullptr)
+    {
+        velocityFunction = [] (double x, double y, double z)
+        {
+            const double vx = 0.2 * std::sin (4 * M_PI * y) * SIGN(z);
+            const double vy = 0.2 * std::cos (4 * M_PI * x) * SIGN(z);
+            return std::vector<double> {{vx, vy}};
+        };
+        return;
+    }
+    else if (newVelocityFunction (0, 0, 0).size() != 2)
+    {
+        throw std::runtime_error ("DrivenMHDBoundary: "
+            "velocityFunction returned a vector of length != 2 (should be [vx, vy])");
+    }
 
-//     if (P.size(0) > 1) periodic.applyToAxis (P, numGuard, 0);
-//     if (P.size(1) > 1) periodic.applyToAxis (P, numGuard, 1);
-//     if (P.size(2) > 1) vertical.applyToAxis (P, law, numGuard, 2);
+    velocityFunction = newVelocityFunction;
+}
 
-//     const int ivel = law.getIndexFor (ConservationLaw::VariableType::velocity);
-//     const int ng = numGuard;
-//     const int ni = P.size(0) - 2 * ng;
-//     const int nj = P.size(1) - 2 * ng;
-//     const int nk = P.size(2) - 2 * ng;
+void DrivenMHDBoundary::apply (
+    Cow::Array& A,
+    MeshLocation location,
+    MeshBoundary boundary,
+    int axis,
+    int numGuard) const
+{
+    if (axis != 2)
+    {
+        // We use periodic BC's in x and y, guarenteed to be applied already.
+        return;
+    }
 
-//     for (int i = 0; i < P.size(0); ++i)
-//     {
-//         for (int j = 0; j < P.size(1); ++j)
-//         {
-//             const double x = (i - ng + 0.5) / ni - 0.5;
-//             const double y = (j - ng + 0.5) / nj - 0.5;
-//             const auto vtop = velocityFunction (x, y, +1);
-//             const auto vbot = velocityFunction (x, y, -1);
+    // If A has 3 components, then it's CT calling, and the data in A is
+    // either E or B field. We use outflow BC's on them.
+    if (A.size(3) == 3)
+    {
+        auto outflow = OutflowBoundaryCondition();
+        outflow.setConservationLaw (conservationLaw);
+        outflow.setMeshGeometry (meshGeometry);
+        outflow.apply (A, location, boundary, axis, numGuard);
+        return;
+    }
+    Cow::Array& P = A; // It's primitive data, so rename it.
 
-//             for (int k = 0; k < ng; ++k)
-//             {
-//                 P (i, j, k,           ivel + 0) = vbot[0];
-//                 P (i, j, k + nk + ng, ivel + 0) = vtop[0];
-//                 P (i, j, k,           ivel + 1) = vbot[1];
-//                 P (i, j, k + nk + ng, ivel + 1) = vtop[1];
-//             }
-//         }
-//     }
-// }
+    // We set reflecting BC's on all variables first.
+    auto reflect = ReflectingBoundaryCondition();
+    reflect.setConservationLaw (conservationLaw);
+    reflect.setMeshGeometry (meshGeometry);
+    reflect.apply (P, location, boundary, axis, numGuard);
 
-// void DrivenMHDBoundary::applyToCellCenteredB (Cow::Array& B, int numGuard) const
-// {
-//     const auto periodic = PeriodicBoundaryCondition();
-//     const auto outflow = OutflowBoundaryCondition();
+    int ivel = conservationLaw->getIndexFor (ConservationLaw::VariableType::velocity);
+    int ng = numGuard;
+    int nk = P.size(2) - 2 * ng;
+    int k0 = 0;
+    int k1 = 0;
 
-//     periodic.applyToAxis (B, numGuard, 0);
-//     periodic.applyToAxis (B, numGuard, 1);
-//     outflow.applyToAxis (B, numGuard, 2);
-// }
+    switch (boundary)
+    {
+        case MeshBoundary::left: k0 = 0; k1 = ng; break;
+        case MeshBoundary::right: k0 = nk + ng; k1 = nk + 2 * ng; break;
+    }
 
-// void DrivenMHDBoundary::applyToGodunovFluxes (Cow::Array& F, int numGuard, int axis) const
-// {
-//     const auto periodic = PeriodicBoundaryCondition();
-//     const auto outflow = OutflowBoundaryCondition();
-
-//     switch (axis)
-//     {
-//         case 0: periodic.applyToAxis (F, numGuard, 0); break;
-//         case 1: periodic.applyToAxis (F, numGuard, 1); break;
-//         case 2: outflow.applyToAxis (F, numGuard, 2); break;
-//     }
-// }
+    for (int i = 0; i < P.size(0); ++i)
+    {
+        for (int j = 0; j < P.size(1); ++j)
+        {
+            for (int k = k0; k < k1; ++k)
+            {
+                auto X = meshGeometry->coordinateAtIndex (i - ng, j - ng, k - ng);
+                auto v = velocityFunction (X[0], X[1], X[2]);
+                P (i, j, k, ivel + 0) = v[0];
+                P (i, j, k, ivel + 1) = v[1];
+            }
+        }
+    }
+}

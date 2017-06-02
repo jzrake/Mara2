@@ -112,7 +112,6 @@ void writeVtkOutput (
 {
     using namespace Cow;
 
-
     if (block.getCommunicator().size() != 1)
     {
         block.getCommunicator().onMasterOnly ([&] ()
@@ -121,6 +120,8 @@ void writeVtkOutput (
             // Log::warning ("Mara") << "no support for VTK output\n";
             std::cout << "[Mara] Warning: no support for VTK output in parallel runs\n";
         });
+
+        ++status.vtkOutputsWrittenSoFar;
         return;
     }
 

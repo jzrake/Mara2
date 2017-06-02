@@ -104,15 +104,13 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     {
         setup.boundaryCondition.reset (new ReflectingBoundaryCondition);
     }
-
-    // else if (boundary_condition == "driven_mhd")
-    // {
-    //     auto drvBoundary = new DrivenMHDBoundary;
-    //     sol::function F = cfg["boundary_velocity_function"];
-    //     drvBoundary->setVelocityFunction (makeIDF (F));
-    //     setup.boundaryCondition.reset (drvBoundary);
-    // }
-
+    else if (boundary_condition == "driven_mhd")
+    {
+        auto drvBoundary = new DrivenMHDBoundary;
+        sol::function F = cfg["boundary_velocity_function"];
+        drvBoundary->setVelocityFunction (makeIDF (F));
+        setup.boundaryCondition.reset (drvBoundary);
+    }
     else
     {
         throw std::runtime_error ("unrecognized option for boundary_condition");
