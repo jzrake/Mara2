@@ -10,7 +10,6 @@
 #include "FluxConservativeSystem.hpp"
 #include "BlockDecomposition.hpp"
 #include "CartesianMeshGeometry.hpp"
-#include "UserConfiguration.hpp"
 
 // Cow includes
 #include "HDF5.hpp"
@@ -312,7 +311,8 @@ void readCheckpoint (
         std::cout << "[Mara] reading checkpoint file " << setup.restartFile << std::endl;
     });
 
-    block.getCommunicator().inSequence ([&] (int rank)
+    // block.getCommunicator().inSequence ([&] (int rank)
+    // Note: we read all procs at once here, because BC's will hang otherwise
     {
         auto file            = Cow::H5::File (setup.restartFile, "r");
         auto statusGroup     = file.getGroup ("status");
@@ -325,7 +325,7 @@ void readCheckpoint (
         status.checkpointsWrittenSoFar = statusGroup.readInt ("checkpointsWrittenSoFar");
         status.simulationIter          = statusGroup.readInt ("simulationIter");
         status.simulationTime          = statusGroup.readDouble ("simulationTime");
-    });
+    }//);
 }
 
 
@@ -431,7 +431,8 @@ int main (int argc, const char* argv[])
     using namespace Cow;
     MpiSession mpiSession;
 
-    std::set_terminate (Cow::terminateWithBacktrace);
+    // std::set_terminate (Cow::terminateWithBacktrace);
+    std::set_terminate (Cow::terminateWithPrintException);
 
     if (argc == 1)
     {
@@ -440,7 +441,6 @@ int main (int argc, const char* argv[])
         std::cout << "\tmara run script.lua\n";
         std::cout << "\tmara tovtk chkpt.*.h5\n";
         std::cout << "\tmara chkpt.0000.h5\n";
-        std::cout << "\tmara exper\n";
         std::cout << "\tmara help\n";
         return 0;
     }
@@ -456,12 +456,6 @@ int main (int argc, const char* argv[])
         "Mara is an astrophysics code for multi-dimensional "
         "gas and magnetofluid dynamics.\n";
         return 0;
-    }
-    else if (command == "exper")
-    {
-        UserConfiguration cfg;
-        cfg.describe();
-        //return configuration.experiment (session, argv[2]);
     }
     else if (command == "run")
     {

@@ -15,8 +15,6 @@ public:
     SimulationSetup fromLuaFile (std::string filename);
     int launchFromScript (MaraSession& mara, std::string filename);
 
-    int experiment (MaraSession& mara, std::string filename);
-
 private:
     class LuaState;
     std::shared_ptr<LuaState> luaState;

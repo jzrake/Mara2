@@ -9,7 +9,7 @@
 class ScalarAdvection : public ConservationLaw
 {
 public:
-    ScalarAdvection (double waveSpeed);
+    ScalarAdvection (double waveSpeed=1.0);
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     int getNumConserved() const override;
