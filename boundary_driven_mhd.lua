@@ -34,14 +34,14 @@ local function single_vortex_pair(x, y, z)
 end
 
 run_name = 'BoundaryDrivenMHD'
-output_directory = 'data/bdrv-noceil-64'
-final_time = 32
-checkpoint_interval = 0.25
+output_directory = 'data/bdrv-noceil-96'
+final_time = 128
+checkpoint_interval = 0.50
 vtk_output_interval = 0.00
 cfl_parameter = 0.33
 initial_data = background
 grid_geometry = 'cartesian'
-resolution = {64, 64, 64}
+resolution = {96, 96, 96}
 domain_lower = {-0.5, -0.5, -0.5}
 domain_upper = { 0.5,  0.5,  0.5}
 conservation_law = {'newtonian_mhd'}

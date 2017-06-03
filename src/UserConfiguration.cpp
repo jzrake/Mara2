@@ -1,9 +1,9 @@
 #include <iostream>
 #include <iomanip>
 #include "UserConfiguration.hpp"
+#define GUARD_STRING std::string (48, '-')
 
-
-UserConfiguration::UserConfiguration()
+UserConfiguration::UserConfiguration (int argc, const char* argv[])
 {
     members["final_time"] = 0;
     members["checkpoint_interval"] = 1.0;
@@ -30,9 +30,20 @@ UserConfiguration::UserConfiguration()
     members["initial_data_function"] = "shocktube1";
     members["vector_potential_function"] = "";
     members["boundary_value_function"] = "";
+
+    Variant::updateFromCommandLine (members, argc, argv);
+}
+
+const Variant::NamedValues& UserConfiguration::getMembers() const
+{
+    return members;
 }
 
 void UserConfiguration::describe() const
 {
+    std::cout << GUARD_STRING << std::endl;
+    std::cout << "User configuration:" << std::endl;
+    std::cout << GUARD_STRING << std::endl;
     std::cout << members;
+    std::cout << GUARD_STRING << std::endl;
 }

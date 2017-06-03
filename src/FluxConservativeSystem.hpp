@@ -25,7 +25,7 @@ public:
 
     /**
     Constructor, stores shared pointers to needed algorithms in the given
-    setup struct. Also initialized the CT scheme.
+    setup struct.
     */
     FluxConservativeSystem (SimulationSetup setup);
 
