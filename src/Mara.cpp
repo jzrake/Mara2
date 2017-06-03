@@ -226,9 +226,9 @@ void writeCheckpoint (
         std::ostringstream oss;
         oss << std::put_time (&tm, "%m-%d-%Y %H:%M:%S");
 
-        file.write ("run_name", setup.runName);
-        file.write ("date", oss.str());
-        file.write ("script", setup.luaScript);
+        file.writeString ("run_name", setup.runName);
+        file.writeString ("date", oss.str());
+        file.writeString ("script", setup.luaScript);
 
 
         // Create data sets for the primitive and diagnostic data
@@ -249,21 +249,21 @@ void writeCheckpoint (
 
         // Write the simulation status data into the checkpoint
         // --------------------------------------------------------------------
-        statusGroup.write ("vtkOutputsWrittenSoFar", status.vtkOutputsWrittenSoFar);
-        statusGroup.write ("checkpointsWrittenSoFar", status.checkpointsWrittenSoFar);
-        statusGroup.write ("simulationIter", status.simulationIter);
-        statusGroup.write ("simulationTime", status.simulationTime);
+        statusGroup.writeInt ("vtkOutputsWrittenSoFar", status.vtkOutputsWrittenSoFar);
+        statusGroup.writeInt ("checkpointsWrittenSoFar", status.checkpointsWrittenSoFar);
+        statusGroup.writeInt ("simulationIter", status.simulationIter);
+        statusGroup.writeDouble ("simulationTime", status.simulationTime);
 
 
         // Write the mesh information (needs to be generalized to non-rectilinear meshes)
         // --------------------------------------------------------------------
-        meshGroup.write ("type", "CartesianMeshGeometry");
+        meshGroup.writeString ("type", "CartesianMeshGeometry");
 
         auto geometry = dynamic_cast<const CartesianMeshGeometry*> (block.getGlobalGeometry().get());
         auto pointGroup = meshGroup.createGroup ("points");
-        pointGroup.write ("x", geometry->getPointCoordinates (0));
-        pointGroup.write ("y", geometry->getPointCoordinates (1));
-        pointGroup.write ("z", geometry->getPointCoordinates (2));
+        pointGroup.writeArray ("x", geometry->getPointCoordinates (0));
+        pointGroup.writeArray ("y", geometry->getPointCoordinates (1));
+        pointGroup.writeArray ("z", geometry->getPointCoordinates (2));
     });
 
     comm.inSequence ([&] (int rank)
