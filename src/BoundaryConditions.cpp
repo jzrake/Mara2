@@ -138,7 +138,7 @@ Cow::Array ReflectingBoundaryCondition::reflect (const Cow::Array::Reference& va
 
 DrivenMHDBoundary::DrivenMHDBoundary()
 {
-    setVelocityFunction (nullptr);
+    setBoundaryValueFunction (nullptr);
 }
 
 void DrivenMHDBoundary::setConservationLaw (std::shared_ptr<ConservationLaw> law)
@@ -151,7 +151,7 @@ void DrivenMHDBoundary::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry)
     meshGeometry = geometry;
 }
 
-void DrivenMHDBoundary::setVelocityFunction (InitialDataFunction newVelocityFunction)
+void DrivenMHDBoundary::setBoundaryValueFunction (InitialDataFunction newVelocityFunction)
 {
     if (newVelocityFunction == nullptr)
     {

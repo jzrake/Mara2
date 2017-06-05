@@ -123,15 +123,16 @@ std::shared_ptr<MeshGeometry> BlockDecomposition::decompose() const
     auto localRegion = getPatchRegion();
 
     localGeom->assignPatchIndex (getPatchIndex());
-    localGeom->shape = localRegion.shape();
-    localGeom->lower = globalGeom->coordinateAtIndex (
+    localGeom->setCellsShape (localRegion.shape());
+    localGeom->setLowerUpper (
+        globalGeom->coordinateAtIndex (
         localRegion.lower[0] - 0.5,
         localRegion.lower[1] - 0.5,
-        localRegion.lower[2] - 0.5);
-    localGeom->upper = globalGeom->coordinateAtIndex (
+        localRegion.lower[2] - 0.5),
+        globalGeom->coordinateAtIndex (
         localRegion.upper[0] - 0.5,
         localRegion.upper[1] - 0.5,
-        localRegion.upper[2] - 0.5);
+        localRegion.upper[2] - 0.5));
     return localGeom;
 }
 

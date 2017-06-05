@@ -9,7 +9,8 @@
 class ScalarAdvection : public ConservationLaw
 {
 public:
-    ScalarAdvection (double waveSpeed=1.0);
+    ScalarAdvection();
+    void setAdvectionSpeed (double u, double v, double w) override { waveSpeed = u; }
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     int getNumConserved() const override;
@@ -25,6 +26,7 @@ class NewtonianHydro : public ConservationLaw
 {
 public:
     NewtonianHydro();
+    void setGammaLawIndex (double gm) override { gammaLawIndex = gm; }
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     int getNumConserved() const override;
@@ -46,8 +48,8 @@ public:
     negative pressures are dealt with by setting p = pressureFloor * density.
     By default no floor is used.
     */
-    void setPressureFloor (double floorValueToUse) override;
-
+    void setPressureFloor (double floorValueToUse) override { pressureFloor = floorValueToUse; }
+    void setGammaLawIndex (double gm) override { gammaLawIndex = gm; }
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     int getNumConserved() const override;

@@ -20,7 +20,7 @@ class MethodOfLines : public IntercellFluxScheme
 {
 public:
     MethodOfLines();
-    void setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse);
+    void setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse) override;
     ConservationLaw::State intercellFlux (const FaceData& faceData) const override;
     int getStencilSize() const override;
 private:
@@ -34,7 +34,7 @@ class MethodOfLinesPlm : public IntercellFluxScheme
 {
 public:
     MethodOfLinesPlm (double plmTheta=1.5);
-    void setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse);
+    void setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse) override;
     ConservationLaw::State intercellFlux (const FaceData& faceData) const override;
     int getStencilSize() const override;
 private:

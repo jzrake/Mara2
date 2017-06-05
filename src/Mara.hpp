@@ -12,16 +12,52 @@
 
 
 
+/**
+These are algorithm classes that may have inter-dependencies.
+*/
 class BoundaryCondition;
 class ConservationLaw;
 class ConstrainedTransport;
+class SolutionAdvancer;
 class IntercellFluxScheme;
-class MaraSession;
 class MeshGeometry;
-class MeshDecomposition;
 class RiemannSolver;
+
+
+
+
+/**
+These classes are here to support dependency injection. Each algorithm class
+base is allowed to depend upon a subset of the other algorithms. For example,
+if it were determined that a derived class of BoundaryCondition required use
+of a MeshGeometry instance, then the MeshGeometry base class must inherit
+MayUseMeshGeometry. This does not affect other BoundaryCondition sub-classes,
+but the one which uses a MeshGeometry must override the setMeshGeometry method.
+Algorithms (services, or dependencies) are distributed in the code's
+initialization stage.
+*/
+class MayUseBoundaryCondition    { public: virtual void setBoundaryCondition    (std::shared_ptr<BoundaryCondition>)    {} };
+class MayUseConservationLaw      { public: virtual void setConservationLaw      (std::shared_ptr<ConservationLaw>)      {} };
+class MayUseConstrainedTransport { public: virtual void setConstrainedTransport (std::shared_ptr<ConstrainedTransport>) {} };
+class MayUseIntercellFluxScheme  { public: virtual void setIntercellFluxScheme  (std::shared_ptr<IntercellFluxScheme>)  {} };
+class MayUseMeshGeometry         { public: virtual void setMeshGeometry         (std::shared_ptr<MeshGeometry>)         {} };
+class MayUseRiemannSolver        { public: virtual void setRiemannSolver        (std::shared_ptr<RiemannSolver>)        {} };
+
+
+
+
+
+/**
+These are higher level classes used by the driver.
+*/
+class MaraSession;
+class MeshDecomposition;
 class SimulationSetup;
 class SimulationStatus;
+
+
+
+
 
 using InitialDataFunction = std::function<std::vector<double> (double, double, double)>;
 using AreaElement = std::array<double, 3>;
@@ -122,7 +158,7 @@ public:
     std::vector<bool> fleshedOutAxes() const;
 
     /**
-    Assign a patch identifier to this mesh. A block decomposition object may
+    Assign a patch identifier to this mesh. A mesh decomposition object may
     use the patch index to identify this mesh as a subset of a larger
     composite mesh. By default, the patch index is all zeros.
     */
@@ -132,6 +168,12 @@ public:
     Return the index of this patch in a global composite mesh.
     */
     PatchIndex getPatchIndex() const;
+
+    /** Derived classes override this to set mesh resolution. */
+    virtual void setCellsShape (Cow::Shape) {}
+
+    /** Derived classes override this to set domain limits. */
+    virtual void setLowerUpper (Coordinate, Coordinate) {}
 
     /**
     Return an object that describes the number of cells (volumes) contained in
@@ -176,7 +218,9 @@ private:
 
 
 
-class BoundaryCondition
+class BoundaryCondition :
+public MayUseMeshGeometry,
+public MayUseConservationLaw
 {
 public:
     enum class MeshLocation { vert, edge, face, cell };
@@ -216,29 +260,22 @@ public:
         int numGuard) const = 0;
 
     /**
-    Assign a mesh geometry instance. Derived classes may re-implement
-    this method and keep a shared pointer to the geometry if they need it.
+    To utilize a callback function, derived classes may override this function.
     */
-    virtual void setMeshGeometry (std::shared_ptr<MeshGeometry> geometry) {}
-
-    /**
-    Assign a conservation law instance. Derived classes may re-implement this
-    method and keep a shared pointer to the conservation law if they need it.
-    */
-    virtual void setConservationLaw (std::shared_ptr<ConservationLaw> law) {}
+    virtual void setBoundaryValueFunction (InitialDataFunction) {}
 };
 
 
 
 
-class ConstrainedTransport
+class ConstrainedTransport :
+public MayUseMeshGeometry,
+public MayUseBoundaryCondition
 {
 public:
     enum class MeshLocation { vert, edge, face, cell };
     virtual void assignCellCenteredB (Cow::Array) = 0;
     virtual Cow::Array computeMonopole (MeshLocation) const = 0;
-    virtual void setMeshGeometry (std::shared_ptr<MeshGeometry>) {}
-    virtual void setBoundaryCondition (std::shared_ptr<BoundaryCondition>) {}
 };
 
 
@@ -291,10 +328,9 @@ public:
 
     using StateVector = std::vector<State>;
 
-    /**
-    Derived classes may override this method to implement a pressure floor.
-    */
     virtual void setPressureFloor (double) {}
+    virtual void setGammaLawIndex (double) {}
+    virtual void setAdvectionSpeed (double, double, double) {}
 
     /**
     Generate a state from the given information request, and a double pointer
@@ -376,7 +412,7 @@ public:
 
 
 
-class IntercellFluxScheme
+class IntercellFluxScheme : public MayUseRiemannSolver
 {
 public:
     struct FaceData

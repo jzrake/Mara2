@@ -158,7 +158,7 @@ ConservationLaw::Request::Request()
 
 
 // ============================================================================
-ScalarAdvection::ScalarAdvection (double waveSpeed) : waveSpeed (waveSpeed)
+ScalarAdvection::ScalarAdvection() : waveSpeed (1.0)
 {
 
 }
@@ -313,11 +313,6 @@ std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const
 NewtonianMHD::NewtonianMHD() : gammaLawIndex (5./3), pressureFloor (-1.0)
 {
 
-}
-
-void NewtonianMHD::setPressureFloor (double floorValueToUse)
-{
-    pressureFloor = floorValueToUse;
 }
 
 ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, const double* U) const

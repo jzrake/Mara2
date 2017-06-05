@@ -113,7 +113,7 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     {
         auto drvBoundary = new DrivenMHDBoundary;
         sol::function F = cfg["boundary_velocity_function"];
-        drvBoundary->setVelocityFunction (makeIDF (F));
+        drvBoundary->setBoundaryValueFunction (makeIDF (F));
         setup.boundaryCondition.reset (drvBoundary);
     }
     else
@@ -129,7 +129,8 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     if (conservation_law == "scalar_advection")
     {
         double wave_speed = cfg["conservation_law"]["wave_speed"].get_or (1.0);
-        setup.conservationLaw.reset (new ScalarAdvection (wave_speed));
+        setup.conservationLaw.reset (new ScalarAdvection);
+        setup.conservationLaw->setAdvectionSpeed (wave_speed, 0.0, 0.0);
     }
     else if (conservation_law == "newtonian_hydro")
     {

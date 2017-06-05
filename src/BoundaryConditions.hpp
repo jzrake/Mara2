@@ -73,7 +73,7 @@ class DrivenMHDBoundary : public BoundaryCondition
 {
 public:
     DrivenMHDBoundary();
-    void setVelocityFunction (InitialDataFunction newVelocityFunction);
+    void setBoundaryValueFunction (InitialDataFunction) override;
     void setConservationLaw (std::shared_ptr<ConservationLaw>) override;
     void setMeshGeometry (std::shared_ptr<MeshGeometry>) override;
     void apply (
