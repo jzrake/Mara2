@@ -46,7 +46,7 @@ InitialDataFunction Configuration::LuaState::makeIDF (sol::function& func)
         sol::table result = func (x, y, z);
         std::vector<double> P;
 
-        for (int n = 0; n < result.size(); ++n)
+        for (unsigned int n = 0; n < result.size(); ++n)
         {
             P.push_back (result[n + 1]);
         }

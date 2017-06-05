@@ -1,5 +1,6 @@
 -include Makefile.in
 
+LUA_ARCH ?= generic
 AR ?= ar rcu
 RANLIB ?= ranlib
 CFLAGS ?= -std=c++14 -Wall -O0 -g
@@ -19,7 +20,7 @@ $(COW) : .FORCE
 	$(MAKE) -C Cow
 
 $(LUA) : .FORCE
-	$(MAKE) -C Lua generic
+	$(MAKE) -C Lua $(LUA_ARCH)
 
 %.o : %.cpp $(HDR)
 	$(CXX) $(CFLAGS) -o $@ -c $< -ICow/src -ILua/src

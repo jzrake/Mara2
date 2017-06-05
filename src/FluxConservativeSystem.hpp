@@ -95,9 +95,9 @@ private:
     /* @internal */
     UniformCartesianCT* getCT();
 
-    int numConserved;
-    int stencilSize;
-    int rungeKuttaOrder;
+    unsigned int numConserved;
+    unsigned int stencilSize;
+    unsigned int rungeKuttaOrder;
     bool disableCT;
 
     Cow::Shape domainShape;

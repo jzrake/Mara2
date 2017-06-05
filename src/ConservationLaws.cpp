@@ -54,14 +54,14 @@ void ConservationLaw::StateFailure::updateWhatMessage()
     stream << "at zone index [" << zoneIndex[0] << " " << zoneIndex[1] << " " << zoneIndex[2] << "]\n";
     stream << "P = {";
 
-    for (int q = 0; q < failedState.P.size(); ++q)
+    for (unsigned int q = 0; q < failedState.P.size(); ++q)
     {
         stream << failedState.P[q] << " ";
     }
     stream << "}\n";
     stream << "U = {";
 
-    for (int q = 0; q < failedState.U.size(); ++q)
+    for (unsigned int q = 0; q < failedState.U.size(); ++q)
     {
         stream << failedState.U[q] << " ";
     }
@@ -130,7 +130,7 @@ double ConservationLaw::maxEigenvalueMagnitude (const StateVector& states) const
 {
     double maxLambda = 0.0;
 
-    for (int n = 0; n < states.size(); ++n)
+    for (unsigned int n = 0; n < states.size(); ++n)
     {
         double A = maxEigenvalueMagnitude (states[n]);
 

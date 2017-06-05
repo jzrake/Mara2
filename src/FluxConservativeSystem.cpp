@@ -2,6 +2,7 @@
 #include <cassert>
 #include <sstream>
 #include <cmath>
+#include <limits>
 #include "FluxConservativeSystem.hpp"
 #define MIN2(a, b) ((a) < (b) ? a : b)
 #define MIN3(a, b, c) ((a) < (b) ? MIN2(a, c) : MIN2(b, c))
@@ -102,7 +103,6 @@ Cow::Array::Reference FluxConservativeSystem::getPrimitive (int fieldIndex)
 
     if (fieldIndex != -1)
     {
-        assert (0 <= fieldIndex && fieldIndex < numConserved);
         R.lower[3] = fieldIndex;
         R.upper[3] = fieldIndex + 1;
     }
@@ -169,7 +169,7 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
 
         auto S = conservationLaw->fromPrimitive (request, &P[0]);
 
-        for (int q = 0; q < numConserved; ++q)
+        for (unsigned int q = 0; q < numConserved; ++q)
         {
             pit[q] = S.P[q];
             uit[q] = S.U[q];
@@ -195,7 +195,7 @@ void FluxConservativeSystem::assignPrimitive (Cow::Array primitiveData)
     {
         auto S = conservationLaw->fromPrimitive (request, pit);
 
-        for (int q = 0; q < numConserved; ++q)
+        for (unsigned int q = 0; q < numConserved; ++q)
         {
             uit[q] = S.U[q];
         }
@@ -303,9 +303,9 @@ void FluxConservativeSystem::intercellFluxSweep (int axis)
         {
             for (int k = 0; k < N3 + (axis == 2); ++k)
             {
-                for (int q = 0; q < numConserved; ++q)
+                for (unsigned int q = 0; q < numConserved; ++q)
                 {
-                    for (int n = 0; n < stencilSize * 2; ++n)
+                    for (unsigned int n = 0; n < stencilSize * 2; ++n)
                     {
                         switch (axis)
                         {
@@ -318,7 +318,7 @@ void FluxConservativeSystem::intercellFluxSweep (int axis)
 
                 auto flux = intercellFluxScheme->intercellFlux (faceData);
 
-                for (int q = 0; q < numConserved; ++q)
+                for (unsigned int q = 0; q < numConserved; ++q)
                 {
                     switch (axis)
                     {
@@ -380,7 +380,7 @@ void FluxConservativeSystem::computeTimeDerivative()
         const double A3R = meshGeometry->faceArea (i, j, k + 1, 2);
         const double Vol = meshGeometry->cellVolume (i, j, k);
 
-        for (int q = 0; q < numConserved; ++q)
+        for (unsigned int q = 0; q < numConserved; ++q)
         {
             const double dAF1 = F1 (i + 1, j, k, q) * A1R - F1 (i, j, k, q) * A1L;
             const double dAF2 = F2 (i, j + 1, k, q) * A2R - F2 (i, j, k, q) * A2L;
@@ -443,7 +443,7 @@ void FluxConservativeSystem::recoverPrimitive()
         {
             auto S = conservationLaw->fromConserved (request, uit);
 
-            for (int q = 0; q < numConserved; ++q)
+            for (unsigned int q = 0; q < numConserved; ++q)
             {
                 pit[q] = S.P[q];
             }

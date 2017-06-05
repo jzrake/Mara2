@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "RiemannSolvers.hpp"
 #define MIN2(a, b) ((a) < (b) ? a : b)
 #define MIN3(a, b, c) ((a) < (b) ? MIN2(a, c) : MIN2(b, c))
