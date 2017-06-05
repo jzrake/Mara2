@@ -27,7 +27,9 @@ class Configuration::LuaState
 public:
     sol::state L;
 
-    InitialDataFunction makeIDF (sol::function& func);
+    InitialDataFunction makeIDF (sol::function func);
+    Cow::Shape makeShape (sol::table table);
+    MeshGeometry::Coordinate makeCoordinate (sol::table table);
     SimulationSetup fromLuaTable (sol::table);
 };
 
@@ -35,7 +37,7 @@ public:
 
 
 // ============================================================================
-InitialDataFunction Configuration::LuaState::makeIDF (sol::function& func)
+InitialDataFunction Configuration::LuaState::makeIDF (sol::function func)
 {
     if (func == sol::nil)
     {
@@ -54,176 +56,108 @@ InitialDataFunction Configuration::LuaState::makeIDF (sol::function& func)
     };
 };
 
+Cow::Shape Configuration::LuaState::makeShape (sol::table table)
+{
+    if (table == sol::nil)
+    {
+        throw std::runtime_error ("[Configuration]: expected 'shape' like {x, y, z}, got nil");
+    }
+    auto shape = Cow::Shape();
+    shape[0] = table[1];
+    shape[1] = table[2];
+    shape[2] = table[3];
+    shape[3] = 1;
+    shape[4] = 1;
+    return shape;
+};
+
+MeshGeometry::Coordinate Configuration::LuaState::makeCoordinate (sol::table table)
+{
+    if (table == sol::nil)
+    {
+        throw std::runtime_error ("[Configuration]: expected 'coordiante' like {x, y, z}, got nil");
+    }
+    auto X = MeshGeometry::Coordinate();
+    X[0] = table[1];
+    X[1] = table[2];
+    X[2] = table[3];
+    return X;
+}
+
+
 SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
 {
+    auto lookupBoundaryCondition = [] (std::string name) -> std::shared_ptr<BoundaryCondition>
+    {
+        if (name == "periodic")               return std::make_shared<PeriodicBoundaryCondition>();
+        if (name == "reflecting")             return std::make_shared<ReflectingBoundaryCondition>();
+        if (name == "outflow")                return std::make_shared<OutflowBoundaryCondition>();
+        if (name == "driven_mhd")             return std::make_shared<DrivenMHDBoundary>();
+        if (name.empty()) throw std::runtime_error ("no option given for boundary_condition");
+        throw std::runtime_error ("no boundary condition named " + name);
+    };
+    auto lookupConservationLaw = [] (std::string name) -> std::shared_ptr<ConservationLaw>
+    {
+        if (name == "scalar_advection")       return std::make_shared<ScalarAdvection>();
+        if (name == "newtonian_hydro")        return std::make_shared<NewtonianHydro>();
+        if (name == "newtonian_mhd")          return std::make_shared<NewtonianMHD>();
+        if (name.empty()) throw std::runtime_error ("no option given for conservation_law");
+        throw std::runtime_error ("no conservation law named " + name);
+    };
+    auto lookupMeshGeometryLaw = [] (std::string name) -> std::shared_ptr<MeshGeometry>
+    {
+        if (name == "cartesian")              return std::make_shared<CartesianMeshGeometry>();
+        if (name.empty()) throw std::runtime_error ("no option given for mesh_geometry");
+        throw std::runtime_error ("no mesh geometry named " + name);
+    };
+    auto lookupRiemannSolver = [] (std::string name) -> std::shared_ptr<RiemannSolver>
+    {
+        if (name == "upwind")                 return std::make_shared<UpwindRiemannSolver>();
+        if (name == "hlle")                   return std::make_shared<HlleRiemannSolver>();
+        if (name.empty()) throw std::runtime_error ("no option given for riemann_solver");
+        throw std::runtime_error ("no riemann solver named " + name);
+    };
+    auto lookupFluxScheme = [] (std::string name) -> std::shared_ptr<IntercellFluxScheme>
+    {
+        if (name == "method_of_lines")        return std::make_shared<MethodOfLines>();
+        if (name == "method_of_lines_plm")    return std::make_shared<MethodOfLinesPlm>();
+        if (name == "method_of_lines_weno")   return std::make_shared<MethodOfLinesWeno>();
+        if (name.empty()) throw std::runtime_error ("no option given for flux_scheme");
+        throw std::runtime_error ("no flux scheme named " + name);
+    };
+    auto lookupConstrainedTransport = [] (std::string name) -> std::shared_ptr<ConstrainedTransport>
+    {
+        if (name == "uniform_cartesian")      return std::make_shared<UniformCartesianCT>();
+        if (name.empty()) throw std::runtime_error ("no option given for constrained_transport");
+        throw std::runtime_error ("no constrained transport named " + name);
+    };
+
     auto setup = SimulationSetup();
+    setup.boundaryCondition       = lookupBoundaryCondition    (cfg["boundary_condition"]);
+    setup.conservationLaw         = lookupConservationLaw      (cfg["conservation_law"]);
+    setup.meshGeometry            = lookupMeshGeometryLaw      (cfg["mesh_geometry"]);
+    setup.riemannSolver           = lookupRiemannSolver        (cfg["riemann_solver"]);
+    setup.intercellFluxScheme     = lookupFluxScheme           (cfg["flux_scheme"]);
+    setup.constrainedTransport    = lookupConstrainedTransport (cfg["constrained_transport"]);
+    setup.initialDataFunction     = makeIDF                    (cfg["initial_data"]);
+    setup.vectorPotentialFunction = makeIDF                    (cfg["vector_potential"]);
+    setup.boundaryValueFunction   = makeIDF                    (cfg["boundary_value_function"]);
+    setup.finalTime               =                             cfg["final_time"];
+    setup.outputDirectory         =                             cfg["output_directory"];
+    setup.checkpointInterval      =                             cfg["checkpoint_interval"];
+    setup.vtkOutputInterval       =                             cfg["vtk_output_interval"];
+    setup.cflParameter            =                             cfg["cfl_parameter"];
+    setup.rungeKuttaOrder         =                             cfg["runge_kutta_order"].get_or (2);
+    setup.disableCT               =                             cfg["disable_ct"].get_or (false);
+    setup.runName                 =                             cfg["run_name"];
+    setup.vtkUseBinary            =                             cfg["vtk_use_binary"].get_or (true);
 
-
-    // initial data function
-    // ------------------------------------------------------------------------
-    sol::function initial_data = cfg["initial_data"];
-    sol::function vector_potential = cfg["vector_potential"];
-    setup.initialDataFunction = makeIDF (initial_data);
-    setup.vectorPotentialFunction = makeIDF (vector_potential);
-
-
-    // grid geometry
-    // ------------------------------------------------------------------------
-    std::string grid_geometry = cfg["grid_geometry"];
-
-    if (grid_geometry == "cartesian")
-    {
-        auto geometry = new CartesianMeshGeometry;
-
-        geometry->shape[0] = cfg["resolution"][1].get_or (128);
-        geometry->shape[1] = cfg["resolution"][2].get_or (1);
-        geometry->shape[2] = cfg["resolution"][3].get_or (1);
-        geometry->lower[0] = cfg["domain_lower"][1].get_or (0.0);
-        geometry->lower[1] = cfg["domain_lower"][2].get_or (0.0);
-        geometry->lower[2] = cfg["domain_lower"][3].get_or (0.0);
-        geometry->upper[0] = cfg["domain_upper"][1].get_or (1.0);
-        geometry->upper[1] = cfg["domain_upper"][2].get_or (1.0);
-        geometry->upper[2] = cfg["domain_upper"][3].get_or (1.0);
-
-        setup.meshGeometry.reset (geometry);
-    }
-    else
-    {
-        throw std::runtime_error ("unrecognized option for grid_geometry");
-    }
-
-
-    // boundary condition
-    // ------------------------------------------------------------------------
-    std::string boundary_condition = cfg["boundary_condition"];
-
-    if (boundary_condition == "periodic")
-    {
-        setup.boundaryCondition.reset (new PeriodicBoundaryCondition);
-    }
-    else if (boundary_condition == "outflow")
-    {
-        setup.boundaryCondition.reset (new OutflowBoundaryCondition);
-    }
-    else if (boundary_condition == "reflecting")
-    {
-        setup.boundaryCondition.reset (new ReflectingBoundaryCondition);
-    }
-    else if (boundary_condition == "driven_mhd")
-    {
-        auto drvBoundary = new DrivenMHDBoundary;
-        sol::function F = cfg["boundary_velocity_function"];
-        drvBoundary->setBoundaryValueFunction (makeIDF (F));
-        setup.boundaryCondition.reset (drvBoundary);
-    }
-    else
-    {
-        throw std::runtime_error ("unrecognized option for boundary_condition");
-    }
-
-
-    // conservation law
-    // ------------------------------------------------------------------------
-    std::string conservation_law = cfg["conservation_law"][1];
-
-    if (conservation_law == "scalar_advection")
-    {
-        double wave_speed = cfg["conservation_law"]["wave_speed"].get_or (1.0);
-        setup.conservationLaw.reset (new ScalarAdvection);
-        setup.conservationLaw->setAdvectionSpeed (wave_speed, 0.0, 0.0);
-    }
-    else if (conservation_law == "newtonian_hydro")
-    {
-        setup.conservationLaw.reset (new NewtonianHydro);
-    }
-    else if (conservation_law == "newtonian_mhd")
-    {
-        setup.conservationLaw.reset (new NewtonianMHD);
-    }
-    else
-    {
-        throw std::runtime_error ("unrecognized option for conservation_law");
-    }
-
-    if (cfg["pressure_floor"])
-    {
-        setup.conservationLaw->setPressureFloor (cfg["pressure_floor"]);
-    }
-
-
-    // riemann solver
-    // ------------------------------------------------------------------------
-    std::string riemann_solver = cfg["riemann_solver"];
-
-    if (riemann_solver == "upwind")
-    {
-        setup.riemannSolver.reset (new UpwindRiemannSolver);
-    }
-    else if (riemann_solver == "hlle")
-    {
-        setup.riemannSolver.reset (new HlleRiemannSolver);
-    }
-    else
-    {
-        throw std::runtime_error ("unrecognized option for riemann_solver");
-    }
-
-
-    // intercell flux scheme
-    // ------------------------------------------------------------------------
-    std::string flux_scheme = cfg["flux_scheme"][1];
-
-    if (flux_scheme == "scalar_upwind")
-    {
-        setup.intercellFluxScheme.reset (new ScalarUpwind);
-    }
-    else if (flux_scheme == "method_of_lines")
-    {
-        auto scheme = new MethodOfLines;
-        scheme->setRiemannSolver (setup.riemannSolver);
-        setup.intercellFluxScheme.reset (scheme);
-    }
-    else if (flux_scheme == "method_of_lines_plm")
-    {
-        double plm_theta = cfg["flux_scheme"]["plm_theta"].get_or (1.5);
-        auto scheme = new MethodOfLinesPlm (plm_theta);
-        scheme->setRiemannSolver (setup.riemannSolver);
-        setup.intercellFluxScheme.reset (scheme);
-    }
-    else if (flux_scheme == "method_of_lines_weno")
-    {
-        setup.intercellFluxScheme.reset (new MethodOfLinesWeno);
-    }
-    else
-    {
-        throw std::runtime_error ("unrecognized option for flux_scheme");
-    }
-
-
-    // constrained transport algorithm
-    // ------------------------------------------------------------------------
-    setup.constrainedTransport.reset (new UniformCartesianCT);
-
-
-    // Run configuration
-    // ------------------------------------------------------------------------
-    setup.finalTime = cfg["final_time"];
-    setup.outputDirectory = cfg["output_directory"];
-    setup.checkpointInterval = cfg["checkpoint_interval"];
-    setup.vtkOutputInterval = cfg["vtk_output_interval"];
-    setup.cflParameter = cfg["cfl_parameter"];
-    setup.rungeKuttaOrder = cfg["runge_kutta_order"];
-    setup.disableCT = cfg["disable_ct"];
-    setup.runName = cfg["run_name"];
-    setup.vtkUseBinary = cfg["vtk_use_binary"].get_or (true);
-
-    if (! (
-        setup.rungeKuttaOrder == 1
-     || setup.rungeKuttaOrder == 2
-     || setup.rungeKuttaOrder == 3))
-    {
-        throw std::runtime_error ("runge_kutta_order must be 1, 2, or 3");
-    }
+    setup.conservationLaw->setAdvectionSpeed (cfg["wave_speed"].get_or (1.0), 0.0, 0.0);
+    setup.conservationLaw->setPressureFloor (cfg["pressure_floor"].get_or (-1.0));
+    setup.meshGeometry->setCellsShape (makeShape (cfg["resolution"]));
+    setup.meshGeometry->setLowerUpper (
+        makeCoordinate (cfg["domain_lower"]),
+        makeCoordinate (cfg["domain_upper"]));
 
     return setup;
 }

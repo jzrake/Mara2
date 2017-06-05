@@ -62,10 +62,15 @@ int MethodOfLines::getStencilSize() const
 
 
 // ============================================================================
-MethodOfLinesPlm::MethodOfLinesPlm (double plmTheta)
+MethodOfLinesPlm::MethodOfLinesPlm()
 {
-    plm.setPlmTheta (plmTheta);
+    plm.setPlmTheta (1.5);
     riemannSolver.reset (new HlleRiemannSolver);
+}
+
+void MethodOfLinesPlm::setPlmTheta (double plmTheta)
+{
+    plm.setPlmTheta (plmTheta);    
 }
 
 void MethodOfLinesPlm::setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse)
@@ -108,10 +113,10 @@ int MethodOfLinesPlm::getStencilSize() const
 
 
 // ============================================================================
-MethodOfLinesWeno::MethodOfLinesWeno (double shenZhaA)
+MethodOfLinesWeno::MethodOfLinesWeno()
 {
     weno.setSmoothnessIndicator (Reconstruction::ImprovedShenZha10);
-    weno.setShenZha10A (shenZhaA);
+    weno.setShenZha10A (50.0);
 }
 
 ConservationLaw::State MethodOfLinesWeno::intercellFlux (const FaceData& faceData) const

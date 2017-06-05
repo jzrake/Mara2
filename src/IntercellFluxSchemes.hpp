@@ -33,7 +33,8 @@ private:
 class MethodOfLinesPlm : public IntercellFluxScheme
 {
 public:
-    MethodOfLinesPlm (double plmTheta=1.5);
+    MethodOfLinesPlm();
+    void setPlmTheta (double plmTheta) override;
     void setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse) override;
     ConservationLaw::State intercellFlux (const FaceData& faceData) const override;
     int getStencilSize() const override;
@@ -48,7 +49,7 @@ private:
 class MethodOfLinesWeno : public IntercellFluxScheme
 {
 public:
-    MethodOfLinesWeno (double shenZhaA=50);
+    MethodOfLinesWeno();
     ConservationLaw::State intercellFlux (const FaceData& faceData) const override;
     int getStencilSize() const override;
 private:

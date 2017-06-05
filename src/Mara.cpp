@@ -343,6 +343,7 @@ int MaraSession::launch (SimulationSetup& setup)
 
     setup.boundaryCondition->setMeshGeometry (setup.meshGeometry);
     setup.boundaryCondition->setConservationLaw (setup.conservationLaw);
+    setup.boundaryCondition->setBoundaryValueFunction (setup.boundaryValueFunction);
     setup.boundaryCondition = blockDecomposition.createBoundaryCondition (setup.boundaryCondition);
 
     setup.constrainedTransport->setMeshGeometry (setup.meshGeometry);

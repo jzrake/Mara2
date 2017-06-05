@@ -23,7 +23,7 @@ cfl_parameter = 0.6
 initial_data = setups['shocktube1']
 
 -- Grid geometry
-grid_geometry = 'cartesian'
+mesh_geometry = 'cartesian'
 
 -- Grid resolution (Must be a 3D array)
 resolution = {256, 1, 1}
@@ -35,16 +35,22 @@ domain_lower = {-0.5, -0.5, -0.5}
 domain_upper = { 0.5,  0.5,  0.5}
 
 -- Conservation law: scalar_advection, newtonian_hydro, newtonian_mhd
-conservation_law = {'newtonian_hydro'}
+conservation_law = 'newtonian_hydro'
 
 -- Riemann solver: upwind, hlle
 riemann_solver = 'hlle'
 
 -- Flux scheme: scalar_upwind, method_of_lines
-flux_scheme = {'method_of_lines_plm', plm_theta=2.0}
+flux_scheme = 'method_of_lines_plm'
+
+-- Piecewise linear method, minmod slope limiter parameter
+plm_theta = 2.0
 
 -- RK order: must be 1, 2, or 3
 runge_kutta_order = 2
 
 -- Boundary condition name
 boundary_condition = 'periodic'
+
+-- constrained transport algorithm
+constrained_transport = 'uniform_cartesian'

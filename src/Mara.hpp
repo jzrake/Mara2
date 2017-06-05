@@ -102,6 +102,7 @@ public:
     std::shared_ptr<RiemannSolver> riemannSolver;
     InitialDataFunction initialDataFunction;
     InitialDataFunction vectorPotentialFunction;
+    InitialDataFunction boundaryValueFunction;
 };
 
 
@@ -423,6 +424,7 @@ public:
         std::shared_ptr<ConservationLaw> conservationLaw;
     };
 
+    virtual void setPlmTheta (double plmTheta) {}
     virtual ConservationLaw::State intercellFlux (const FaceData&) const = 0;
     virtual int getStencilSize() const = 0;
 };
