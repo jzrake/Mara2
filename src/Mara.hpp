@@ -54,13 +54,15 @@ class MaraSession;
 class MeshDecomposition;
 class SimulationSetup;
 class SimulationStatus;
+class TimeSeriesManager;
 
 
 
 
 
-using InitialDataFunction = std::function<std::vector<double> (double, double, double)>;
+using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
 using AreaElement = std::array<double, 3>;
+
 
 
 
@@ -94,6 +96,7 @@ public:
     bool disableCT;
 
     // Algorithms
+    std::shared_ptr<TimeSeriesManager> timeSeriesManager;
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;
     std::shared_ptr<IntercellFluxScheme> intercellFluxScheme;

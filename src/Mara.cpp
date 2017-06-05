@@ -10,6 +10,8 @@
 #include "FluxConservativeSystem.hpp"
 #include "BlockDecomposition.hpp"
 #include "CartesianMeshGeometry.hpp"
+#include "TimeSeriesManager.hpp"
+#include "TestSuite.hpp"
 
 // Cow includes
 #include "HDF5.hpp"
@@ -443,6 +445,7 @@ int main (int argc, const char* argv[])
         std::cout << "\tmara run script.lua\n";
         std::cout << "\tmara tovtk chkpt.*.h5\n";
         std::cout << "\tmara chkpt.0000.h5\n";
+        std::cout << "\tmara test\n";
         std::cout << "\tmara help\n";
         return 0;
     }
@@ -459,7 +462,11 @@ int main (int argc, const char* argv[])
         "gas and magnetofluid dynamics.\n";
         return 0;
     }
-    else if (command == "run")
+    if (command == "test")
+    {
+        return TestSuite().runAllTests();
+    }
+    if (command == "run")
     {
         if (argc < 3)
         {
@@ -468,26 +475,25 @@ int main (int argc, const char* argv[])
         }
         return configuration.launchFromScript (session, argv[2]);
     }
-    else if (command == "tovtk")
+    if (command == "tovtk")
     {
         for (int n = 2; n < argc; ++n)
         {
             checkpointToVtk (argv[n]);
         }
+        return 0;
     }
-    else if (extension == ".lua")
+    if (extension == ".lua")
     {
         auto setup = configuration.fromLuaFile (argv[1]);
         return session.launch (setup);
     }
-    else if (extension == ".h5")
+    if (extension == ".h5")
     {
         auto setup = configuration.fromCheckpoint (argv[1]);
         return session.launch (setup);
     }
-    else
-    {
-        std::cout << "unrecognized command " << command << std::endl;
-    }
+
+    std::cout << "unrecognized command " << command << std::endl;
     return 0;
 }
