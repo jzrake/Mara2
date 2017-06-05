@@ -338,14 +338,15 @@ int MaraSession::launch (SimulationSetup& setup)
     // ------------------------------------------------------------------------
     auto blockDecomposition = BlockDecomposition (setup.meshGeometry);
     auto blockCommunicator = blockDecomposition.getCommunicator();
-
     setup.meshGeometry = blockDecomposition.decompose();
+
 
     setup.boundaryCondition->setMeshGeometry (setup.meshGeometry);
     setup.boundaryCondition->setConservationLaw (setup.conservationLaw);
     setup.boundaryCondition->setBoundaryValueFunction (setup.boundaryValueFunction);
-    setup.boundaryCondition = blockDecomposition.createBoundaryCondition (setup.boundaryCondition);
 
+
+    setup.boundaryCondition = blockDecomposition.createBoundaryCondition (setup.boundaryCondition);
     setup.constrainedTransport->setMeshGeometry (setup.meshGeometry);
     setup.constrainedTransport->setBoundaryCondition (setup.boundaryCondition);
 

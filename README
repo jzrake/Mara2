@@ -61,7 +61,7 @@ Mara provides output data in HDF5 and VTK formats. ParaView is recommended for
 
 Notes:
 - To use Python "programmable source" code in ParaView, the h5py module must
-  be available to Paraview. One way to do this is to copy your h5py
+  be available to ParaView. One way to do this is to copy your h5py
   installation directory to the Python directory used by ParaView. For exmaple,
   on OSX, run
 
