@@ -1,4 +1,5 @@
 #include "TimeSeriesManager.hpp"
+#include "HDF5.hpp"
 
 
 
@@ -13,10 +14,12 @@ void TimeSeriesManager::write (Cow::H5::File& file) const
     for (auto column : seriesDoubles)
     {
         std::cout << column.first << " (double) " << column.second.size() << std::endl;
+        file.writeVectorDouble (column.first, column.second);
     }
     for (auto column : seriesInts)
     {
         std::cout << column.first << " (int) " << column.second.size() << std::endl;
+        file.writeVectorInt (column.first, column.second);
     }
 }
 
