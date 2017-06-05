@@ -12,16 +12,52 @@
 
 
 
+/**
+These are algorithm classes that may have inter-dependencies.
+*/
 class BoundaryCondition;
 class ConservationLaw;
 class ConstrainedTransport;
+class SolutionAdvancer;
 class IntercellFluxScheme;
-class MaraSession;
 class MeshGeometry;
-class MeshDecomposition;
 class RiemannSolver;
+
+
+
+
+/**
+These classes are here to support dependency injection. The current design is
+that each class of algorithm is allowed to depend upon a subset of the other
+algorithms. For example, if it were determined that a derived class of
+BoundaryCondition, required use of a MeshGeometry instance, then the
+MeshGeometry base class must inherit UsesMeshGeometry. This does not affect
+other BoundaryCondition sub-classes, but the one which uses a MeshGeometry
+must override the setRiemannSolver method. Algorithms are distributed in the
+code's initialization stage based on inheritance of the base classes below.
+*/
+class UsesBoundaryCondition    { public: std::shared_ptr<BoundaryCondition>     boundaryCondition;    };
+class UsesConservationLaw      { public: std::shared_ptr<ConservationLaw>       conservationLaw;      };
+class UsesConstrainedTransport { public: std::shared_ptr<ConstrainedTransport>  constrainedTransport; };
+class UsesIntercellFluxScheme  { public: std::shared_ptr<IntercellFluxScheme>   intercellFluxScheme;  };
+class UsesMeshGeometry         { public: std::shared_ptr<MeshGeometry>          meshGeometry;         };
+class UsesRiemannSolver        { public: std::shared_ptr<RiemannSolver>         riemannSolver;        };
+
+
+
+
+
+/**
+These are higher level classes used by the driver.
+*/
+class MaraSession;
+class MeshDecomposition;
 class SimulationSetup;
 class SimulationStatus;
+
+
+
+
 
 using InitialDataFunction = std::function<std::vector<double> (double, double, double)>;
 using AreaElement = std::array<double, 3>;
@@ -35,6 +71,21 @@ public:
 };
 
 
+class MaraDriver
+{
+public:
+    double finalTime;
+    double checkpointInterval;
+    double vtkOutputInterval;
+    double cflParameter;
+    int rungeKuttaOrder;
+    bool vtkUseBinary;
+    bool disableCT;
+    std::string outputDirectory;
+    std::string runName;
+    std::string luaScript;
+    std::string restartFile;
+};
 
 
 class SimulationSetup

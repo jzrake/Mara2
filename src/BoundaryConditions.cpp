@@ -141,15 +141,15 @@ DrivenMHDBoundary::DrivenMHDBoundary()
     setVelocityFunction (nullptr);
 }
 
-void DrivenMHDBoundary::setConservationLaw (std::shared_ptr<ConservationLaw> law)
-{
-    conservationLaw = law;
-}
+// void DrivenMHDBoundary::setConservationLaw (std::shared_ptr<ConservationLaw> law)
+// {
+//     conservationLaw = law;
+// }
 
-void DrivenMHDBoundary::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry)
-{
-    meshGeometry = geometry;
-}
+// void DrivenMHDBoundary::setMeshGeometry (std::shared_ptr<MeshGeometry> geometry)
+// {
+//     meshGeometry = geometry;
+// }
 
 void DrivenMHDBoundary::setVelocityFunction (InitialDataFunction newVelocityFunction)
 {

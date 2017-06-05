@@ -25,8 +25,12 @@ UserConfiguration::UserConfiguration (int argc, const char* argv[])
     members["domain_upper_2"] = +0.5;
     members["domain_upper_3"] = +0.5;
     members["runge_kutta_order"] = 0;
-    members["flux_scheme"] = "plm";
+    members["flux_scheme"] = "method_of_lines_plm";
+    members["boundary_condition"] = "periodic";
+    members["mesh_geometry"] = "cartesian";
+    members["riemann_solver"] = "hlle";
     members["conservation_law"] = "newtonian_hydro";
+    members["constrained_transport"] = "uniform_cartesian";
     members["initial_data_function"] = "shocktube1";
     members["vector_potential_function"] = "";
     members["boundary_value_function"] = "";

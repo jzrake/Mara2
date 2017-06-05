@@ -11,6 +11,7 @@
 #include "BlockDecomposition.hpp"
 #include "CartesianMeshGeometry.hpp"
 #include "UserConfiguration.hpp"
+#include "SimulationSetup.hpp"
 
 // Cow includes
 #include "HDF5.hpp"
@@ -463,6 +464,7 @@ int main (int argc, const char* argv[])
     {
         UserConfiguration cfg (argc, argv);
         cfg.describe();
+        SimulationSetup2 (cfg.getMembers());
     }
     else if (command == "run")
     {

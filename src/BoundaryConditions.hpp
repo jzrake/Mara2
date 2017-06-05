@@ -69,13 +69,13 @@ private:
 Implements driving of magnetic field foot points from the domain boundary.
 Intended for use with MHD in 3D.
 */
-class DrivenMHDBoundary : public BoundaryCondition
+class DrivenMHDBoundary : public BoundaryCondition, public UsesConservationLaw, public UsesMeshGeometry
 {
 public:
     DrivenMHDBoundary();
     void setVelocityFunction (InitialDataFunction newVelocityFunction);
-    void setConservationLaw (std::shared_ptr<ConservationLaw>) override;
-    void setMeshGeometry (std::shared_ptr<MeshGeometry>) override;
+    //void setConservationLaw (std::shared_ptr<ConservationLaw>) override;
+    //void setMeshGeometry (std::shared_ptr<MeshGeometry>) override;
     void apply (
         Cow::Array& A,
         MeshLocation location,
@@ -84,8 +84,8 @@ public:
         int numGuard) const override;
 private:
     InitialDataFunction velocityFunction;
-    std::shared_ptr<ConservationLaw> conservationLaw;
-    std::shared_ptr<MeshGeometry> meshGeometry;
+    //std::shared_ptr<ConservationLaw> conservationLaw;
+    //std::shared_ptr<MeshGeometry> meshGeometry;
 };
 
 

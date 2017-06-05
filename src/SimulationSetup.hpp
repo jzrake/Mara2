@@ -12,6 +12,7 @@ class SimulationSetup2
 public:
     SimulationSetup2 (Variant::NamedValues config);
 
+    std::shared_ptr<MaraDriver> maraDriver;
     std::shared_ptr<MeshDecomposition> meshDecomposition;
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;

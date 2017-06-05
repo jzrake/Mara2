@@ -9,9 +9,6 @@
 
 
 
-
-
-
 // ============================================================================
 SimulationSetup2::SimulationSetup2 (Variant::NamedValues config)
 {
@@ -20,6 +17,7 @@ SimulationSetup2::SimulationSetup2 (Variant::NamedValues config)
 		if (name == "periodic")           return std::make_shared<PeriodicBoundaryCondition>();
 		if (name == "reflecting")         return std::make_shared<ReflectingBoundaryCondition>();
 		if (name == "outflow")            return std::make_shared<OutflowBoundaryCondition>();
+		if (name == "driven_mhd")         return std::make_shared<DrivenMHDBoundary>();
 		throw std::runtime_error ("no boundary condition named " + name);
 	};
 	auto lookupConservationLaw = [] (std::string name) -> std::shared_ptr<ConservationLaw>
@@ -39,7 +37,7 @@ SimulationSetup2::SimulationSetup2 (Variant::NamedValues config)
 		if (name == "method_of_lines")        return std::make_shared<MethodOfLines>();
 		if (name == "method_of_lines_plm")    return std::make_shared<MethodOfLinesPlm>();
 		if (name == "method_of_lines_weno")   return std::make_shared<MethodOfLinesWeno>();
-		throw std::runtime_error ("no mesh geometry named " + name);
+		throw std::runtime_error ("no flux scheme named " + name);
 	};
 	auto lookupRiemannSolver = [] (std::string name) -> std::shared_ptr<RiemannSolver>
 	{
@@ -57,6 +55,7 @@ SimulationSetup2::SimulationSetup2 (Variant::NamedValues config)
 		return nullptr;
 	};
 
+
 	boundaryCondition       = lookupBoundaryCondition    (config["boundary_condition"]);
 	conservationLaw         = lookupConservationLaw      (config["conservation_law"]);
 	meshGeometry            = lookupMeshGeometryLaw      (config["mesh_geometry"]);
@@ -66,4 +65,23 @@ SimulationSetup2::SimulationSetup2 (Variant::NamedValues config)
 	initialDataFunction     = lookupInitialDataFunction  (config["initial_data_function"]);
 	vectorPotentialFunction = lookupInitialDataFunction  (config["vector_potential_function"]);
 	boundaryValueFunction   = lookupInitialDataFunction  (config["boundary_value_function"]);
+
+	if (auto user = dynamic_cast<UsesMeshGeometry*> (boundaryCondition.get()))
+	{
+		std::cout << "BoundaryCondition has a MeshGeometry\n";
+		user->meshGeometry = meshGeometry;
+	}
+
+	maraDriver                     = std::make_shared<MaraDriver>();
+	maraDriver->finalTime          = config["final_time"];
+    maraDriver->cflParameter       = config["cfl_parameter"];
+    maraDriver->checkpointInterval = config["checkpoint_interval"];
+    maraDriver->vtkOutputInterval  = config["vtk_output_interval"];
+    maraDriver->vtkUseBinary       = config["vtk_use_binary"];
+    maraDriver->rungeKuttaOrder    = config["runge_kutta_order"];
+    maraDriver->disableCT          = config["disable_ct"];
+    maraDriver->outputDirectory    = std::string (config["output_directory"]);
+    maraDriver->runName            = std::string (config["run_name"]);
+    maraDriver->luaScript          = std::string (config["lua_script"]);
+    maraDriver->restartFile        = std::string (config["restart_file"]);
 }
