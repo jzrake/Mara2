@@ -1,25 +1,54 @@
 #include "TimeSeriesManager.hpp"
 #include "HDF5.hpp"
 
+using namespace Cow;
 
 
 
-void TimeSeriesManager::load (Cow::H5::File& file) const
+
+void TimeSeriesManager::load (H5::DataSetCreator& location)
 {
+    location.iterate ([&] (std::string name)
+    {
+        if (location.hasDataSet (name))
+        {
+            auto dset = location.getDataSet (name);
+            auto type = dset.getType();
 
+            if (type == H5::DataType::nativeDouble())
+            {
+                seriesDoubles[name] = location.readVectorDouble (name);
+                std::cout
+                << "[TimeSeriesManager] loading '"
+                << name
+                << "' [type: double, size: " << seriesDoubles[name].size() << "]"
+                << std::endl;
+                return;
+            }
+            if (type == H5::DataType::nativeInt())
+            {
+                seriesInts[name] = location.readVectorInt (name);
+                std::cout
+                << "[TimeSeriesManager] loading '"
+                << name
+                << "' [type: int, size: " << seriesInts[name].size() << "]"
+                << std::endl;
+                return;
+            }
+        }
+        std::cout << "[TimeSeriesManager] skipping " << name << std::endl;
+    });
 }
 
-void TimeSeriesManager::write (Cow::H5::File& file) const
+void TimeSeriesManager::write (H5::DataSetCreator& location) const
 {
     for (auto column : seriesDoubles)
     {
-        std::cout << column.first << " (double) " << column.second.size() << std::endl;
-        file.writeVectorDouble (column.first, column.second);
+        location.writeVectorDouble (column.first, column.second);
     }
     for (auto column : seriesInts)
     {
-        std::cout << column.first << " (int) " << column.second.size() << std::endl;
-        file.writeVectorInt (column.first, column.second);
+        location.writeVectorInt (column.first, column.second);
     }
 }
 
@@ -31,7 +60,8 @@ void TimeSeriesManager::append (SimulationStatus status, Variant::NamedValues co
         {
             case 'd': seriesDoubles[entry.first].push_back (entry.second); break;
             case 'i': seriesInts[entry.first].push_back (entry.second); break;
-            default: throw std::logic_error ("[TimeSeriesManager] can only accept int and double");
+            default: throw std::logic_error ("[TimeSeriesManager] can only accept "
+                "entries of type int and double");
         }
     }
 }

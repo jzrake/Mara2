@@ -22,8 +22,15 @@ int TestSuite::runAllTests()
     measurement2["mean_pressure"] = 2.2;
     measurement2["num_unhealthy_zones"] = 13;
     timeSeriesManager.append (status, measurement2);
-
     timeSeriesManager.write (hdf5File);
+
+    hdf5File.createGroup ("group1");
+    hdf5File.createGroup ("group2");
+
+    auto group1 = hdf5File.getGroup ("group1");
+    timeSeriesManager.write (group1);
+    timeSeriesManager.load (group1);
+    timeSeriesManager.load (hdf5File);
 
     return 0;
 }
