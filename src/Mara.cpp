@@ -26,12 +26,14 @@ using namespace Cow;
 
 
 
+
 // ============================================================================
 SimulationSetup::SimulationSetup()
 {
     finalTime = 1.0;
     checkpointInterval = 1.0;
     vtkOutputInterval = 1.0;
+    timeSeriesInterval = 0.1;
     vtkUseBinary = true;
     cflParameter = 0.25;
     rungeKuttaOrder = 2;
@@ -46,10 +48,45 @@ SimulationSetup::SimulationSetup()
 // ============================================================================
 SimulationStatus::SimulationStatus()
 {
-    simulationTime = 0.0;
     simulationIter = 0;
-    checkpointsWrittenSoFar = 0;
-    vtkOutputsWrittenSoFar = 0;
+    numCheckpoints = 0;
+    numVtkOutputs = 0;
+    numTimeSeriesEntries = 0;
+    simulationTime = 0.0;
+    lastCheckpoint = 0.0;
+    lastVtkOutput = 0.0;
+    lastTimeSeriesEntry = 0.0;
+}
+
+void SimulationStatus::update (const Variant::NamedValues& values)
+{
+    simulationIter = values.at ("simulationIter");
+    numCheckpoints = values.at ("numCheckpoints");
+    numVtkOutputs = values.at ("numVtkOutputs");
+    numTimeSeriesEntries = values.at ("numTimeSeriesEntries");
+    simulationTime = values.at ("simulationTime");
+    lastCheckpoint = values.at ("lastCheckpoint");
+    lastVtkOutput = values.at ("lastVtkOutput");
+    lastTimeSeriesEntry = values.at ("lastTimeSeriesEntry");
+}
+
+Variant::NamedValues SimulationStatus::pack() const
+{
+    auto values = Variant::NamedValues();
+    values["simulationIter"] = simulationIter;
+    values["numCheckpoints"] = numCheckpoints;
+    values["numVtkOutputs"] = numVtkOutputs;
+    values["numTimeSeriesEntries"] = numTimeSeriesEntries;
+    values["simulationTime"] = simulationTime;
+    values["lastCheckpoint"] = lastCheckpoint;
+    values["lastVtkOutput"] = lastVtkOutput;
+    values["lastTimeSeriesEntry"] = lastTimeSeriesEntry;
+    return values;
+}
+
+void SimulationStatus::print (std::ostream& stream)
+{
+    stream << "run status:\n" << pack();
 }
 
 
@@ -124,7 +161,8 @@ void writeVtkOutput (
             logger.log ("Mara") << "Warning: no support for VTK output in parallel runs\n";
         });
 
-        ++status.vtkOutputsWrittenSoFar;
+        status.lastVtkOutput += setup.vtkOutputInterval;
+        status.numVtkOutputs += 1;
         return;
     }
 
@@ -139,7 +177,7 @@ void writeVtkOutput (
     auto dir = setup.outputDirectory;
     FileSystem::ensureDirectoryExists (dir);
 
-    auto vtkFilename = FileSystem::makeFilename (dir, "mesh", ".vtk", status.vtkOutputsWrittenSoFar);
+    auto vtkFilename = FileSystem::makeFilename (dir, "mesh", ".vtk", status.numVtkOutputs);
     auto vtkStream = std::ofstream (vtkFilename);
     auto vtkMesh = VTK::RectilinearGrid (setup.meshGeometry->cellsShape());
     vtkMesh.setTitle (setup.runName);
@@ -184,7 +222,9 @@ void writeVtkOutput (
     vtkMesh.addScalarField ("health", system.getZoneHealth());
     logger.log ("Mara") << "writing VTK file " << vtkFilename << std::endl;
     vtkMesh.write (vtkStream);
-    ++status.vtkOutputsWrittenSoFar;
+
+    status.lastVtkOutput += setup.vtkOutputInterval;
+    status.numVtkOutputs += 1;
 }
 
 
@@ -196,6 +236,7 @@ void writeCheckpoint (
     SimulationStatus& status,
     FluxConservativeSystem& system,
     BlockDecomposition& block,
+    TimeSeriesManager& tseries,
     Logger& logger)
 {
     using namespace Cow;
@@ -204,7 +245,7 @@ void writeCheckpoint (
 
     auto comm = block.getCommunicator();
     auto outdir = setup.outputDirectory;
-    auto filename = FileSystem::makeFilename (outdir, "chkpt", ".h5", status.checkpointsWrittenSoFar);
+    auto filename = FileSystem::makeFilename (outdir, "chkpt", ".h5", status.numCheckpoints);
 
     comm.onMasterOnly ([&] ()
     {
@@ -219,13 +260,14 @@ void writeCheckpoint (
         auto primitiveGroup  = file.createGroup ("primitive");
         auto diagnosticGroup = file.createGroup ("diagnostic");
         auto meshGroup       = file.createGroup ("mesh");
+        auto tseriesGroup    = file.createGroup ("time_series");
 
 
         // Write misc data like date and run script
         // --------------------------------------------------------------------
         auto t = std::time (nullptr);
         auto tm = *std::localtime (&t);
-        std::ostringstream oss;
+        auto oss = std::ostringstream();
         oss << std::put_time (&tm, "%m-%d-%Y %H:%M:%S");
 
         file.writeString ("run_name", setup.runName);
@@ -251,21 +293,26 @@ void writeCheckpoint (
 
         // Write the simulation status data into the checkpoint
         // --------------------------------------------------------------------
-        statusGroup.writeInt ("vtkOutputsWrittenSoFar", status.vtkOutputsWrittenSoFar);
-        statusGroup.writeInt ("checkpointsWrittenSoFar", status.checkpointsWrittenSoFar);
-        statusGroup.writeInt ("simulationIter", status.simulationIter);
-        statusGroup.writeDouble ("simulationTime", status.simulationTime);
+        for (auto member : status.pack())
+        {
+            statusGroup.writeVariant (member.first, member.second);
+        }
 
 
         // Write the mesh information (needs to be generalized to non-rectilinear meshes)
         // --------------------------------------------------------------------
-        meshGroup.writeString ("type", "CartesianMeshGeometry");
+        meshGroup.writeString ("type", "cartesian");
 
         auto geometry = dynamic_cast<const CartesianMeshGeometry*> (block.getGlobalGeometry().get());
         auto pointGroup = meshGroup.createGroup ("points");
         pointGroup.writeArray ("x", geometry->getPointCoordinates (0));
         pointGroup.writeArray ("y", geometry->getPointCoordinates (1));
         pointGroup.writeArray ("z", geometry->getPointCoordinates (2));
+
+
+        // Write the time series data
+        // --------------------------------------------------------------------
+        tseries.write (tseriesGroup);
     });
 
     comm.inSequence ([&] (int rank)
@@ -296,7 +343,8 @@ void writeCheckpoint (
         }        
     });
 
-    ++status.checkpointsWrittenSoFar;
+    status.lastCheckpoint += setup.checkpointInterval;
+    status.numCheckpoints += 1;
 }
 
 
@@ -308,25 +356,82 @@ void readCheckpoint (
     SimulationStatus& status,
     FluxConservativeSystem& system,
     BlockDecomposition& block,
+    TimeSeriesManager& tseries,
     Logger& logger)
 {
     logger.log ("Mara") << "reading checkpoint file " << setup.restartFile << std::endl;
 
     // block.getCommunicator().inSequence ([&] (int rank)
     // Note: we read all procs at once here, because BC's will hang otherwise
+
+    auto file            = H5::File (setup.restartFile, "r");
+    auto statusGroup     = file.getGroup ("status");
+    auto primitiveGroup  = file.getGroup ("primitive");
+    auto tseriesGroup    = file.getGroup ("time_series");
+
+    system.assignPrimitive (primitiveGroup.readArrays (
+        setup.conservationLaw->getPrimitiveNames(), 3, block.getPatchRegion()));
+
+    auto packedStatus = status.pack();
+
+    for (auto& member : packedStatus)
     {
-        auto file            = H5::File (setup.restartFile, "r");
-        auto statusGroup     = file.getGroup ("status");
-        auto primitiveGroup  = file.getGroup ("primitive");
+        member.second = statusGroup.readVariant (member.first);
+    }
+    status.update (packedStatus);
+    // status.update (statusGroup.readNamedValues()); <-- add Cow feature
 
-        system.assignPrimitive (primitiveGroup.readArrays (
-            setup.conservationLaw->getPrimitiveNames(), 3, block.getPatchRegion()));
+    status.print (logger.log ("Mara"));
+    tseries.load (tseriesGroup);
+}
 
-        status.vtkOutputsWrittenSoFar  = statusGroup.readInt ("vtkOutputsWrittenSoFar");
-        status.checkpointsWrittenSoFar = statusGroup.readInt ("checkpointsWrittenSoFar");
-        status.simulationIter          = statusGroup.readInt ("simulationIter");
-        status.simulationTime          = statusGroup.readDouble ("simulationTime");
-    }//);
+
+
+
+// ============================================================================
+void doOutputStage(
+    SimulationSetup& setup,
+    SimulationStatus& status,
+    FluxConservativeSystem& system,
+    BlockDecomposition& block,
+    TimeSeriesManager& tseries,
+    Logger& logger)
+{
+    auto isTime = [=] (double interval, double next) -> bool
+    {
+        return interval > 0 && status.simulationTime >= next;
+    };
+
+    double nextVtk   = status.lastVtkOutput       + setup.vtkOutputInterval;
+    double nextChkpt = status.lastCheckpoint      + setup.checkpointInterval;
+    double nextEntry = status.lastTimeSeriesEntry + setup.timeSeriesInterval;
+
+    if (isTime (setup.vtkOutputInterval, nextVtk))
+    {
+        writeVtkOutput (setup, status, system, block, logger);
+    }
+
+    if (isTime (setup.checkpointInterval, nextChkpt))
+    {
+        writeCheckpoint (setup, status, system, block, tseries, logger);
+    }
+
+    if (isTime (setup.timeSeriesInterval, nextEntry))
+    {
+        auto volumeIntegrated = system.volumeIntegratedDiagnostics();
+        auto volumeAveraged = block.volumeAverageOverPatches (volumeIntegrated);
+        auto fieldNames = setup.conservationLaw->getDiagnosticNames();
+        auto entry = Variant::NamedValues();
+
+        for (int n = 0; n < fieldNames.size(); ++n)
+        {
+            entry[fieldNames[n]] = volumeAveraged[n];
+        }
+        tseries.append (status, entry);
+
+        status.lastTimeSeriesEntry += setup.timeSeriesInterval;
+        status.numTimeSeriesEntries += 1;
+    }
 }
 
 
@@ -337,12 +442,11 @@ int MaraSession::launch (SimulationSetup& setup)
 {
     // "Dependency injection"
     // ------------------------------------------------------------------------
-    auto blockDecomposition = BlockDecomposition (setup.meshGeometry);
-    auto blockCommunicator = blockDecomposition.getCommunicator();
-    auto timeSeriesManager = TimeSeriesManager();
+    auto block = BlockDecomposition (setup.meshGeometry);
+    auto tseries = TimeSeriesManager();
     auto logger = std::make_shared<Logger>();
 
-    if (blockDecomposition.getCommunicator().isThisMaster())
+    if (block.getCommunicator().isThisMaster())
     {
         logger->setLogToStdout();
     }
@@ -352,18 +456,18 @@ int MaraSession::launch (SimulationSetup& setup)
     }
 
 
-    setup.meshGeometry = blockDecomposition.decompose();
+    setup.meshGeometry = block.decompose();
     setup.boundaryCondition->setMeshGeometry (setup.meshGeometry);
     setup.boundaryCondition->setConservationLaw (setup.conservationLaw);
     setup.boundaryCondition->setBoundaryValueFunction (setup.boundaryValueFunction);
 
 
-    setup.boundaryCondition = blockDecomposition.createBoundaryCondition (setup.boundaryCondition);
+    setup.boundaryCondition = block.createBoundaryCondition (setup.boundaryCondition);
     setup.constrainedTransport->setMeshGeometry (setup.meshGeometry);
     setup.constrainedTransport->setBoundaryCondition (setup.boundaryCondition);
 
 
-    timeSeriesManager.setLogger (logger);
+    tseries.setLogger (logger);
 
 
     auto status = SimulationStatus();
@@ -378,7 +482,7 @@ int MaraSession::launch (SimulationSetup& setup)
     }
     else if (! setup.restartFile.empty())
     {
-        readCheckpoint (setup, status, system, blockDecomposition, *logger);
+        readCheckpoint (setup, status, system, block, tseries, *logger);
     }
     else
     {
@@ -386,40 +490,24 @@ int MaraSession::launch (SimulationSetup& setup)
     }
 
 
-    // Initial output stage
-    // --------------------------------------------------------------------
-    if (setup.vtkOutputInterval > 0)
+    // Improve on this thing here:
+    bool writeInitial = status.simulationIter == 0;
+
+    if (writeInitial)
     {
-        writeVtkOutput (setup, status, system, blockDecomposition, *logger);
+        status.lastCheckpoint      -= setup.checkpointInterval;
+        status.lastVtkOutput       -= setup.vtkOutputInterval;
+        status.lastTimeSeriesEntry -= setup.timeSeriesInterval;
     }
-    if (setup.checkpointInterval > 0)
-    {
-        writeCheckpoint (setup, status, system, blockDecomposition, *logger);
-    }
+    doOutputStage (setup, status, system, block, tseries, *logger);
 
 
     while (status.simulationTime < setup.finalTime)
     {
-        // Perform output of different formats if necessary
-        // --------------------------------------------------------------------
-        double nextVtk = status.vtkOutputsWrittenSoFar * setup.vtkOutputInterval;
-        double nextChkpt = status.checkpointsWrittenSoFar * setup.checkpointInterval;
-
-        if (setup.vtkOutputInterval > 0 && status.simulationTime >= nextVtk)
-        {
-            writeVtkOutput (setup, status, system, blockDecomposition, *logger);
-        }
-
-        if (setup.checkpointInterval > 0 && status.simulationTime >= nextChkpt)
-        {
-            writeCheckpoint (setup, status, system, blockDecomposition, *logger);
-        }
-
-
         // Invoke the solver to advance the solution
         // --------------------------------------------------------------------
         auto timer = Timer();
-        double dt = blockCommunicator.minimum (setup.cflParameter * system.getCourantTimestep());
+        double dt = block.getCommunicator().minimum (setup.cflParameter * system.getCourantTimestep());
         system.advance (dt);
         status.simulationTime += dt;
         status.simulationIter += 1;
@@ -432,6 +520,9 @@ int MaraSession::launch (SimulationSetup& setup)
         logger->log() << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
         logger->log() << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
         logger->log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
+
+
+        doOutputStage (setup, status, system, block, tseries, *logger);
     }
 
     return 0;

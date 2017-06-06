@@ -8,6 +8,7 @@
 #include "Array.hpp"
 #include "Matrix.hpp"
 #include "Logger.hpp"
+#include "Variant.hpp" // For SimulationStatus
 
 
 
@@ -94,6 +95,7 @@ public:
     double finalTime;
     double checkpointInterval;
     double vtkOutputInterval;
+    double timeSeriesInterval;
     double cflParameter;
     int rungeKuttaOrder;
     bool vtkUseBinary;
@@ -125,10 +127,17 @@ class SimulationStatus
 {
 public:
     SimulationStatus();
-    double simulationTime;
+    void print (std::ostream& stream);
+    void update (const Variant::NamedValues& values);
+    Variant::NamedValues pack() const;
     int simulationIter;
-    int checkpointsWrittenSoFar;
-    int vtkOutputsWrittenSoFar;
+    int numCheckpoints;
+    int numVtkOutputs;
+    int numTimeSeriesEntries;
+    double simulationTime;
+    double lastCheckpoint;
+    double lastVtkOutput;
+    double lastTimeSeriesEntry;
 };
 
 
@@ -183,10 +192,14 @@ public:
     */
     PatchIndex getPatchIndex() const;
 
-    /** Derived classes override this to set mesh resolution. */
+    /**
+    Derived classes override this to set mesh resolution.
+    */
     virtual void setCellsShape (Cow::Shape) {}
 
-    /** Derived classes override this to set domain limits. */
+    /**
+    Derived classes override this to set domain limits.
+    */
     virtual void setLowerUpper (Coordinate, Coordinate) {}
 
     /**
@@ -224,6 +237,11 @@ public:
     Return the volume of the cell at the given index.
     */
     virtual double cellVolume (int i, int j, int k) const = 0;
+
+    /**
+    Return the total volume of this grid patch.
+    */
+    virtual double meshVolume() const = 0;
 
 private:
     PatchIndex patchIndex;
@@ -345,6 +363,24 @@ public:
     virtual void setPressureFloor (double) {}
     virtual void setGammaLawIndex (double) {}
     virtual void setAdvectionSpeed (double, double, double) {}
+
+    /**
+    Derived classes may override this method to return a rich set of derived
+    state quantities, such as entropy, Mach number, etc.
+    */
+    virtual std::vector<double> makeDiagnostics (const State& state) const
+    {
+        return std::vector<double>();
+    }
+
+    /**
+    Return the names associated with each of the fields returned by the
+    makeDiagnostics function.
+    */
+    virtual std::vector<std::string> getDiagnosticNames() const
+    {
+        return std::vector<std::string>();
+    }
 
     /**
     Generate a state from the given information request, and a double pointer

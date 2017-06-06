@@ -123,6 +123,29 @@ Cow::Array::Reference FluxConservativeSystem::getZoneHealth()
     return zoneHealth[Region()];
 }
 
+std::vector<double> FluxConservativeSystem::volumeIntegratedDiagnostics()
+{
+    auto request = ConservationLaw::Request();
+    auto Preg = P[updateableRegion];
+    auto pit = Preg.begin();
+    auto diagnostics = std::vector<double> (conservationLaw->getDiagnosticNames().size());
+
+    for ( ; pit != Preg.end(); ++pit)
+    {
+        auto state = conservationLaw->fromPrimitive (request, pit);
+        auto cellD = conservationLaw->makeDiagnostics (state);
+        const auto index = pit.relativeIndex();
+        const double Vol = meshGeometry->cellVolume (index[0], index[1], index[2]);
+
+        for (int n = 0; n < cellD.size(); ++n)
+        {
+            diagnostics[n] += cellD[n] * Vol;
+        }
+    }
+
+    return diagnostics;
+}
+
 void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataFunction A)
 {
     auto request = ConservationLaw::Request();

@@ -64,6 +64,9 @@ void TimeSeriesManager::append (SimulationStatus status, Variant::NamedValues co
                 "entries of type int and double");
         }
     }
+
+    seriesInts["iteration"].push_back (status.simulationIter);
+    seriesDoubles["time"].push_back (status.simulationTime);
 }
 
 void TimeSeriesManager::clear()

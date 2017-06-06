@@ -42,7 +42,7 @@ class NewtonianMHD : public ConservationLaw
 {
 public:
     NewtonianMHD();
-    
+
     /**
     When the pressure floor value is set to something positive, then
     negative pressures are dealt with by setting p = pressureFloor * density.
@@ -55,6 +55,8 @@ public:
     int getNumConserved() const override;
     int getIndexFor (VariableType type) const override;
     std::string getPrimitiveName (int fieldIndex) const override;
+    std::vector<double> makeDiagnostics (const State& state) const override;
+    std::vector<std::string> getDiagnosticNames() const override;
 private:
     double gammaLawIndex;
     double pressureFloor;

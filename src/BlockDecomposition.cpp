@@ -178,3 +178,14 @@ int BlockDecomposition::startIndex (int numElements, int numPartitions, int whic
     const int t = i - s;                 // number of partitions of size n + 1
     return n * s + (n + 1) * t;
 }
+
+std::vector<double> BlockDecomposition::volumeAverageOverPatches (const std::vector<double>& diagnostics) const
+{
+    auto result = communicator.sum (diagnostics);
+
+    for (auto x : result)
+    {
+        x /= globalGeometry->meshVolume();
+    }
+    return result;
+}

@@ -86,6 +86,11 @@ double CartesianMeshGeometry::cellVolume (int i, int j, int k) const
     return dx * dy * dz;
 }
 
+double CartesianMeshGeometry::meshVolume() const
+{
+    return (upper[0] - lower[0]) * (upper[1] - lower[1]) * (upper[2] - lower[2]);
+}
+
 Cow::Array CartesianMeshGeometry::getPointCoordinates (int axis) const
 {
     assert (0 <= axis && axis < 3);

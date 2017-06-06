@@ -141,11 +141,12 @@ SimulationSetup Configuration::LuaState::fromLuaTable (sol::table cfg)
     setup.constrainedTransport    = lookupConstrainedTransport (cfg["constrained_transport"]);
     setup.initialDataFunction     = makeIDF                    (cfg["initial_data"]);
     setup.vectorPotentialFunction = makeIDF                    (cfg["vector_potential"]);
-    setup.boundaryValueFunction   = makeIDF                    (cfg["boundary_value_function"]);
+    setup.boundaryValueFunction   = makeIDF                    (cfg["boundary_value"]);
     setup.finalTime               =                             cfg["final_time"];
     setup.outputDirectory         =                             cfg["output_directory"];
     setup.checkpointInterval      =                             cfg["checkpoint_interval"];
     setup.vtkOutputInterval       =                             cfg["vtk_output_interval"];
+    setup.timeSeriesInterval      =                             cfg["time_series_interval"];
     setup.cflParameter            =                             cfg["cfl_parameter"];
     setup.rungeKuttaOrder         =                             cfg["runge_kutta_order"].get_or (2);
     setup.disableCT               =                             cfg["disable_ct"].get_or (false);

@@ -68,6 +68,13 @@ public:
     */
     Cow::Region getPatchRegion() const;
 
+    /**
+    Perform a volume integral over all patches, and divide by the total mesh
+    volume. The quanitites to be averaged are likely volume-integrated cell
+    diagnostics. One volume-average is performed per entry in diagnostics.
+    */
+    std::vector<double> volumeAverageOverPatches (const std::vector<double>& diagnostics) const;
+
 private:
     friend class BlockDecomposedBC;
     int partition (int numElements, int numPartitions, int whichPartition) const;

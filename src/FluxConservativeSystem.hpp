@@ -49,6 +49,15 @@ public:
     Cow::Array::Reference getZoneHealth();
 
     /**
+    Return the volume integral (not volume average) of named diagnostics
+    defined by the ConservationLaw that's in use. This operation uses the
+    most recent values of the primitive quantities, as would be retured by
+    getPrimitive(). Guard zones are not included in the integral, so the
+    result may be added dumbly to that of other grid patches.
+    */
+    std::vector<double> volumeIntegratedDiagnostics();
+
+    /**
     Set initial data on the primitive variable array.
     */
     void setInitialData (InitialDataFunction F, InitialDataFunction A);
