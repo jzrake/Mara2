@@ -18,8 +18,8 @@ void TimeSeriesManager::load (H5::DataSetCreator& location)
             if (type == H5::DataType::nativeDouble())
             {
                 seriesDoubles[name] = location.readVectorDouble (name);
-                std::cout
-                << "[TimeSeriesManager] loading '"
+                logger->log ("TimeSeriesManager")
+                << "loading '"
                 << name
                 << "' [type: double, size: " << seriesDoubles[name].size() << "]"
                 << std::endl;
@@ -28,15 +28,15 @@ void TimeSeriesManager::load (H5::DataSetCreator& location)
             if (type == H5::DataType::nativeInt())
             {
                 seriesInts[name] = location.readVectorInt (name);
-                std::cout
-                << "[TimeSeriesManager] loading '"
+                logger->log ("TimeSeriesManager")
+                << "loading '"
                 << name
                 << "' [type: int, size: " << seriesInts[name].size() << "]"
                 << std::endl;
                 return;
             }
         }
-        std::cout << "[TimeSeriesManager] skipping " << name << std::endl;
+        logger->log ("TimeSeriesManager") << "skipping " << name << std::endl;
     });
 }
 

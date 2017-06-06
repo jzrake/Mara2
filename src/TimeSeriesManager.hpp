@@ -21,7 +21,7 @@ columns with the same name, one of each type, if you really want to. Calling
 append with set of named Variant objects creates or appends to a column for
 each entry.
 */
-class TimeSeriesManager
+class TimeSeriesManager : public MayUseLogger
 {
 public:
     /**

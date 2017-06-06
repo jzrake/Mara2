@@ -20,7 +20,9 @@
 #include "MPI.hpp"
 #include "FileSystem.hpp"
 #include "DebugHelper.hpp"
+#include "Logger.hpp"
 
+using namespace Cow;
 
 
 
@@ -54,7 +56,7 @@ SimulationStatus::SimulationStatus()
 
 
 // ============================================================================
-void checkpointToVtk (std::string filename)
+void checkpointToVtk (std::string filename, Logger& logger)
 {
     using namespace Cow;
 
@@ -98,7 +100,7 @@ void checkpointToVtk (std::string filename)
         vtkMesh.addVectorField ("magnetic", primitive.readArrays (magneticNames, 3));
     }
 
-    std::cout << "[Mara] " << h5Filename << " -> " << vtkFilename << std::endl;
+    logger.log ("Mara") << h5Filename << " -> " << vtkFilename << std::endl;
     vtkMesh.write (vtkStream);
 }
 
@@ -110,7 +112,8 @@ void writeVtkOutput (
     SimulationSetup& setup,
     SimulationStatus& status,
     FluxConservativeSystem& system,
-    BlockDecomposition& block)
+    BlockDecomposition& block,
+    Logger& logger)
 {
     using namespace Cow;
 
@@ -118,9 +121,7 @@ void writeVtkOutput (
     {
         block.getCommunicator().onMasterOnly ([&] ()
         {
-            // NOTE: possible future syntax for logging
-            // Log::warning ("Mara") << "no support for VTK output\n";
-            std::cout << "[Mara] Warning: no support for VTK output in parallel runs\n";
+            logger.log ("Mara") << "Warning: no support for VTK output in parallel runs\n";
         });
 
         ++status.vtkOutputsWrittenSoFar;
@@ -131,7 +132,7 @@ void writeVtkOutput (
 
     if (geometry == nullptr)
     {
-        std::cout << "[Mara] Warning: only CartesianMeshGeometry supports VTK output\n";
+        logger.log ("Mara") << "Warning: only CartesianMeshGeometry supports VTK output\n";
         return;
     }
 
@@ -181,8 +182,7 @@ void writeVtkOutput (
     }
 
     vtkMesh.addScalarField ("health", system.getZoneHealth());
-
-    std::cout << "[Mara] writing VTK file " << vtkFilename << std::endl;
+    logger.log ("Mara") << "writing VTK file " << vtkFilename << std::endl;
     vtkMesh.write (vtkStream);
     ++status.vtkOutputsWrittenSoFar;
 }
@@ -195,7 +195,8 @@ void writeCheckpoint (
     SimulationSetup& setup,
     SimulationStatus& status,
     FluxConservativeSystem& system,
-    BlockDecomposition& block)
+    BlockDecomposition& block,
+    Logger& logger)
 {
     using namespace Cow;
     using VT = ConservationLaw::VariableType; // For VT::magnetic
@@ -207,7 +208,7 @@ void writeCheckpoint (
 
     comm.onMasterOnly ([&] ()
     {
-        std::cout << "[Mara] writing checkpoint file " << filename << std::endl;
+        logger.log ("Mara") << "writing checkpoint file " << filename << std::endl;
 
 
         // Create data directory, HDF5 checkpoint file, and groups
@@ -306,17 +307,15 @@ void readCheckpoint (
     SimulationSetup& setup,
     SimulationStatus& status,
     FluxConservativeSystem& system,
-    BlockDecomposition& block)
+    BlockDecomposition& block,
+    Logger& logger)
 {
-    block.getCommunicator().onMasterOnly ([&] ()
-    {
-        std::cout << "[Mara] reading checkpoint file " << setup.restartFile << std::endl;
-    });
+    logger.log ("Mara") << "reading checkpoint file " << setup.restartFile << std::endl;
 
     // block.getCommunicator().inSequence ([&] (int rank)
     // Note: we read all procs at once here, because BC's will hang otherwise
     {
-        auto file            = Cow::H5::File (setup.restartFile, "r");
+        auto file            = H5::File (setup.restartFile, "r");
         auto statusGroup     = file.getGroup ("status");
         auto primitiveGroup  = file.getGroup ("primitive");
 
@@ -340,9 +339,20 @@ int MaraSession::launch (SimulationSetup& setup)
     // ------------------------------------------------------------------------
     auto blockDecomposition = BlockDecomposition (setup.meshGeometry);
     auto blockCommunicator = blockDecomposition.getCommunicator();
+    auto timeSeriesManager = TimeSeriesManager();
+    auto logger = std::make_shared<Logger>();
+
+    if (blockDecomposition.getCommunicator().isThisMaster())
+    {
+        logger->setLogToStdout();
+    }
+    else
+    {
+        logger->setLogToNull();
+    }
+
+
     setup.meshGeometry = blockDecomposition.decompose();
-
-
     setup.boundaryCondition->setMeshGeometry (setup.meshGeometry);
     setup.boundaryCondition->setConservationLaw (setup.conservationLaw);
     setup.boundaryCondition->setBoundaryValueFunction (setup.boundaryValueFunction);
@@ -351,6 +361,10 @@ int MaraSession::launch (SimulationSetup& setup)
     setup.boundaryCondition = blockDecomposition.createBoundaryCondition (setup.boundaryCondition);
     setup.constrainedTransport->setMeshGeometry (setup.meshGeometry);
     setup.constrainedTransport->setBoundaryCondition (setup.boundaryCondition);
+
+
+    timeSeriesManager.setLogger (logger);
+
 
     auto status = SimulationStatus();
     auto system = FluxConservativeSystem (setup);
@@ -364,7 +378,7 @@ int MaraSession::launch (SimulationSetup& setup)
     }
     else if (! setup.restartFile.empty())
     {
-        readCheckpoint (setup, status, system, blockDecomposition);
+        readCheckpoint (setup, status, system, blockDecomposition, *logger);
     }
     else
     {
@@ -376,11 +390,11 @@ int MaraSession::launch (SimulationSetup& setup)
     // --------------------------------------------------------------------
     if (setup.vtkOutputInterval > 0)
     {
-        writeVtkOutput (setup, status, system, blockDecomposition);
+        writeVtkOutput (setup, status, system, blockDecomposition, *logger);
     }
     if (setup.checkpointInterval > 0)
     {
-        writeCheckpoint (setup, status, system, blockDecomposition);
+        writeCheckpoint (setup, status, system, blockDecomposition, *logger);
     }
 
 
@@ -393,18 +407,18 @@ int MaraSession::launch (SimulationSetup& setup)
 
         if (setup.vtkOutputInterval > 0 && status.simulationTime >= nextVtk)
         {
-            writeVtkOutput (setup, status, system, blockDecomposition);
+            writeVtkOutput (setup, status, system, blockDecomposition, *logger);
         }
 
         if (setup.checkpointInterval > 0 && status.simulationTime >= nextChkpt)
         {
-            writeCheckpoint (setup, status, system, blockDecomposition);
+            writeCheckpoint (setup, status, system, blockDecomposition, *logger);
         }
 
 
         // Invoke the solver to advance the solution
         // --------------------------------------------------------------------
-        auto timer = Cow::Timer();
+        auto timer = Timer();
         double dt = blockCommunicator.minimum (setup.cflParameter * system.getCourantTimestep());
         system.advance (dt);
         status.simulationTime += dt;
@@ -413,14 +427,11 @@ int MaraSession::launch (SimulationSetup& setup)
 
         // Generate iteration output message
         // --------------------------------------------------------------------
-        blockDecomposition.getCommunicator().onMasterOnly ([&] ()
-        {
-            double kzps = 1e-3 * setup.meshGeometry->totalCellsInMesh() / timer.age();
-            std::cout << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
-            std::cout << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
-            std::cout << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
-            std::cout << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
-        });
+        double kzps = 1e-3 * setup.meshGeometry->totalCellsInMesh() / timer.age();
+        logger->log() << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
+        logger->log() << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
+        logger->log() << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
+        logger->log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
     }
 
     return 0;
@@ -477,9 +488,10 @@ int main (int argc, const char* argv[])
     }
     if (command == "tovtk")
     {
+        Logger logger;
         for (int n = 2; n < argc; ++n)
         {
-            checkpointToVtk (argv[n]);
+            checkpointToVtk (argv[n], logger);
         }
         return 0;
     }

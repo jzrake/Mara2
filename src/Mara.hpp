@@ -7,7 +7,7 @@
 #include <functional>
 #include "Array.hpp"
 #include "Matrix.hpp"
-#include "Reconstruction.hpp"
+#include "Logger.hpp"
 
 
 
@@ -43,6 +43,16 @@ class MayUseIntercellFluxScheme  { public: virtual void setIntercellFluxScheme  
 class MayUseMeshGeometry         { public: virtual void setMeshGeometry         (std::shared_ptr<MeshGeometry>)         {} };
 class MayUseRiemannSolver        { public: virtual void setRiemannSolver        (std::shared_ptr<RiemannSolver>)        {} };
 
+
+
+class MayUseLogger
+{
+public:
+    MayUseLogger() : logger (new Logger) {}
+    void setLogger (std::shared_ptr<Logger> loggerToUse) { logger = loggerToUse; }
+protected:
+    std::shared_ptr<Logger> logger;
+};
 
 
 
@@ -96,7 +106,6 @@ public:
     bool disableCT;
 
     // Algorithms
-    std::shared_ptr<TimeSeriesManager> timeSeriesManager;
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<ConservationLaw> conservationLaw;
     std::shared_ptr<IntercellFluxScheme> intercellFluxScheme;
@@ -107,6 +116,7 @@ public:
     InitialDataFunction vectorPotentialFunction;
     InitialDataFunction boundaryValueFunction;
 };
+
 
 
 
