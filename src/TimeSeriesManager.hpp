@@ -13,13 +13,11 @@ namespace Cow { namespace H5 { class DataSetCreator; } }
 
 
 /**
-This class handles logic associated with reading and writing time series
-simulation data. It may be used as a table, with named columns, each
+This class encapsulates logic associated with reading and writing time series
+simulation data. It may be used like a table, with named columns, each
 having homogeneous data type either int or double. However, there is no
 requirement that the columns have uniform length, and you can have two
-columns with the same name, one of each type, if you really want to. Calling
-append with set of named Variant objects creates or appends to a column for
-each entry.
+columns with the same name, one of each type if you really want to.
 */
 class TimeSeriesManager : public MayUseLogger
 {
@@ -39,10 +37,15 @@ public:
     void write (Cow::H5::DataSetCreator& location) const;
 
     /**
-    Add a new entry to the time series data. For each key in the columns
-    parameter, a column of data with that name is ensured to exist, with the
-    type of the variant's value (must be either int or double). Iteration and
-    simulation time (and maybe others) are recorded from the status struct.
+    Append a new entry to the column with the given name. The value must be a
+    Variant of type int or double. If no column exists with that name, then
+    a new one is started.
+    */
+    void append (std::string name, Variant value);
+
+    /**
+    Call append() for each of the given named values, and also for relevant
+    members of the given status struct.
     */
     void append (SimulationStatus status, Variant::NamedValues columns);
 

@@ -21,7 +21,7 @@ void TimeSeriesManager::load (H5::DataSetCreator& location)
                 logger->log ("TimeSeriesManager")
                 << "loading '"
                 << name
-                << "' [type: double, size: " << seriesDoubles[name].size() << "]"
+                << "' [double, length " << seriesDoubles[name].size() << "]"
                 << std::endl;
                 return;
             }
@@ -31,7 +31,7 @@ void TimeSeriesManager::load (H5::DataSetCreator& location)
                 logger->log ("TimeSeriesManager")
                 << "loading '"
                 << name
-                << "' [type: int, size: " << seriesInts[name].size() << "]"
+                << "' [int, length " << seriesInts[name].size() << "]"
                 << std::endl;
                 return;
             }
@@ -51,22 +51,26 @@ void TimeSeriesManager::write (H5::DataSetCreator& location) const
         location.writeVectorInt (column.first, column.second);
     }
 }
+void TimeSeriesManager::append (std::string name, Variant value)
+{
+    switch (value.getType())
+    {
+        case 'd': seriesDoubles[name].push_back (value); break;
+        case 'i': seriesInts[name].push_back (value); break;
+        default: throw std::logic_error ("[TimeSeriesManager] only accepts "
+            "entries of type int and double");
+    }
+}
 
 void TimeSeriesManager::append (SimulationStatus status, Variant::NamedValues columns)
 {
+    append ("iteration", status.simulationIter);
+    append ("time", status.simulationTime);
+
     for (auto entry : columns)
     {
-        switch (entry.second.getType())
-        {
-            case 'd': seriesDoubles[entry.first].push_back (entry.second); break;
-            case 'i': seriesInts[entry.first].push_back (entry.second); break;
-            default: throw std::logic_error ("[TimeSeriesManager] can only accept "
-                "entries of type int and double");
-        }
+        append (entry.first, entry.second);
     }
-
-    seriesInts["iteration"].push_back (status.simulationIter);
-    seriesDoubles["time"].push_back (status.simulationTime);
 }
 
 void TimeSeriesManager::clear()
