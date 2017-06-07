@@ -423,7 +423,7 @@ void doOutputStage(
         auto fieldNames = setup.conservationLaw->getDiagnosticNames();
         auto entry = Variant::NamedValues();
 
-        for (int n = 0; n < fieldNames.size(); ++n)
+        for (unsigned int n = 0; n < fieldNames.size(); ++n)
         {
             entry[fieldNames[n]] = volumeAveraged[n];
         }

@@ -137,7 +137,7 @@ std::vector<double> FluxConservativeSystem::volumeIntegratedDiagnostics()
         const auto index = pit.relativeIndex();
         const double Vol = meshGeometry->cellVolume (index[0], index[1], index[2]);
 
-        for (int n = 0; n < cellD.size(); ++n)
+        for (unsigned int n = 0; n < cellD.size(); ++n)
         {
             diagnostics[n] += cellD[n] * Vol;
         }
