@@ -10,14 +10,14 @@ local function background(x, y, z)
     return {d, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, vAlfven}
 end
 
-local function abc_driving_floor_ceil(x, y, z)
+local function abc_flceil(x, y, z)
     local sgnz = z > 0 and 1 or -1
     local vx = vDrive * math.sin(4 * math.pi * y) * sgnz
     local vy = vDrive * math.cos(4 * math.pi * x) * sgnz
     return {vx, vy}
 end
 
-local function abc_driving_floor_only(x, y, z)
+local function abc_noceil(x, y, z)
     if (z < 0) then
         local vx = vDrive * math.sin(4 * math.pi * y)
         local vy = vDrive * math.cos(4 * math.pi * x)
@@ -27,7 +27,7 @@ local function abc_driving_floor_only(x, y, z)
     end
 end
 
-local function single_vortex_pair(x, y, z)
+local function single_ft(x, y, z)
     local sgnz = z > 0 and 1 or -1
     local R = (x^2 + y^2)^0.5
     local k = 10
@@ -38,25 +38,17 @@ local function single_vortex_pair(x, y, z)
     return {vx, vy}
 end
 
-local function apply_model(id, res)
+function apply_model(id, res)
 
     local models = {
-        ['bdrv-noceilz2'] =
-        {
-            bvf         = abc_driving_floor_only,
-            aspect      = 2
-        },
-        ['bdrv-noceilz4'] =
-        {
-            bvf         = abc_driving_floor_only,
-            aspect      = 4
-        },
-        ['bdrv-noceilz2-noise2'] =
-        {
-            bvf         = abc_driving_floor_only,
-            aspect      = 2,
-            noise_level = 1e-2
-        },
+        ['bdrv-noceilz1']        = { bvf = abc_noceil, aspect = 1, noise_level = 0.0},
+        ['bdrv-noceilz2']        = { bvf = abc_noceil, aspect = 2, noise_level = 0.0},
+        ['bdrv-noceilz4']        = { bvf = abc_noceil, aspect = 4, noise_level = 0.0},
+        ['bdrv-noceilz2-noise2'] = { bvf = abc_noceil, aspect = 2, noise_level = 1e-2},
+        ['bdrv-singlez1']        = { bvf = single_ft,  aspect = 1, noise_level = 0.0},
+        ['bdrv-singlez2']        = { bvf = single_ft,  aspect = 2, noise_level = 0.0},
+        ['bdrv-singlez4']        = { bvf = single_ft,  aspect = 4, noise_level = 0.0},
+        ['bdrv-singlez2-noise2'] = { bvf = single_ft,  aspect = 2, noise_level = 1e-2},
     }
 
     local M = models[id]

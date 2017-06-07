@@ -183,7 +183,7 @@ std::vector<double> BlockDecomposition::volumeAverageOverPatches (const std::vec
 {
     auto result = communicator.sum (diagnostics);
 
-    for (auto x : result)
+    for (auto& x : result)
     {
         x /= globalGeometry->meshVolume();
     }
