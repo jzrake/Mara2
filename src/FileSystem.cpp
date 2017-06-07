@@ -59,7 +59,7 @@ void FileSystem::ensureParentDirectoryExists (std::string pathName)
 
 std::string FileSystem::makeFilename (std::string directory, std::string base, std::string extension, int number)
 {
-    std::ostringstream filenameStream;
+    auto filenameStream = std::ostringstream();
     filenameStream << directory << "/" << base;
 
     if (number >= 0)
