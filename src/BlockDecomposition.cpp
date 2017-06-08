@@ -116,6 +116,25 @@ Cow::Shape BlockDecomposition::getGlobalShape() const
     return globalGeometry->cellsShape();
 }
 
+int BlockDecomposition::patchCoordsContainingCell (int index, int axis) const
+{
+    auto globalGeom = dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get());
+    auto globalDims = communicator.getDimensions();
+    auto globalShape = globalGeom->cellsShape();
+
+    for (int n = 0; n < globalDims[axis]; ++n)
+    {
+        int start = startIndex (globalShape[axis], globalDims[axis], n);
+        int size = partition (globalShape[axis], globalDims[axis], n);
+
+        if (start <= index && index < start + size)
+        {
+            return n;
+        }
+    }
+    throw std::logic_error ("[BlockDecomposition::patchCoordsContainingCell] index out of range");
+}
+
 std::shared_ptr<MeshGeometry> BlockDecomposition::decompose() const
 {
     auto globalGeom = dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get());
@@ -133,6 +152,7 @@ std::shared_ptr<MeshGeometry> BlockDecomposition::decompose() const
         localRegion.upper[0] - 0.5,
         localRegion.upper[1] - 0.5,
         localRegion.upper[2] - 0.5));
+
     return localGeom;
 }
 
@@ -188,4 +208,16 @@ std::vector<double> BlockDecomposition::volumeAverageOverPatches (const std::vec
         x /= globalGeometry->meshVolume();
     }
     return result;
+}
+
+std::vector<double> BlockDecomposition::areaAverageOverSurface (
+    const std::vector<double>& diagnostics,
+    int globalIndex,
+    int axis) const
+{
+    // int coord = communicator.getCoordinates
+    auto splitComm = communicator.split (communicator.getCoordinates()[axis]);
+    auto areaAveraged = std::vector<double>();
+
+    return areaAveraged;
 }

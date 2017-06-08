@@ -35,6 +35,12 @@ public:
     Cow::Shape getGlobalShape() const;
 
     /**
+    Return the logical cartesian coordinate, along the given axis, of the grid
+    patch at the given global cell index.
+    */
+    int patchCoordsContainingCell (int index, int axis) const;
+
+    /**
     Generate a new BoundaryCondition object based on the one given, and this
     BlockDecomposition. The returned BoundaryCondition will access data from
     neighboring grid patches if they exist, or otherwise will delegate to the
@@ -74,6 +80,13 @@ public:
     diagnostics. One volume-average is performed per entry in diagnostics.
     */
     std::vector<double> volumeAverageOverPatches (const std::vector<double>& diagnostics) const;
+
+    /**
+    Perform an area average of the given diagnostics over the subset of
+    of participating processors which contain the given cartesian index
+    of the global mesh, on the given axis.
+    */
+    std::vector<double> areaAverageOverSurface (const std::vector<double>& diagnostics, int globalIndex, int axis) const;
 
 private:
     friend class BlockDecomposedBC;
