@@ -278,16 +278,19 @@ void writeCheckpoint (
         // Create data sets for the primitive and diagnostic data
         // --------------------------------------------------------------------
         auto globalShape = Array::vectorFromShape (block.getGlobalShape());
+        auto localsShape = Array::vectorFromShape (setup.meshGeometry->cellsShape());
+        auto dtype = H5::DataType::nativeDouble();
+        auto plist = H5::PropertyList::DataSetCreate().setChunk (localsShape);
 
         for (int q = 0; q < setup.conservationLaw->getNumConserved(); ++q)
         {
             auto field = setup.conservationLaw->getPrimitiveName(q);
-            primitiveGroup.createDataSet (field, globalShape);
+            primitiveGroup.createDataSet (field, globalShape, dtype, plist);
         }
 
         if (setup.conservationLaw->getIndexFor (VT::magnetic) != -1)
         {
-            diagnosticGroup.createDataSet ("monopole", globalShape);
+            diagnosticGroup.createDataSet ("monopole", globalShape, dtype, plist);
         }
 
 

@@ -17,6 +17,14 @@ local function abc_flceil(x, y, z)
     return {vx, vy}
 end
 
+local function orth_shear(x, y, z)
+    local a = z > 0 and 1 or 0
+    local b = z > 0 and 0 or 1
+    local vx = vDrive * math.sin(2 * math.pi * y) * a
+    local vy = vDrive * math.cos(2 * math.pi * x) * b
+    return {vx, vy}
+end
+
 local function abc_noceil(x, y, z)
     if (z < 0) then
         local vx = vDrive * math.sin(4 * math.pi * y)
@@ -49,6 +57,7 @@ function apply_model(id, res)
         ['bdrv-singlez2']        = { bvf = single_ft,  aspect = 2, noise_level = 0.0},
         ['bdrv-singlez4']        = { bvf = single_ft,  aspect = 4, noise_level = 0.0},
         ['bdrv-singlez2-noise2'] = { bvf = single_ft,  aspect = 2, noise_level = 1e-2},
+        ['bdrv-orth-shear']      = { bvf = orth_shear, aspect = 1, noise_level = 0.0},
     }
 
     local M = models[id]
