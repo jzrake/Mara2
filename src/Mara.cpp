@@ -239,10 +239,10 @@ void writeCheckpoint (
     TimeSeriesManager& tseries,
     Logger& logger)
 {
-    using namespace Cow;
     using VT = ConservationLaw::VariableType; // For VT::magnetic
     using ML = ConstrainedTransport::MeshLocation; // For ML::cell
 
+    auto timer = Timer();
     auto comm = block.getCommunicator();
     auto outdir = setup.outputDirectory;
     auto filename = FileSystem::makeFilename (outdir, "chkpt", ".h5", status.numCheckpoints);
@@ -346,6 +346,7 @@ void writeCheckpoint (
         }        
     });
 
+    logger.log ("Mara") << "required " << timer.ageInSeconds() << std::endl;
     status.lastCheckpoint += setup.checkpointInterval;
     status.numCheckpoints += 1;
 }
