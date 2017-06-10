@@ -18,7 +18,7 @@ public:
 private:
     class LuaState;
     std::shared_ptr<LuaState> luaState;
-    std::string commandLineLuaString;
+    std::string luaCommandLine;
 };
 
 

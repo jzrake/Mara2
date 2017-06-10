@@ -247,6 +247,13 @@ void writeCheckpoint (
     auto outdir = setup.outputDirectory;
     auto filename = FileSystem::makeFilename (outdir, "chkpt", ".h5", status.numCheckpoints);
 
+
+    // Update the status before writing it
+    // ------------------------------------------------------------------------
+    status.lastCheckpoint += setup.checkpointInterval;
+    status.numCheckpoints += 1;
+
+
     comm.onMasterOnly ([&] ()
     {
         logger.log ("Mara") << "writing checkpoint file " << filename << std::endl;
@@ -272,7 +279,8 @@ void writeCheckpoint (
 
         file.writeString ("run_name", setup.runName);
         file.writeString ("date", oss.str());
-        file.writeString ("script", setup.luaScript);
+        file.writeString ("lua_script", setup.luaScript);
+        file.writeString ("lua_command_line", setup.luaCommandLine);
 
 
         // Create data sets for the primitive and diagnostic data
@@ -347,8 +355,6 @@ void writeCheckpoint (
     });
 
     logger.log ("Mara") << "required " << timer.ageInSeconds() << std::endl;
-    status.lastCheckpoint += setup.checkpointInterval;
-    status.numCheckpoints += 1;
 }
 
 
@@ -410,16 +416,6 @@ void doOutputStage(
     double nextChkpt = status.lastCheckpoint      + setup.checkpointInterval;
     double nextEntry = status.lastTimeSeriesEntry + setup.timeSeriesInterval;
 
-    if (isTime (setup.vtkOutputInterval, nextVtk))
-    {
-        writeVtkOutput (setup, status, system, block, logger);
-    }
-
-    if (isTime (setup.checkpointInterval, nextChkpt))
-    {
-        writeCheckpoint (setup, status, system, block, tseries, logger);
-    }
-
     if (isTime (setup.timeSeriesInterval, nextEntry))
     {
         auto volumeIntegrated = system.volumeIntegratedDiagnostics();
@@ -435,6 +431,16 @@ void doOutputStage(
 
         status.lastTimeSeriesEntry += setup.timeSeriesInterval;
         status.numTimeSeriesEntries += 1;
+    }
+
+    if (isTime (setup.vtkOutputInterval, nextVtk))
+    {
+        writeVtkOutput (setup, status, system, block, logger);
+    }
+
+    if (isTime (setup.checkpointInterval, nextChkpt))
+    {
+        writeCheckpoint (setup, status, system, block, tseries, logger);
     }
 }
 

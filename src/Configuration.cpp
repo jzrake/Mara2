@@ -187,7 +187,7 @@ Configuration::Configuration (int argc, const char* argv[])
             luaTableStream << argv[n] << "; ";
         }
     }
-    commandLineLuaString = luaTableStream.str();
+    luaCommandLine = luaTableStream.str();
 }
 
 Configuration::~Configuration()
@@ -198,11 +198,14 @@ Configuration::~Configuration()
 SimulationSetup Configuration::fromCheckpoint (std::string filename)
 {
     auto file = Cow::H5::File (filename, "r");
-    auto script = file.readString ("script");
+    auto script = file.readString ("lua_script");
+    auto chkptLuaCmdline = file.readString ("lua_command_line");
     lua.script (script);
-    lua.script (commandLineLuaString);
+    lua.script (chkptLuaCmdline); // We first run the command line code in the checkpoint
+    lua.script (luaCommandLine);  // Then we run the command line code from this execution
     auto setup = luaState->fromLuaTable (lua.globals());
     setup.luaScript = script;
+    setup.luaCommandLine = chkptLuaCmdline + ";" + luaCommandLine;
     setup.restartFile = filename;
     setup.initialDataFunction = nullptr;
     setup.vectorPotentialFunction = nullptr;
@@ -212,21 +215,22 @@ SimulationSetup Configuration::fromCheckpoint (std::string filename)
 SimulationSetup Configuration::fromLuaFile (std::string filename)
 {
     lua.script_file (filename);
-    lua.script (commandLineLuaString);
+    lua.script (luaCommandLine);
     auto setup = luaState->fromLuaTable (lua.globals());
     auto stream = std::ifstream (filename);
     auto c0 = std::istreambuf_iterator<char>(stream);
     auto c1 = std::istreambuf_iterator<char>();
     setup.luaScript = std::string (c0, c1);
+    setup.luaCommandLine = luaCommandLine;
     return setup;
 }
 
 int Configuration::launchFromScript (MaraSession& session, std::string filename)
 {
-    if (! commandLineLuaString.empty())
+    if (! luaCommandLine.empty())
     {
         std::cout << "[Configuration] Warning: command line string ignored in run mode" << std::endl;
-        std::cout << "[Configuration] " << commandLineLuaString << std::endl;
+        std::cout << "[Configuration] " << luaCommandLine << std::endl;
     }
 
     sol::table mara = lua.require_script ("mara", "return {}", false);
