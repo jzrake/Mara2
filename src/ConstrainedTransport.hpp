@@ -16,15 +16,16 @@ class UniformCartesianCT : public ConstrainedTransport
 public:
     using Array = Cow::Array;
     using Shape = Cow::Shape;
+    using Region = Cow::Region;
 
     /**
     Data structure returned by methods which request fluxes.
     */
     struct FluxArrays
     {
-        Cow::Array F1;
-        Cow::Array F2;
-        Cow::Array F3;
+        Array F1;
+        Array F2;
+        Array F3;
     };
 
     /**
@@ -94,17 +95,17 @@ public:
     FluxArrays getGodunovFluxes();
 
 private:
-    Cow::Array computeMonopoleVert() const;
-    Cow::Array computeMonopoleCell() const;
+    Array computeMonopoleVert() const;
+    Array computeMonopoleCell() const;
     void setFaceBC();
     void setCellBC();
     std::shared_ptr<MeshGeometry> meshGeometry;
     std::shared_ptr<BoundaryCondition> boundaryCondition;
 
-    Cow::Region updateableRegionF1;
-    Cow::Region updateableRegionF2;
-    Cow::Region updateableRegionF3;
-    Cow::Region updateableRegionB;
+    Region updateableRegionF1;
+    Region updateableRegionF2;
+    Region updateableRegionF3;
+    Region updateableRegionB;
 
     Array F1; // Godunov flux along each axis, stored on faces
     Array F2;
