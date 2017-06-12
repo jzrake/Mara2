@@ -576,7 +576,7 @@ int main (int argc, const char* argv[])
     }
     if (command == "test")
     {
-        return TestSuite().runAllTests();
+        return TestSuite().runAllTests (argc - 1, argv + 1);
     }
     if (command == "run")
     {

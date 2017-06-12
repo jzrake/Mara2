@@ -7,7 +7,7 @@
 class TestSuite
 {
 public:
-    int runAllTests();
+    int runAllTests (int argc, const char* argv[]);
 };
 
 #endif
