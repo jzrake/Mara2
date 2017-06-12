@@ -51,6 +51,7 @@ class MayUseLogger
 public:
     MayUseLogger() : logger (new Logger) {}
     void setLogger (std::shared_ptr<Logger> loggerToUse) { logger = loggerToUse; }
+    std::shared_ptr<Logger> getLogger() { return logger; }
 protected:
     std::shared_ptr<Logger> logger;
 };
@@ -77,10 +78,11 @@ using AreaElement = std::array<double, 3>;
 
 
 
-class MaraSession
+class MaraSession : public MayUseLogger
 {
 public:
-    int launch (SimulationSetup& setup);
+    MaraSession();
+    SimulationStatus launch (SimulationSetup& setup);
 };
 
 

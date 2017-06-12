@@ -85,7 +85,7 @@ private:
 
 
 // ============================================================================
-BlockDecomposition::BlockDecomposition (const std::shared_ptr<MeshGeometry> globalGeometry) :
+BlockDecomposition::BlockDecomposition (const std::shared_ptr<MeshGeometry> globalGeometry, Logger& logger) :
 globalGeometry (globalGeometry)
 {
     // The geometry instance needs to be cartesian.
@@ -93,16 +93,13 @@ globalGeometry (globalGeometry)
 
     auto world = MpiCommunicator::world();
     communicator = world.createCartesian (3, globalGeometry->fleshedOutAxes());
-    communicator.onMasterOnly ( [&] ()
-    {
-        std::cout
-        << "[BlockDecomposition] running on "
+    logger.log ("BlockDecomposition")
+        << "running on "
         << communicator.size() << " "
         << "MPI processes ["
         << communicator.getDimensions()[0] << " "
         << communicator.getDimensions()[1] << " "
         << communicator.getDimensions()[2] << "]\n";
-    });
 }
 
 std::shared_ptr<BoundaryCondition> BlockDecomposition::createBoundaryCondition (

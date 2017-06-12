@@ -448,15 +448,9 @@ void doOutputStage(
 
 
 // ============================================================================
-int MaraSession::launch (SimulationSetup& setup)
+MaraSession::MaraSession()
 {
-    // "Dependency injection"
-    // ------------------------------------------------------------------------
-    auto block = BlockDecomposition (setup.meshGeometry);
-    auto tseries = TimeSeriesManager();
-    auto logger = std::make_shared<Logger>();
-
-    if (block.getCommunicator().isThisMaster())
+    if (MpiCommunicator::world().isThisMaster())
     {
         logger->setLogToStdout();
     }
@@ -464,6 +458,14 @@ int MaraSession::launch (SimulationSetup& setup)
     {
         logger->setLogToNull();
     }
+}
+
+SimulationStatus MaraSession::launch (SimulationSetup& setup)
+{
+    // "Dependency injection"
+    // ------------------------------------------------------------------------
+    auto block = BlockDecomposition (setup.meshGeometry, *logger);
+    auto tseries = TimeSeriesManager();
 
 
     setup.meshGeometry = block.decompose();
@@ -535,7 +537,7 @@ int MaraSession::launch (SimulationSetup& setup)
         doOutputStage (setup, status, system, block, tseries, *logger);
     }
 
-    return 0;
+    return status;
 }
 
 
@@ -547,8 +549,8 @@ int main (int argc, const char* argv[])
     using namespace Cow;
     MpiSession mpiSession;
 
-    // std::set_terminate (Cow::terminateWithBacktrace);
-    std::set_terminate (Cow::terminateWithPrintException);
+    std::set_terminate (Cow::terminateWithBacktrace);
+    //std::set_terminate (Cow::terminateWithPrintException);
 
     if (argc == 1)
     {
@@ -590,6 +592,7 @@ int main (int argc, const char* argv[])
     if (command == "tovtk")
     {
         Logger logger;
+
         for (int n = 2; n < argc; ++n)
         {
             checkpointToVtk (argv[n], logger);
@@ -599,12 +602,14 @@ int main (int argc, const char* argv[])
     if (extension == ".lua")
     {
         auto setup = configuration.fromLuaFile (argv[1]);
-        return session.launch (setup);
+        session.launch (setup);
+        return 0;
     }
     if (extension == ".h5")
     {
         auto setup = configuration.fromCheckpoint (argv[1]);
-        return session.launch (setup);
+        session.launch (setup);
+        return 0;
     }
 
     std::cout << "unrecognized command " << command << std::endl;

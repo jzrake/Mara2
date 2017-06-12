@@ -54,6 +54,11 @@ public:
     */
     void clear();
 
+    std::vector<double> getSeriesDouble (std::string) const;
+    std::vector<int> getSeriesInt (std::string) const;
+    std::vector<std::string> getSeriesNamesDouble() const;
+    std::vector<std::string> getSeriesNamesInt() const;
+
 private:
     std::map<std::string, std::vector<double>> seriesDoubles;
     std::map<std::string, std::vector<int>> seriesInts;

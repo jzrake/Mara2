@@ -51,6 +51,7 @@ void TimeSeriesManager::write (H5::Location& location) const
         location.writeVectorInt (column.first, column.second);
     }
 }
+
 void TimeSeriesManager::append (std::string name, Variant value)
 {
     switch (value.getType())
@@ -77,4 +78,36 @@ void TimeSeriesManager::clear()
 {
     seriesDoubles.clear();
     seriesInts.clear();
+}
+
+std::vector<double> TimeSeriesManager::getSeriesDouble (std::string name) const
+{
+    return seriesDoubles.at (name);
+}
+
+std::vector<int> TimeSeriesManager::getSeriesInt (std::string name) const
+{
+    return seriesInts.at (name);
+}
+
+std::vector<std::string> TimeSeriesManager::getSeriesNamesDouble() const
+{
+    auto result = std::vector<std::string>();
+
+    for (auto entry : seriesDoubles)
+    {
+        result.push_back (entry.first);
+    }
+    return result;
+}
+
+std::vector<std::string> TimeSeriesManager::getSeriesNamesInt() const
+{
+    auto result = std::vector<std::string>();
+
+    for (auto entry : seriesInts)
+    {
+        result.push_back (entry.first);
+    }
+    return result;
 }

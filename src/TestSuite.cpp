@@ -49,7 +49,7 @@ SCENARIO ("Stencil operations should behave correctly")
             }
         }
     }
-    
+
     GIVEN ("A stencil with shape [2, 2, 0]")
     {
         auto stencilShape = Shape();
@@ -161,35 +161,102 @@ SCENARIO ("Stencil operations should behave correctly")
 }
 
 
+
+
+// ============================================================================
+#include "Mara.hpp"
+#include "CartesianMeshGeometry.hpp"
+#include "BoundaryConditions.hpp"
+#include "ConservationLaws.hpp"
+#include "ConstrainedTransport.hpp"
+#include "IntercellFluxSchemes.hpp"
+#include "RiemannSolvers.hpp"
+
+SCENARIO ("Mara session should launch if given minimal setup")
+{
+    auto session = MaraSession();
+    auto setup = SimulationSetup();
+
+    setup.finalTime               = 0.001;
+    setup.checkpointInterval      = 0.0;
+    setup.vtkOutputInterval       = 0.0;
+    setup.boundaryCondition       = std::make_shared<PeriodicBoundaryCondition>();
+    setup.conservationLaw         = std::make_shared<NewtonianHydro>();
+    setup.riemannSolver           = std::make_shared<HlleRiemannSolver>();
+    setup.meshGeometry            = std::make_shared<CartesianMeshGeometry>();
+    setup.intercellFluxScheme     = std::make_shared<MethodOfLinesPlm>();
+    setup.constrainedTransport    = std::make_shared<UniformCartesianCT>();
+    setup.initialDataFunction     = [] (double x, double, double)
+    {
+        return std::vector<double> { 1.0 + 0.1 * std::sin (2 * M_PI * x), 0., 0., 0., 1. };
+    };
+
+    session.getLogger()->setLogToNull();
+    CHECK (session.launch (setup).simulationIter == 1);
+}
+
+
+
+
+// ============================================================================
+#include "HDF5.hpp"
+#include "TimeSeriesManager.hpp"
+
+SCENARIO ("Time series manager should behave reasonably")
+{
+    GIVEN ("A time series manager populated with data series, with unequal lengths")
+    {
+        TimeSeriesManager timeSeriesManager;
+        timeSeriesManager.getLogger()->setLogToNull();
+        timeSeriesManager.append ("mean_energy", 1.1);
+        timeSeriesManager.append ("num_unhealthy_zones", 12);
+        timeSeriesManager.append ("mean_pressure", 2.2);
+        timeSeriesManager.append ("num_unhealthy_zones", 13);
+
+        WHEN ("Columns are queried")
+        {
+            THEN ("They have the expected size")
+            {
+                CHECK (timeSeriesManager.getSeriesNamesDouble().size() == 2);
+                CHECK (timeSeriesManager.getSeriesNamesInt().size() == 1);
+                CHECK (timeSeriesManager.getSeriesDouble ("mean_energy").size() == 1);
+                CHECK (timeSeriesManager.getSeriesDouble ("mean_pressure").size() == 1);
+                CHECK (timeSeriesManager.getSeriesInt ("num_unhealthy_zones").size() == 2);
+                CHECK_THROWS_AS (timeSeriesManager.getSeriesInt ("not_there"), std::out_of_range);
+            }
+        }
+
+        WHEN ("Time series data is written to HDF5")
+        {
+            auto hdf5File = Cow::H5::File ("time_series_test.h5", "w");
+            timeSeriesManager.write (hdf5File);
+
+            THEN ("There are the expected number of columns in the file")
+            {
+                int numDatasets = 0;
+                hdf5File.iterate ([&] (std::string) { numDatasets++; });
+                CHECK (numDatasets == 3);
+            }
+
+            THEN ("Time series data can be cleared and restored from the file")
+            {
+                timeSeriesManager.clear();
+                CHECK (timeSeriesManager.getSeriesNamesDouble().size() == 0);
+
+                timeSeriesManager.load (hdf5File);
+                CHECK (timeSeriesManager.getSeriesNamesDouble().size() == 2);
+                CHECK (timeSeriesManager.getSeriesInt ("num_unhealthy_zones").size() == 2);
+            }
+        }
+    }
+}
+
+
+
+
+// ============================================================================
 int TestSuite::runAllTests (int argc, const char* argv[])
 {
     int result = Catch::Session().run (argc, argv);
     return (result < 0xff ? result : 0xff);
-
-
-    // TimeSeriesManager timeSeriesManager;
-
-    // auto measurement1 = Variant::NamedValues();
-    // auto measurement2 = Variant::NamedValues();
-    // auto status = SimulationStatus();
-    // auto hdf5File = Cow::H5::File ("time_series.h5", "w");
-
-    // measurement1["mean_energy"] = 1.1;
-    // measurement1["num_unhealthy_zones"] = 12;
-    // timeSeriesManager.append (status, measurement1);
-
-    // measurement2["mean_pressure"] = 2.2;
-    // measurement2["num_unhealthy_zones"] = 13;
-    // timeSeriesManager.append (status, measurement2);
-    // timeSeriesManager.write (hdf5File);
-
-    // hdf5File.createGroup ("group1");
-    // hdf5File.createGroup ("group2");
-
-    // auto group1 = hdf5File.getGroup ("group1");
-    // timeSeriesManager.write (group1);
-    // timeSeriesManager.load (group1);
-    // timeSeriesManager.load (hdf5File);
-
-    return 0;
 }

@@ -14,9 +14,10 @@ public:
     BlockDecomposition() { }
 
     /**
-    Constructor, initializes an MPI cartesian communicator.
+    Constructor, initializes an MPI cartesian communicator. The logger is not held, but used
+    to report on the configuration.
     */
-    BlockDecomposition (const std::shared_ptr<MeshGeometry> globalGeometry);
+    BlockDecomposition (const std::shared_ptr<MeshGeometry> globalGeometry, Logger& logger);
 
     /**
     Return a const reference to the communicator in use. Be sure the
