@@ -1,12 +1,8 @@
-#include "TestSuite.hpp"
-#include "Stencil.hpp"
-#include "Reconstruction.hpp"
-// #include "TimeSeriesManager.hpp"
-// #include "HDF5.hpp"
-
 #define CATCH_CONFIG_RUNNER
 #include "Catch.hpp"
 #include "Array.hpp"
+
+#include "TestSuite.hpp"
 
 using namespace Cow;
 
@@ -14,6 +10,8 @@ using namespace Cow;
 
 
 // ============================================================================
+#include "Stencil.hpp"
+
 SCENARIO ("Stencil operations should behave correctly")
 {
     GIVEN ("A stencil with shape [2, 3, 4]")
@@ -246,6 +244,61 @@ SCENARIO ("Time series manager should behave reasonably")
                 timeSeriesManager.load (hdf5File);
                 CHECK (timeSeriesManager.getSeriesNamesDouble().size() == 2);
                 CHECK (timeSeriesManager.getSeriesInt ("num_unhealthy_zones").size() == 2);
+            }
+        }
+    }
+}
+
+
+
+
+// ============================================================================
+// #include "InitialDataGenerator.hpp"
+// #include "ConstrainedTransport.hpp"
+
+// SCENARIO ("Constrained transport should work as expected")
+// {
+//     GIVEN ("An instance of UniformCartesianCT")
+//     {
+//         auto id = InitialDataGenerator();
+//         auto ct = UniformCartesianCT();
+//         auto bc = PeriodicBoundaryCondition();
+
+//     }
+// }
+
+
+
+
+// ============================================================================
+#include "InitialDataGenerator.hpp"
+#include "BoundaryConditions.hpp"
+
+SCENARIO ("Initial data generator should work as expected")
+{
+    GIVEN ("An initial data generator and cartesian geometry")
+    {
+        auto fn = [] (double x, double, double)
+        {
+            return std::vector<double> { std::sin (2 * M_PI * x), std::cos (2 * M_PI * x) };
+        };
+        auto id = InitialDataGenerator();
+        auto mg = CartesianMeshGeometry();
+
+        WHEN ("Initial data is generated")
+        {
+            auto P = id.generatePrimitive (fn, mg);
+    
+            THEN ("The returned array has the expected size")
+            {
+                CHECK (P.size(0) == mg.cellsShape()[0]);
+                CHECK (P.size(3) == 2);
+            }
+
+            THEN ("The returned array has the expected data")
+            {
+                CHECK (P (0, 0, 0, 0) == fn (mg.coordinateAtIndex(0, 0, 0)[0], 0., 0.)[0]);
+                CHECK (P (0, 0, 0, 1) == fn (mg.coordinateAtIndex(0, 0, 0)[0], 0., 0.)[1]);
             }
         }
     }

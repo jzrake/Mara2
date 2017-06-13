@@ -42,10 +42,16 @@ public:
     void setBoundaryCondition (std::shared_ptr<BoundaryCondition>) override;
 
     /**
-    Compute monopole at the given mesh location (vert or cell) from the given
-    array of magnetic field vectors.
+    Compute monopole at the given mesh location (vert or cell) from the
+    internal array of magnetic field vectors.
     */
     Array computeMonopole (MeshLocation location) const override;
+
+    /**
+    Compute the conduction curren (curl B) at the given mesh location from the
+    internal array of magnetic field vectors.
+    */
+    Array computeCurrent (MeshLocation location) const override;
 
     /**
     Assign Godunov fluxes to the cell faces. Each of the arrays should have 3

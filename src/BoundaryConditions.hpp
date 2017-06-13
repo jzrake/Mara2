@@ -19,6 +19,8 @@ public:
         MeshBoundary boundary,
         int axis,
         int numGuard) const override;
+
+    bool isAxisPeriodic (int axis) override { return true; }
 };
 
 
@@ -36,6 +38,8 @@ public:
         MeshBoundary boundary,
         int axis,
         int numGuard) const override;
+
+    bool isAxisPeriodic (int axis) override { return false; }
 };
 
 
@@ -56,6 +60,8 @@ public:
         int numGuard) const override;
 
     void setConservationLaw (std::shared_ptr<ConservationLaw> law) override;
+
+    bool isAxisPeriodic (int axis) override { return false; }
 
 private:
     Cow::Array reflect (const Cow::Array::Reference& validData, int axis) const;
@@ -82,6 +88,8 @@ public:
         MeshBoundary boundary,
         int axis,
         int numGuard) const override;
+    bool isAxisPeriodic (int axis) override { return axis == 0 || axis == 1; }
+
 private:
     InitialDataFunction velocityFunction;
     std::shared_ptr<ConservationLaw> conservationLaw;

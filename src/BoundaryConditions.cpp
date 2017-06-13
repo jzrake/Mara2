@@ -4,7 +4,6 @@
 
 
 
-
 // ============================================================================
 void PeriodicBoundaryCondition::apply (
     Cow::Array& A,
@@ -13,7 +12,35 @@ void PeriodicBoundaryCondition::apply (
     int axis,
     int numGuard) const
 {
+    if (A.size (axis) == 1)
+    {
+        throw std::runtime_error ("Attempt to apply boundary "
+            "condition on flattened axis " + std::to_string (axis));
+    }
 
+    auto guardZone = Cow::Region();
+    auto validZone = Cow::Region();
+
+    switch (boundary)
+    {
+        case MeshBoundary::left:
+        {
+            guardZone.lower[axis] =  0;
+            guardZone.upper[axis] =  numGuard;
+            validZone.lower[axis] = -numGuard * 2;
+            validZone.upper[axis] = -numGuard;
+            break;
+        }
+        case MeshBoundary::right:
+        {
+            guardZone.lower[axis] = -numGuard;
+            guardZone.upper[axis] =  0;
+            validZone.lower[axis] =  numGuard;
+            validZone.upper[axis] =  numGuard * 2;
+            break;
+        }
+    }
+    A[guardZone] = A[validZone];
 };
 
 
@@ -57,7 +84,6 @@ void OutflowBoundaryCondition::apply (
                 break;
             }
         }
-
         A[guardZone] = A[validZone];
     }
 };
@@ -179,10 +205,10 @@ void DrivenMHDBoundary::apply (
     int axis,
     int numGuard) const
 {
-    if (axis != 2)
+    if (axis == 0 || axis == 1)
     {
-        // We use periodic BC's in x and y, guarenteed to be applied already.
-        return;
+        auto periodic = PeriodicBoundaryCondition();
+        periodic.apply (A, location, boundary, axis, numGuard);
     }
 
     // If A has 3 components, then it's CT calling, and the data in A is

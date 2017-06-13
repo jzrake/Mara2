@@ -63,16 +63,20 @@ public:
 
         // --------------------------------------------------------------------
         // We apply physical boundary conditions if we are at the edge of the
-        // block-decomposed domain.
+        // block-decomposed domain, and the current axis is not periodic.
         // --------------------------------------------------------------------
-        auto C = block.communicator;
-        bool isWallL = C.getCoordinates()[axis] == 0;
-        bool isWallR = C.getCoordinates()[axis] == C.getDimensions()[axis] - 1;
 
-        if (   (boundary == MeshBoundary::left  && isWallL)
-            || (boundary == MeshBoundary::right && isWallR))
+        if (! physicalBC->isAxisPeriodic (axis))
         {
-            physicalBC->apply (A, location, boundary, axis, numGuard);
+            auto C = block.communicator;
+            bool isWallL = C.getCoordinates()[axis] == 0;
+            bool isWallR = C.getCoordinates()[axis] == C.getDimensions()[axis] - 1;
+
+            if (   (boundary == MeshBoundary::left  && isWallL)
+                || (boundary == MeshBoundary::right && isWallR))
+            {
+                physicalBC->apply (A, location, boundary, axis, numGuard);
+            }
         }
     }
 

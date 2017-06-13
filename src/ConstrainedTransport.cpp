@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cmath>
 #include "ConstrainedTransport.hpp"
+#include "Stencil.hpp"
 
 using namespace Cow;
 
@@ -83,8 +84,37 @@ Array UniformCartesianCT::computeMonopole (MeshLocation location) const
     {
         case MeshLocation::vert: return computeMonopoleVert();
         case MeshLocation::cell: return computeMonopoleCell();
-        default: assert (false);
+        default: throw std::logic_error ("Mesh location for monopole calculation not cell or vert");
     }
+}
+
+Array UniformCartesianCT::computeCurrent (MeshLocation location) const
+{
+    if (location != MeshLocation::cell)
+    {
+        throw std::logic_error ("Mesh location for current calculation not cell");
+    }
+
+    auto curl = [] (const Array& B, Array& J)
+    {
+        const double d1B2 = B (1, 0, 0, 2) - B (-1, 0, 0, 2);
+        const double d2B1 = B (0, 1, 0, 1) - B ( 0,-1, 0, 1);
+        const double d2B3 = B (0, 1, 0, 3) - B ( 0,-1, 0, 3);
+        const double d3B2 = B (0, 0, 1, 2) - B ( 0, 0,-1, 2);
+        const double d3B1 = B (0, 0, 1, 1) - B ( 0, 0,-1, 1);
+        const double d1B3 = B (1, 0, 0, 3) - B (-1, 0, 0, 3);
+
+        J[0] = d2B3 - d3B2;
+        J[1] = d3B1 - d1B3;
+        J[2] = d1B2 - d2B1;
+    };
+
+    auto stencil = Stencil();
+    stencil.setCodomainRank (3, 1);
+    stencil.setFootprintLower (-1, -1, -1);
+    stencil.setFootprintUpper (+1, +1, +1);
+
+    return stencil.evaluate (curl, B);
 }
 
 void UniformCartesianCT::assignGodunovFluxes (Array newF1, Array newF2, Array newF3)
@@ -101,7 +131,7 @@ void UniformCartesianCT::assignVectorPotential (InitialDataFunction A, MeshLocat
 
     if (A (0, 0, 0).size() != 3)
     {
-        throw std::runtime_error ("vector potential function returned vector of length != 3");
+        throw std::runtime_error ("Vector potential function returned vector of length != 3");
     }
 
     for (int i = 0; i < F1.size(0); ++i)
@@ -336,9 +366,9 @@ Cow::Array UniformCartesianCT::computeMonopoleCell() const
         {
             for (int k = 0; k < Mc.size(2); ++k)
             {
-                const double Mi = 0.5 * (Mv(i, j, k) + Mv(i + 1, j, k));
-                const double Mj = 0.5 * (Mv(i, j, k) + Mv(i, j + 1, k));
-                const double Mk = 0.5 * (Mv(i, j, k) + Mv(i, j, k + 1));
+                const double Mi = 0.5 * (Mv (i, j, k) + Mv (i + 1, j, k));
+                const double Mj = 0.5 * (Mv (i, j, k) + Mv (i, j + 1, k));
+                const double Mk = 0.5 * (Mv (i, j, k) + Mv (i, j, k + 1));
                 Mc (i, j, k) = 1. / 3 * (Mi + Mj + Mk);
             }
         }

@@ -29,6 +29,11 @@ MeshGeometry::PatchIndex MeshGeometry::getPatchIndex() const
     return patchIndex;
 }
 
+MeshGeometry::Coordinate MeshGeometry::coordinateAtIndex (Cow::Index index) const
+{
+    return coordinateAtIndex (index[0], index[1], index[2]);
+}
+
 
 
 
