@@ -274,7 +274,7 @@ SCENARIO ("Time series manager should behave reasonably")
 #include "InitialDataGenerator.hpp"
 #include "BoundaryConditions.hpp"
 
-SCENARIO ("Initial data generator should work as expected")
+SCENARIO ("Initial data generator and periodic boundaries should work as expected")
 {
     GIVEN ("An initial data generator and cartesian geometry")
     {
@@ -284,6 +284,7 @@ SCENARIO ("Initial data generator should work as expected")
         };
         auto id = InitialDataGenerator();
         auto mg = CartesianMeshGeometry();
+        auto bc = PeriodicBoundaryCondition();
 
         WHEN ("Initial data is generated")
         {
@@ -299,6 +300,29 @@ SCENARIO ("Initial data generator should work as expected")
             {
                 CHECK (P (0, 0, 0, 0) == fn (mg.coordinateAtIndex(0, 0, 0)[0], 0., 0.)[0]);
                 CHECK (P (0, 0, 0, 1) == fn (mg.coordinateAtIndex(0, 0, 0)[0], 0., 0.)[1]);
+            }
+        }
+
+        WHEN ("Two guard zones are not set by the initial data function")
+        {
+            int numGuard = 2;
+            auto fullShape = mg.cellsShape();
+            fullShape[0] += 2 * numGuard;
+            fullShape[3] = 2;
+
+            auto interiorRegion = Region().withLower (0, numGuard).withUpper (0, -numGuard);
+            auto P = Array (fullShape);
+
+            P[interiorRegion] = id.generatePrimitive (fn, mg);
+            bc.apply (P, BoundaryCondition::MeshLocation::cell, BoundaryCondition::MeshBoundary::left,  0, numGuard);
+            bc.apply (P, BoundaryCondition::MeshLocation::cell, BoundaryCondition::MeshBoundary::right, 0, numGuard);
+
+            THEN ("Periodic boundary conditions set the expected values to the guard zones")
+            {
+                CHECK (P (0, 0, 0, 0) == P (mg.cellsShape()[0], 0, 0, 0));
+                CHECK (P (0, 0, 0, 1) == P (mg.cellsShape()[0], 0, 0, 1));
+                CHECK (P (mg.cellsShape()[0] + numGuard, 0, 0, 0) == P (numGuard, 0, 0, 0));
+                CHECK (P (mg.cellsShape()[0] + numGuard, 0, 0, 1) == P (numGuard, 0, 0, 1));
             }
         }
     }

@@ -10,6 +10,7 @@ class InitialDataGenerator
 {
 public:
     Cow::Array generatePrimitive (InitialDataFunction F, const MeshGeometry& geometry) const;
+    Cow::Array generateMagnetic (InitialDataFunction A, const MeshGeometry& geometry) const;
 };
 
 #endif

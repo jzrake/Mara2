@@ -4,6 +4,7 @@ using namespace Cow;
 
 
 
+
 // ============================================================================
 Array InitialDataGenerator::generatePrimitive (InitialDataFunction F, const MeshGeometry& geometry) const
 {
