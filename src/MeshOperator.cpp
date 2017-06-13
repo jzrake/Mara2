@@ -22,11 +22,26 @@ void MeshOperator::setMeshGeometry (std::shared_ptr<MeshGeometry> g)
 {
     geometry = g;
 
-    auto cellsShape = geometry->cellsShape();
-    auto facesShape = makeFacesShape(1);
+    auto edgesShape = makeEdgesShape (1, VectorMode::scalars);
+    auto facesShape = makeFacesShape (1, VectorMode::scalars);
+    auto cellsShape = makeCellsShape (1);
 
+    edgeLengths = Array (edgesShape);
     cellVolumes = Array (cellsShape);
     faceAreas   = Array (facesShape);
+
+    for (int i = 0; i < edgesShape[0]; ++i)
+    {
+        for (int j = 0; j < edgesShape[1]; ++j)
+        {
+            for (int k = 0; k < edgesShape[2]; ++k)
+            {
+                edgeLengths (i, j, k, 0, 0) = geometry->edgeLength (i, j, k, 0);
+                edgeLengths (i, j, k, 0, 1) = geometry->edgeLength (i, j, k, 1);
+                edgeLengths (i, j, k, 0, 2) = geometry->edgeLength (i, j, k, 2);
+            }
+        }
+    }
 
     for (int i = 0; i < facesShape[0]; ++i)
     {
@@ -51,14 +66,119 @@ void MeshOperator::setMeshGeometry (std::shared_ptr<MeshGeometry> g)
             }
         }
     }
+
 }
 
-Array MeshOperator::generate (InitialDataFunction F, MeshLocation location) const
+Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, VectorMode vectorMode) const
 {
     ENSURE_GEOMETRY_IS_VALID;
 
     switch (location)
     {
+        case MeshLocation::edge:
+        {
+            auto shape = makeEdgesShape (F (0.0, 0.0, 0.0).size(), vectorMode);
+            auto E = Array (shape);
+
+            for (int i = 0; i < shape[0]; ++i)
+            {
+                for (int j = 0; j < shape[1]; ++j)
+                {
+                    for (int k = 0; k < shape[2]; ++k)
+                    {
+                        auto coord0 = geometry->coordinateAtIndex (i, j - 0.5, k - 0.5);
+                        auto coord1 = geometry->coordinateAtIndex (i - 0.5, j, k - 0.5);
+                        auto coord2 = geometry->coordinateAtIndex (i - 0.5, j - 0.5, k);
+
+                        auto P0 = F (coord0[0], coord0[1], coord0[2]);
+                        auto P1 = F (coord1[0], coord1[1], coord1[2]);
+                        auto P2 = F (coord2[0], coord2[1], coord2[2]);
+
+                        switch (vectorMode)
+                        {
+                            case VectorMode::scalars:
+                            {                            
+                                for (int q = 0; q < shape[3]; ++q)
+                                {
+                                    E (i, j, k, q, 0) = P0[q];
+                                    E (i, j, k, q, 1) = P1[q];
+                                    E (i, j, k, q, 2) = P2[q];
+                                }
+                                break;
+                            }
+                            case VectorMode::emflike:
+                            {
+                                auto nhat0 = geometry->edgeVector (i, j, k, 0);
+                                auto nhat1 = geometry->edgeVector (i, j, k, 1);
+                                auto nhat2 = geometry->edgeVector (i, j, k, 2);
+
+                                E (i, j, k, 0, 0) = nhat0.project (P0[0], P0[1], P0[2]);
+                                E (i, j, k, 0, 1) = nhat1.project (P1[0], P1[1], P1[2]);
+                                E (i, j, k, 0, 2) = nhat2.project (P2[0], P2[1], P2[2]);
+                                break;
+                            }
+                            default:
+                            {
+                                throw std::logic_error ("Invalid vector mode for generating data on edges");
+                            }
+                        }
+                    }
+                }
+            }
+            return E;
+        }
+        case MeshLocation::face:
+        {
+            auto shape = makeFacesShape (F (0.0, 0.0, 0.0).size(), vectorMode);
+            auto B = Array (shape);
+
+            for (int i = 0; i < shape[0]; ++i)
+            {
+                for (int j = 0; j < shape[1]; ++j)
+                {
+                    for (int k = 0; k < shape[2]; ++k)
+                    {
+                        auto coord0 = geometry->coordinateAtIndex (i - 0.5, j, k);
+                        auto coord1 = geometry->coordinateAtIndex (i, j - 0.5, k);
+                        auto coord2 = geometry->coordinateAtIndex (i, j, k - 0.5);
+
+                        auto P0 = F (coord0[0], coord0[1], coord0[2]);
+                        auto P1 = F (coord1[0], coord1[1], coord1[2]);
+                        auto P2 = F (coord2[0], coord2[1], coord2[2]);
+
+                        switch (vectorMode)
+                        {
+                            case VectorMode::scalars:
+                            {                            
+                                for (int q = 0; q < shape[3]; ++q)
+                                {
+                                    B (i, j, k, q, 0) = P0[q];
+                                    B (i, j, k, q, 1) = P1[q];
+                                    B (i, j, k, q, 2) = P2[q];
+                                }
+                                break;
+                            }
+                            case VectorMode::fluxish:
+                            {
+                                auto nhat0 = geometry->faceNormal (i, j, k, 0);
+                                auto nhat1 = geometry->faceNormal (i, j, k, 1);
+                                auto nhat2 = geometry->faceNormal (i, j, k, 2);
+
+                                B (i, j, k, 0, 0) = nhat0.project (P0[0], P0[1], P0[2]);
+                                B (i, j, k, 0, 1) = nhat1.project (P1[0], P1[1], P1[2]);
+                                B (i, j, k, 0, 2) = nhat2.project (P2[0], P2[1], P2[2]);
+                                break;
+                            }
+                            default:
+                            {
+                                throw std::logic_error ("Invalid vector mode for generating data on faces");
+                            }
+                        }
+                    }
+                }
+            }
+            return B;
+        }
         case MeshLocation::cell:
         {
             auto shape = makeCellsShape (F (0.0, 0.0, 0.0).size());
@@ -76,36 +196,6 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location) cons
                 }
             }
             return P;
-        }
-        case MeshLocation::face:
-        {
-            auto shape = makeFacesShape (F (0.0, 0.0, 0.0).size());
-            auto B = Array (shape);
-
-            for (int i = 0; i < shape[0]; ++i)
-            {
-                for (int j = 0; j < shape[1]; ++j)
-                {
-                    for (int k = 0; k < shape[2]; ++k)
-                    {
-                        auto coord0 = geometry->coordinateAtIndex (i - 0.5, j, k);
-                        auto coord1 = geometry->coordinateAtIndex (i, j - 0.5, k);
-                        auto coord2 = geometry->coordinateAtIndex (i, j, k - 0.5);
-
-                        auto P0 = F (coord0[0], coord0[1], coord0[2]);
-                        auto P1 = F (coord1[0], coord1[1], coord1[2]);
-                        auto P2 = F (coord2[0], coord2[1], coord2[2]);
-
-                        for (int q = 0; q < shape[3]; ++q)
-                        {
-                            B(i, j, k, q, 0) = P0[q];
-                            B(i, j, k, q, 1) = P1[q];
-                            B(i, j, k, q, 2) = P2[q];
-                        }
-                    }
-                }
-            }
-            return B;
         }
         default:
         {
@@ -129,9 +219,9 @@ Array MeshOperator::divergence (const Array& flux, MeshLocation location) const
     {
         for (int q = 0; q < numComponents; ++q)
         {
-            d[q] += F(1, 0, 0, q, 0) * A (1, 0, 0, 0, 0) - F(0, 0, 0, q, 0) * A (0, 0, 0, 0, 0);
-            d[q] += F(0, 1, 0, q, 1) * A (0, 1, 0, 0, 1) - F(0, 0, 0, q, 1) * A (0, 0, 0, 0, 1);
-            d[q] += F(0, 0, 1, q, 2) * A (0, 0, 1, 0, 2) - F(0, 0, 0, q, 2) * A (0, 0, 0, 0, 2);
+            d[q] += F (1, 0, 0, q, 0) * A (1, 0, 0, 0, 0) - F (0, 0, 0, q, 0) * A (0, 0, 0, 0, 0);
+            d[q] += F (0, 1, 0, q, 1) * A (0, 1, 0, 0, 1) - F (0, 0, 0, q, 1) * A (0, 0, 0, 0, 1);
+            d[q] += F (0, 0, 1, q, 2) * A (0, 0, 1, 0, 2) - F (0, 0, 0, q, 2) * A (0, 0, 0, 0, 2);
         }
     };
     auto D = stencil.evaluate (div, flux, faceAreas);
@@ -143,8 +233,42 @@ Array MeshOperator::divergence (const Array& flux, MeshLocation location) const
     return D;
 }
 
-Shape MeshOperator::makeFacesShape (int numComponents) const
+Array MeshOperator::curl (const Array& potential, MeshLocation location) const
 {
+    return Array();
+}
+
+Shape MeshOperator::makeEdgesShape (int numComponents, VectorMode mode) const
+{
+    if (mode == VectorMode::emflike)
+    {
+        if (numComponents != 3)
+        {
+            throw std::logic_error ("Attempt to assign EMF-like data whose shape is not 3");
+        }
+        numComponents = 1;
+    }
+
+    auto S = geometry->cellsShape();
+    S[0] += 1;
+    S[1] += 1;
+    S[2] += 1;
+    S[3] = numComponents;
+    S[4] = 3;
+    return S;
+}
+
+Shape MeshOperator::makeFacesShape (int numComponents, VectorMode mode) const
+{
+    if (mode == VectorMode::fluxish)
+    {
+        if (numComponents != 3)
+        {
+            throw std::logic_error ("Attempt to assign flux-like data whose shape is not 3");
+        }
+        numComponents = 1;
+    }
+
     auto S = geometry->cellsShape();
     S[0] += 1;
     S[1] += 1;

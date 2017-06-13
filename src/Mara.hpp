@@ -1,6 +1,7 @@
 #ifndef Mara_hpp
 #define Mara_hpp
 
+
 #include <memory>
 #include <vector>
 #include <string>
@@ -207,7 +208,7 @@ public:
     /**
     Derived classes override this to set mesh resolution.
     */
-    virtual void setCellsShape (Cow::Shape) {}
+    virtual void setCellsShape (Cow::Shape) = 0;
 
     /**
     Derived classes override this to set domain limits.
@@ -249,6 +250,16 @@ public:
     Return the unit vector for the given face normal.
     */
     virtual UnitVector faceNormal (int i, int j, int k, int axis) const = 0;
+
+    /**
+    Return the length of the edge at the given index and axis.
+    */
+    virtual double edgeLength (int i, int j, int k, int axis) const = 0;
+
+    /**
+    Return the unit vector parallel to the edge at the given index and axis.
+    */
+    virtual UnitVector edgeVector (int i, int j, int k, int axis) const = 0;
 
     /**
     Return the volume of the cell at the given index.

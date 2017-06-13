@@ -63,6 +63,13 @@ double UnitVector::pitchAngleWith (const UnitVector& other) const
     return u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
 }
 
+double UnitVector::project (double vx, double vy, double vz) const
+{
+    double nx, ny, nz;
+    getCartesianComponents (nx, ny, nz);
+    return vx * nx + vy * ny + vz * nz;
+}
+
 UnitVector UnitVector::withPolarAxis (const UnitVector& newPolarAxis)
 {
     double theta = std::acos (newPolarAxis.pitchAngleMu);

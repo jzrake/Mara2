@@ -256,9 +256,9 @@ SCENARIO ("Time series manager should behave reasonably")
 #include "MeshOperator.hpp"
 #include "BoundaryConditions.hpp"
 
-SCENARIO ("Mesh operator and periodic boundaries should work as expected")
+SCENARIO ("Mesh operator should work as expected")
 {
-    GIVEN ("A mesh operator and cartesian geometry")
+    GIVEN ("A 1D mesh operator and cartesian geometry")
     {
         auto fn = [] (double x, double, double)
         {
@@ -325,6 +325,80 @@ SCENARIO ("Mesh operator and periodic boundaries should work as expected")
             THEN ("The array of corresponding divergences has the correct shape")
             {
                 CHECK (M.size(0) == mg->cellsShape()[0]);
+            }
+        }
+    }
+
+    GIVEN ("A 3D mesh operator and a [16, 32, 8] cartesian geometry")
+    {
+        auto mo = std::make_shared<MeshOperator>();
+        auto mg = std::make_shared<CartesianMeshGeometry>();
+
+        mg->setCellsShape ({{16, 32, 8}});
+        mo->setMeshGeometry (mg);
+
+        WHEN ("An ABC field is generated on faces in flux mode")
+        {
+            auto abcField = [] (double x, double y, double z)
+            {
+                const double k = 2 * M_PI;
+                const double A = 1.0;
+                const double B = 1.0;
+                const double C = 1.0;
+                const double b1 = C * std::cos (k * z) - B * std::sin (k * y);
+                const double b2 = A * std::cos (k * x) - C * std::sin (k * z);
+                const double b3 = B * std::cos (k * y) - A * std::sin (k * x);
+                return std::vector<double> { b1, b2, b3 };
+            };
+
+            auto B = mo->generate (abcField, MeshLocation::face, MeshOperator::VectorMode::fluxish);
+            auto M = mo->divergence (B, MeshLocation::cell);
+
+            THEN ("The B field has the expected shape [17, 33, 9] with one component")
+            {
+                CHECK (B.size(0) == 17);
+                CHECK (B.size(1) == 33);
+                CHECK (B.size(2) == 9);
+                CHECK (B.size(3) == 1);
+            }
+
+            THEN ("The monopole field has the expected shape [16, 32, 8] with one component")
+            {
+                CHECK (M.size(0) == 16);
+                CHECK (M.size(1) == 32);
+                CHECK (M.size(2) == 8);
+                CHECK (M.size(3) == 1);                
+            }
+
+            THEN ("The monopole field is zero at some randomly checked locations")
+            {
+                CHECK (M (2, 6, 6) == Approx (0.0));
+                CHECK (M (6, 0, 6) == Approx (0.0));
+                CHECK (M (6, 6, 2) == Approx (0.0));
+                CHECK (M (0, 1, 0) == Approx (0.0));
+            }
+        }
+
+        WHEN ("A non-solenoidal field is generated on faces in flux mode")
+        {
+            auto abcField = [] (double x, double y, double z)
+            {
+                const double k = 2 * M_PI;
+                const double b1 = std::cos (k * x);
+                const double b2 = std::cos (k * y);
+                const double b3 = std::cos (k * z);
+                return std::vector<double> { b1, b2, b3 };
+            };
+
+            auto V = mo->generate (abcField, MeshLocation::face, MeshOperator::VectorMode::fluxish);
+            auto D = mo->divergence (V, MeshLocation::cell);
+
+            THEN ("The divergence field is non-zero at some randomly checked locations")
+            {
+                CHECK (D (2, 6, 6) != Approx (0.0));
+                CHECK (D (6, 0, 6) != Approx (0.0));
+                CHECK (D (6, 6, 2) != Approx (0.0));
+                CHECK (D (0, 1, 0) != Approx (0.0));
             }
         }
     }

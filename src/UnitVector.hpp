@@ -45,6 +45,11 @@ public:
     double pitchAngleWith (const UnitVector& other) const;
 
     /**
+    Return the projection of a cartesian vector onto this unit vector.
+    */
+    double project (double vx, double vy, double vz) const;
+
+    /**
     Return the unit vector which results if this vector's pitch and azimuthal
     angles were with respect to newPolarAxis, rather than the z-axis. For
     example: zhat.withPolarAxis (xhat) = xhat.

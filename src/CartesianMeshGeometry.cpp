@@ -45,6 +45,21 @@ CartesianMeshGeometry::CartesianMeshGeometry()
     upper = {{1.0, 1.0, 1.0}};
 }
 
+
+void CartesianMeshGeometry::setCellsShape (Cow::Shape S)
+{
+    shape[0] = S[0];
+    shape[1] = S[1];
+    shape[2] = S[2];
+}
+
+void CartesianMeshGeometry::setLowerUpper (Coordinate L, Coordinate U)
+{
+    lower = L;
+    upper = U;
+}
+
+
 Cow::Shape CartesianMeshGeometry::cellsShape() const
 {
     return shape;
@@ -61,21 +76,6 @@ MeshGeometry::Coordinate CartesianMeshGeometry::coordinateAtIndex (double i, dou
         lower[0] + (upper[0] - lower[0]) * (i + 0.5) / shape[0],
         lower[1] + (upper[1] - lower[1]) * (j + 0.5) / shape[1],
         lower[2] + (upper[2] - lower[2]) * (k + 0.5) / shape[2]}});
-}
-
-double CartesianMeshGeometry::faceArea (int i, int j, int k, int axis) const
-{
-    const double dx = cellLength (i, j, k, 0);
-    const double dy = cellLength (i, j, k, 1);
-    const double dz = cellLength (i, j, k, 2);
-
-    switch (axis)
-    {
-        case 0: return dy * dz;
-        case 1: return dz * dx;
-        case 2: return dx * dy;
-        default: assert (false);
-    }
 }
 
 double CartesianMeshGeometry::cellLength (int i, int j, int k, int axis) const
@@ -96,7 +96,38 @@ double CartesianMeshGeometry::meshVolume() const
     return (upper[0] - lower[0]) * (upper[1] - lower[1]) * (upper[2] - lower[2]);
 }
 
+double CartesianMeshGeometry::faceArea (int i, int j, int k, int axis) const
+{
+    const double dx = cellLength (i, j, k, 0);
+    const double dy = cellLength (i, j, k, 1);
+    const double dz = cellLength (i, j, k, 2);
+
+    switch (axis)
+    {
+        case 0: return dy * dz;
+        case 1: return dz * dx;
+        case 2: return dx * dy;
+        default: assert (false);
+    }
+}
+
 UnitVector CartesianMeshGeometry::faceNormal (int i, int j, int k, int axis) const
+{
+    switch (axis)
+    {
+        case 0: return UnitVector::xhat;
+        case 1: return UnitVector::yhat;
+        case 2: return UnitVector::zhat;
+        default: throw std::logic_error ("Axis argument not 0, 1, or 2");
+    }
+}
+
+double CartesianMeshGeometry::edgeLength (int i, int j, int k, int axis) const
+{
+    return cellLength (i, j, k, axis);
+}
+
+UnitVector CartesianMeshGeometry::edgeVector (int i, int j, int k, int axis) const
 {
     switch (axis)
     {
