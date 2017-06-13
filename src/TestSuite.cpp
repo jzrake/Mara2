@@ -253,77 +253,132 @@ SCENARIO ("Time series manager should behave reasonably")
 
 
 // ============================================================================
-// #include "InitialDataGenerator.hpp"
-// #include "ConstrainedTransport.hpp"
-
-// SCENARIO ("Constrained transport should work as expected")
-// {
-//     GIVEN ("An instance of UniformCartesianCT")
-//     {
-//         auto id = InitialDataGenerator();
-//         auto ct = UniformCartesianCT();
-//         auto bc = PeriodicBoundaryCondition();
-
-//     }
-// }
-
-
-
-
-// ============================================================================
-#include "InitialDataGenerator.hpp"
+#include "MeshOperator.hpp"
 #include "BoundaryConditions.hpp"
 
-SCENARIO ("Initial data generator and periodic boundaries should work as expected")
+SCENARIO ("Mesh operator and periodic boundaries should work as expected")
 {
-    GIVEN ("An initial data generator and cartesian geometry")
+    GIVEN ("A mesh operator and cartesian geometry")
     {
         auto fn = [] (double x, double, double)
         {
             return std::vector<double> { std::sin (2 * M_PI * x), std::cos (2 * M_PI * x) };
         };
-        auto id = InitialDataGenerator();
-        auto mg = CartesianMeshGeometry();
-        auto bc = PeriodicBoundaryCondition();
+        auto mo = std::make_shared<MeshOperator>();
+        auto mg = std::make_shared<CartesianMeshGeometry>();
+        auto bc = std::make_shared<PeriodicBoundaryCondition>();
 
-        WHEN ("Initial data is generated")
+        mo->setMeshGeometry (mg);
+
+        WHEN ("Initial data is generated in volumes")
         {
-            auto P = id.generatePrimitive (fn, mg);
+            auto P = mo->generate (fn, MeshLocation::cell);
     
             THEN ("The returned array has the expected size")
             {
-                CHECK (P.size(0) == mg.cellsShape()[0]);
+                CHECK (P.size(0) == mg->cellsShape()[0]);
                 CHECK (P.size(3) == 2);
             }
 
             THEN ("The returned array has the expected data")
             {
-                CHECK (P (0, 0, 0, 0) == fn (mg.coordinateAtIndex(0, 0, 0)[0], 0., 0.)[0]);
-                CHECK (P (0, 0, 0, 1) == fn (mg.coordinateAtIndex(0, 0, 0)[0], 0., 0.)[1]);
+                CHECK (P (0, 0, 0, 0) == fn (mg->coordinateAtIndex(0, 0, 0)[0], 0., 0.)[0]);
+                CHECK (P (0, 0, 0, 1) == fn (mg->coordinateAtIndex(0, 0, 0)[0], 0., 0.)[1]);
             }
         }
 
-        WHEN ("Two guard zones are not set by the initial data function")
+        WHEN ("Two guard zones are left untouched by the initial data function")
         {
             int numGuard = 2;
-            auto fullShape = mg.cellsShape();
+            auto fullShape = mg->cellsShape();
             fullShape[0] += 2 * numGuard;
             fullShape[3] = 2;
 
             auto interiorRegion = Region().withLower (0, numGuard).withUpper (0, -numGuard);
             auto P = Array (fullShape);
 
-            P[interiorRegion] = id.generatePrimitive (fn, mg);
-            bc.apply (P, BoundaryCondition::MeshLocation::cell, BoundaryCondition::MeshBoundary::left,  0, numGuard);
-            bc.apply (P, BoundaryCondition::MeshLocation::cell, BoundaryCondition::MeshBoundary::right, 0, numGuard);
+            P[interiorRegion] = mo->generate (fn, MeshLocation::cell);
+            bc->apply (P, MeshLocation::cell, MeshBoundary::left,  0, numGuard);
+            bc->apply (P, MeshLocation::cell, MeshBoundary::right, 0, numGuard);
 
-            THEN ("Periodic boundary conditions set the expected values to the guard zones")
+            THEN ("Periodic boundary conditions assign the expected values to the guard zones")
             {
-                CHECK (P (0, 0, 0, 0) == P (mg.cellsShape()[0], 0, 0, 0));
-                CHECK (P (0, 0, 0, 1) == P (mg.cellsShape()[0], 0, 0, 1));
-                CHECK (P (mg.cellsShape()[0] + numGuard, 0, 0, 0) == P (numGuard, 0, 0, 0));
-                CHECK (P (mg.cellsShape()[0] + numGuard, 0, 0, 1) == P (numGuard, 0, 0, 1));
+                CHECK (P (0, 0, 0, 0) == P (mg->cellsShape()[0], 0, 0, 0));
+                CHECK (P (0, 0, 0, 1) == P (mg->cellsShape()[0], 0, 0, 1));
+                CHECK (P (mg->cellsShape()[0] + numGuard, 0, 0, 0) == P (numGuard, 0, 0, 0));
+                CHECK (P (mg->cellsShape()[0] + numGuard, 0, 0, 1) == P (numGuard, 0, 0, 1));
             }
+        }
+
+        WHEN ("Initial data is generated on faces")
+        {
+            auto B = mo->generate (fn, MeshLocation::face);
+            auto M = mo->divergence (B, MeshLocation::cell);
+
+            THEN ("The returned array has the expected shape")
+            {
+                CHECK (B.size(0) == mg->cellsShape()[0] + 1);
+                CHECK (B.size(3) == 2);
+                CHECK (B.size(4) == 3);
+            }
+
+            THEN ("The array of corresponding divergences has the correct shape")
+            {
+                CHECK (M.size(0) == mg->cellsShape()[0]);
+            }
+        }
+    }
+}
+
+
+
+
+// ============================================================================
+#include "UnitVector.hpp"
+#include "RotationMatrix.hpp"
+
+SCENARIO ("Rotation matrices should behave appropriately with unit vectors")
+{
+    GIVEN ("The unit vector zhat")
+    {
+        UnitVector xhat = UnitVector::fromCartesian (1, 0, 0);
+        UnitVector yhat = UnitVector::fromCartesian (0, 1, 0);
+        UnitVector zhat = UnitVector::fromCartesian (0, 0, 1);
+
+        THEN ("Y (pi / 2) zhat = xhat")
+        {
+            REQUIRE ((RotationMatrix::aboutY (M_PI / 2) * zhat).pitchAngleMu == Approx (xhat.pitchAngleMu));
+            REQUIRE ((RotationMatrix::aboutY (M_PI / 2) * zhat).azimuthalAnglePhi == Approx (xhat.azimuthalAnglePhi));
+        }
+
+        THEN ("X (-pi / 2) zhat = yhat")
+        {
+            REQUIRE ((RotationMatrix::aboutX (-M_PI / 2) * zhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
+            REQUIRE ((RotationMatrix::aboutX (-M_PI / 2) * zhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
+        }
+
+        THEN ("Z (pi / 2) xhat = yhat")
+        {
+            REQUIRE ((RotationMatrix::aboutZ (M_PI / 2) * xhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
+            REQUIRE ((RotationMatrix::aboutZ (M_PI / 2) * xhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
+        }
+
+        THEN ("zhat.withPolarAxis (xhat) = xhat")
+        {
+            REQUIRE (zhat.withPolarAxis (xhat).pitchAngleMu == Approx (xhat.pitchAngleMu));
+            REQUIRE (zhat.withPolarAxis (xhat).azimuthalAnglePhi == Approx (xhat.azimuthalAnglePhi));
+        }
+
+        THEN ("zhat.withPolarAxis (yhat) = yhat")
+        {
+            REQUIRE (zhat.withPolarAxis (yhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
+            REQUIRE (zhat.withPolarAxis (yhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
+        }
+
+        THEN ("zhat.withPolarAxis (zhat) = zhat")
+        {
+            REQUIRE (zhat.withPolarAxis (zhat).pitchAngleMu == Approx (zhat.pitchAngleMu));
+            REQUIRE (zhat.withPolarAxis (zhat).azimuthalAnglePhi == Approx (zhat.azimuthalAnglePhi));
         }
     }
 }

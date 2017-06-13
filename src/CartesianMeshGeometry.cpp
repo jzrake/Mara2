@@ -96,6 +96,17 @@ double CartesianMeshGeometry::meshVolume() const
     return (upper[0] - lower[0]) * (upper[1] - lower[1]) * (upper[2] - lower[2]);
 }
 
+UnitVector CartesianMeshGeometry::faceNormal (int i, int j, int k, int axis) const
+{
+    switch (axis)
+    {
+        case 0: return UnitVector::xhat;
+        case 1: return UnitVector::yhat;
+        case 2: return UnitVector::zhat;
+        default: throw std::logic_error ("Axis argument not 0, 1, or 2");
+    }
+}
+
 Cow::Array CartesianMeshGeometry::getPointCoordinates (int axis) const
 {
     assert (0 <= axis && axis < 3);

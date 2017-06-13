@@ -215,7 +215,7 @@ void writeVtkOutput (
         vtkMesh.addVectorField ("magnetic", B);
 
         // Write divergence of magnetic field (at mesh vertices)
-        auto M = setup.constrainedTransport->computeMonopole (ConstrainedTransport::MeshLocation::vert);
+        auto M = setup.constrainedTransport->computeMonopole (MeshLocation::vert);
         vtkMesh.addScalarField ("monopole", M, VTK::RectilinearGrid::MeshLocation::vert);
     }
 
@@ -240,7 +240,7 @@ void writeCheckpoint (
     Logger& logger)
 {
     using VT = ConservationLaw::VariableType; // For VT::magnetic
-    using ML = ConstrainedTransport::MeshLocation; // For ML::cell
+    using ML = MeshLocation; // For ML::cell
 
     auto timer = Timer();
     auto comm = block.getCommunicator();

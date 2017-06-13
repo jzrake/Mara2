@@ -10,6 +10,7 @@
 #include "Logger.hpp"
 #include "Variant.hpp" // For SimulationStatus
 
+#include "UnitVector.hpp"
 
 
 
@@ -74,6 +75,8 @@ class TimeSeriesManager;
 
 using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
 using AreaElement = std::array<double, 3>;
+enum class MeshLocation { vert, edge, face, cell };
+enum class MeshBoundary { left, right };
 
 
 
@@ -243,6 +246,11 @@ public:
     virtual double faceArea (int i, int j, int k, int axis) const = 0;
 
     /**
+    Return the unit vector for the given face normal.
+    */
+    virtual UnitVector faceNormal (int i, int j, int k, int axis) const = 0;
+
+    /**
     Return the volume of the cell at the given index.
     */
     virtual double cellVolume (int i, int j, int k) const = 0;
@@ -264,9 +272,6 @@ public MayUseMeshGeometry,
 public MayUseConservationLaw
 {
 public:
-    enum class MeshLocation { vert, edge, face, cell };
-    enum class MeshBoundary { left, right };
-
     /**
     This is the only method that needs to be implemented by BoundaryCondition
     derived classes.
@@ -322,7 +327,6 @@ public MayUseMeshGeometry,
 public MayUseBoundaryCondition
 {
 public:
-    enum class MeshLocation { vert, edge, face, cell };
     virtual void assignCellCenteredB (Cow::Array) = 0;
     virtual Cow::Array computeMonopole (MeshLocation) const = 0;
     virtual Cow::Array computeCurrent (MeshLocation) const = 0;

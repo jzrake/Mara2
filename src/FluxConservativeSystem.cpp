@@ -162,7 +162,7 @@ void FluxConservativeSystem::setInitialData (InitialDataFunction F, InitialDataF
     {
         auto ct = getCT();
 
-        ct->assignVectorPotential (A, ConstrainedTransport::MeshLocation::face);
+        ct->assignVectorPotential (A, MeshLocation::face);
         auto ctFluxes = ct->computeGodunovFluxesFieldCT();
         F1[magneticIndices] = ctFluxes.F1;
         F2[magneticIndices] = ctFluxes.F2;
@@ -353,35 +353,6 @@ void FluxConservativeSystem::intercellFluxSweep (int axis)
             }
         }
     }
-
-
-
-    // This is a possible revision to the method of flux sweeps, but requires
-    // some new Array methods:
-    // ------------------------------------------------------------------------
-
-    // auto fluxableRegion = Region::strided (3, numConserved);
-    // auto Freg = F1[updateableRegion];
-    // auto Fit = Freg.begin();
-
-    // for ( ; Fit != Freg.end(); ++Fit)
-    // {
-    //     auto P0 = P.getIterator (Fit);
-
-    //     for (int q = 0; q < numConserved; ++q)
-    //     {
-    //         for (int n = 0; n < stencilSize * 2; ++n)
-    //         {
-    //             faceData.stencilData (n, q) = P0 (n, 0, 0, q);
-    //         }
-    //     }
-    //     auto flux = intercellFluxScheme->intercellFlux (faceData);
-
-    //     for (int q = 0; q < numConserved; ++q)
-    //     {
-    //         Fit[q] = flux.F[q];
-    //     }
-    // }
 }
 
 void FluxConservativeSystem::computeTimeDerivative()
@@ -421,14 +392,14 @@ void FluxConservativeSystem::applyBoundaryCondition()
         if (domainShape[axis] > 1)
         {
             boundaryCondition->apply (P,
-                BoundaryCondition::MeshLocation::cell,
-                BoundaryCondition::MeshBoundary::left,
+                MeshLocation::cell,
+                MeshBoundary::left,
                 axis,
                 stencilSize);
 
             boundaryCondition->apply (P,
-                BoundaryCondition::MeshLocation::cell,
-                BoundaryCondition::MeshBoundary::right,
+                MeshLocation::cell,
+                MeshBoundary::right,
                 axis,
                 stencilSize);
         }

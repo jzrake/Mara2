@@ -381,13 +381,13 @@ void UniformCartesianCT::setFaceBC()
     auto callBC = [&] (Cow::Array& F, int axis)
     {
         boundaryCondition->apply (F,
-            BoundaryCondition::MeshLocation::face,
-            BoundaryCondition::MeshBoundary::left,
+            MeshLocation::face,
+            MeshBoundary::left,
             axis,
             1);
         boundaryCondition->apply (F,
-            BoundaryCondition::MeshLocation::face,
-            BoundaryCondition::MeshBoundary::right,
+            MeshLocation::face,
+            MeshBoundary::right,
             axis,
             1);
     };
@@ -404,13 +404,13 @@ void UniformCartesianCT::setCellBC()
     auto callBC = [&] (Cow::Array& BB, int axis)
     {
         boundaryCondition->apply (BB,
-            BoundaryCondition::MeshLocation::cell,
-            BoundaryCondition::MeshBoundary::left,
+            MeshLocation::cell,
+            MeshBoundary::left,
             axis,
             1);
         boundaryCondition->apply (BB,
-            BoundaryCondition::MeshLocation::cell,
-            BoundaryCondition::MeshBoundary::right,
+            MeshLocation::cell,
+            MeshBoundary::right,
             axis,
             1);
     };

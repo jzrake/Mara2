@@ -17,7 +17,9 @@ public:
     double cellLength (int i, int j, int k, int axis) const override;
     double cellVolume (int i, int j, int k) const override;
     double meshVolume() const override;
+    UnitVector faceNormal (int i, int j, int k, int axis) const override;
     Cow::Array getPointCoordinates (int axis) const;
+
 // private:
     Cow::Shape shape;
     Coordinate lower;
