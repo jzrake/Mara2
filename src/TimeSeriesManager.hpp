@@ -7,7 +7,7 @@
 #include "Mara.hpp"
 #include "Variant.hpp"
 
-namespace Cow { namespace H5 { class DataSetCreator; } }
+namespace Cow { namespace H5 { class Location; } }
 
 
 
@@ -29,12 +29,12 @@ public:
     of the data set already exists as a column in memory then that column
     is overwritten with the contents of the data set.
     */
-    void load (Cow::H5::DataSetCreator& location);
+    void load (Cow::H5::Location& location);
 
     /**
     Write time series data into the given HDF5 location.
     */
-    void write (Cow::H5::DataSetCreator& location) const;
+    void write (Cow::H5::Location& location) const;
 
     /**
     Append a new entry to the column with the given name. The value must be a

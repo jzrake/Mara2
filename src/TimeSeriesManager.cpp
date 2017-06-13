@@ -6,7 +6,7 @@ using namespace Cow;
 
 
 
-void TimeSeriesManager::load (H5::DataSetCreator& location)
+void TimeSeriesManager::load (H5::Location& location)
 {
     location.iterate ([&] (std::string name)
     {
@@ -40,7 +40,7 @@ void TimeSeriesManager::load (H5::DataSetCreator& location)
     });
 }
 
-void TimeSeriesManager::write (H5::DataSetCreator& location) const
+void TimeSeriesManager::write (H5::Location& location) const
 {
     for (auto column : seriesDoubles)
     {
