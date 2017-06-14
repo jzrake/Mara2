@@ -242,6 +242,43 @@ Array MeshOperator::curl (const Array& potential, MeshLocation location) const
         throw std::logic_error ("Attempt to compute curl of EMF-like data whose size(4) != 3");
     }
 
+    auto stencil0 = Stencil();
+    auto stencil1 = Stencil();
+    auto stencil2 = Stencil();
+    stencil0.setFootprintUpper (0, 1, 1);
+    stencil1.setFootprintUpper (1, 0, 1);
+    stencil2.setFootprintUpper (1, 1, 0);
+
+    auto rot0 = [&] (const Array& E, const Array &L, const Array &A, Array& r)
+    {
+        r[0] += E (0,1,0,0,2) * L (0,1,0,0,2) - E (0,0,0,0,2) * L (0,0,0,0,2);
+        r[0] += E (0,0,1,0,1) * L (0,0,1,0,1) - E (0,0,0,0,1) * L (0,0,0,0,1);
+        r[0] /= A (0,0,0,0,0);
+    };
+    auto rot1 = [&] (const Array& E, const Array &L, const Array &A, Array& r)
+    {
+        r[0] += E (0,0,1,0,0) * L (0,0,1,0,0) - E (0,0,0,0,0) * L (0,0,0,0,0);
+        r[0] += E (1,0,0,0,2) * L (1,0,0,0,2) - E (0,0,0,0,2) * L (0,0,0,0,2);
+        r[0] /= A (0,0,0,0,1);
+    };
+    auto rot2 = [&] (const Array& E, const Array &L, const Array &A, Array& r)
+    {
+        r[0] += E (1,0,0,0,1) * L (1,0,0,0,1) - E (0,0,0,0,1) * L (0,0,0,0,1);
+        r[0] += E (0,1,0,0,0) * L (0,1,0,0,0) - E (0,0,0,0,0) * L (0,0,0,0,0);
+        r[0] /= A (0,0,0,0,2);
+    };
+
+    auto B0 = stencil0.evaluate (rot0, potential, edgeLengths, faceAreas);
+    auto B1 = stencil1.evaluate (rot1, potential, edgeLengths, faceAreas);
+    auto B2 = stencil2.evaluate (rot2, potential, edgeLengths, faceAreas);
+
+    auto B = Array (makeFacesShape(3, VectorMode::fluxish));
+
+    B.insert (B0, Region().withLower (4, 0).withUpper (4, 1).withUpper (1, -1).withUpper (2, -1));
+    B.insert (B1, Region().withLower (4, 1).withUpper (4, 2).withUpper (2, -1).withUpper (0, -1));
+    B.insert (B2, Region().withLower (4, 2).withUpper (4, 3).withUpper (0, -1).withUpper (1, -1));
+
+    return B;
 
     /*
                     E (i, j + 1, k) : 0
@@ -256,27 +293,27 @@ Array MeshOperator::curl (const Array& potential, MeshLocation location) const
 
                     E (i, j + 0, k) : 0
     */
-    auto stencil = Stencil();
-    stencil.setFootprintLower (0, 0, 0);
-    stencil.setFootprintUpper (1, 1, 1);
-    stencil.setCodomainRank (1, 3);
+    // auto stencil = Stencil();
+    // stencil.setFootprintLower (0, 0, 0);
+    // stencil.setFootprintUpper (1, 1, 1);
+    // stencil.setCodomainRank (1, 3);
 
-    auto rot = [&] (const Array& E, const Array &L, const Array &A, Array& r)
-    {
-        r[0] += E (0,1,0,0,2) * L (0,1,0,0,2) - E (0,0,0,0,2) * L (0,0,0,0,2);
-        r[0] += E (0,0,1,0,1) * L (0,0,1,0,1) - E (0,0,0,0,1) * L (0,0,0,0,1);
+    // auto rot = [&] (const Array& E, const Array &L, const Array &A, Array& r)
+    // {
+    //     r[0] += E (0,1,0,0,2) * L (0,1,0,0,2) - E (0,0,0,0,2) * L (0,0,0,0,2);
+    //     r[0] += E (0,0,1,0,1) * L (0,0,1,0,1) - E (0,0,0,0,1) * L (0,0,0,0,1);
 
-        r[1] += E (0,0,1,0,0) * L (0,0,1,0,0) - E (0,0,0,0,0) * L (0,0,0,0,0);
-        r[1] += E (1,0,0,0,2) * L (1,0,0,0,2) - E (0,0,0,0,2) * L (0,0,0,0,2);
+    //     r[1] += E (0,0,1,0,0) * L (0,0,1,0,0) - E (0,0,0,0,0) * L (0,0,0,0,0);
+    //     r[1] += E (1,0,0,0,2) * L (1,0,0,0,2) - E (0,0,0,0,2) * L (0,0,0,0,2);
 
-        r[2] += E (1,0,0,0,1) * L (1,0,0,0,1) - E (0,0,0,0,1) * L (0,0,0,0,1);
-        r[2] += E (0,1,0,0,0) * L (0,1,0,0,0) - E (0,0,0,0,0) * L (0,0,0,0,0);
+    //     r[2] += E (1,0,0,0,1) * L (1,0,0,0,1) - E (0,0,0,0,1) * L (0,0,0,0,1);
+    //     r[2] += E (0,1,0,0,0) * L (0,1,0,0,0) - E (0,0,0,0,0) * L (0,0,0,0,0);
 
-        r[0] /= A (0,0,0,0,0);
-        r[1] /= A (0,0,0,0,1);
-        r[2] /= A (0,0,0,0,2);
-    };
-    return stencil.evaluate (rot, potential, edgeLengths, faceAreas);
+    //     r[0] /= A (0,0,0,0,0);
+    //     r[1] /= A (0,0,0,0,1);
+    //     r[2] /= A (0,0,0,0,2);
+    // };
+    // return stencil.evaluate (rot, potential, edgeLengths, faceAreas);
 }
 
 Shape MeshOperator::makeEdgesShape (int numComponents,VectorMode mode) const
