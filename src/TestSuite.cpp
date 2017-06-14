@@ -270,7 +270,7 @@ SCENARIO ("Mesh operator should work as expected")
 
         mo->setMeshGeometry (mg);
 
-        WHEN ("Initial data is generated in volumes")
+        WHEN ("Data is generated in volumes")
         {
             auto P = mo->generate (fn, MeshLocation::cell);
     
@@ -310,7 +310,7 @@ SCENARIO ("Mesh operator should work as expected")
             }
         }
 
-        WHEN ("Initial data is generated on faces")
+        WHEN ("Data is generated on faces")
         {
             auto B = mo->generate (fn, MeshLocation::face);
             auto M = mo->divergence (B, MeshLocation::cell);
@@ -331,6 +331,25 @@ SCENARIO ("Mesh operator should work as expected")
 
     GIVEN ("A 3D mesh operator and a [16, 32, 8] cartesian geometry")
     {
+        auto abcField = [] (double x, double y, double z)
+        {
+            const double k = 2 * M_PI;
+            const double A = 1.0;
+            const double B = 1.0;
+            const double C = 1.0;
+            const double b1 = C * std::cos (k * z) - B * std::sin (k * y);
+            const double b2 = A * std::cos (k * x) - C * std::sin (k * z);
+            const double b3 = B * std::cos (k * y) - A * std::sin (k * x);
+            return std::vector<double> { b1, b2, b3 };
+        };
+        auto divLikeField = [] (double x, double y, double z)
+        {
+            const double k = 2 * M_PI;
+            const double b1 = std::cos (k * x);
+            const double b2 = std::cos (k * y);
+            const double b3 = std::cos (k * z);
+            return std::vector<double> { b1, b2, b3 };
+        };
         auto mo = std::make_shared<MeshOperator>();
         auto mg = std::make_shared<CartesianMeshGeometry>();
 
@@ -339,35 +358,25 @@ SCENARIO ("Mesh operator should work as expected")
 
         WHEN ("An ABC field is generated on faces in flux mode")
         {
-            auto abcField = [] (double x, double y, double z)
-            {
-                const double k = 2 * M_PI;
-                const double A = 1.0;
-                const double B = 1.0;
-                const double C = 1.0;
-                const double b1 = C * std::cos (k * z) - B * std::sin (k * y);
-                const double b2 = A * std::cos (k * x) - C * std::sin (k * z);
-                const double b3 = B * std::cos (k * y) - A * std::sin (k * x);
-                return std::vector<double> { b1, b2, b3 };
-            };
-
             auto B = mo->generate (abcField, MeshLocation::face, MeshOperator::VectorMode::fluxish);
             auto M = mo->divergence (B, MeshLocation::cell);
 
-            THEN ("The B field has the expected shape [17, 33, 9] with one component")
+            THEN ("The B field has the expected shape [17, 33, 9] with one rank (1, 3)")
             {
                 CHECK (B.size(0) == 17);
                 CHECK (B.size(1) == 33);
                 CHECK (B.size(2) == 9);
                 CHECK (B.size(3) == 1);
+                CHECK (B.size(4) == 3);
             }
 
-            THEN ("The monopole field has the expected shape [16, 32, 8] with one component")
+            THEN ("The monopole field has the expected shape [16, 32, 8] with rank (1, 1)")
             {
                 CHECK (M.size(0) == 16);
                 CHECK (M.size(1) == 32);
                 CHECK (M.size(2) == 8);
-                CHECK (M.size(3) == 1);                
+                CHECK (M.size(3) == 1);
+                CHECK (M.size(4) == 1);
             }
 
             THEN ("The monopole field is zero at some randomly checked locations")
@@ -381,16 +390,7 @@ SCENARIO ("Mesh operator should work as expected")
 
         WHEN ("A non-solenoidal field is generated on faces in flux mode")
         {
-            auto abcField = [] (double x, double y, double z)
-            {
-                const double k = 2 * M_PI;
-                const double b1 = std::cos (k * x);
-                const double b2 = std::cos (k * y);
-                const double b3 = std::cos (k * z);
-                return std::vector<double> { b1, b2, b3 };
-            };
-
-            auto V = mo->generate (abcField, MeshLocation::face, MeshOperator::VectorMode::fluxish);
+            auto V = mo->generate (divLikeField, MeshLocation::face, MeshOperator::VectorMode::fluxish);
             auto D = mo->divergence (V, MeshLocation::cell);
 
             THEN ("The divergence field is non-zero at some randomly checked locations")
@@ -399,6 +399,44 @@ SCENARIO ("Mesh operator should work as expected")
                 CHECK (D (6, 0, 6) != Approx (0.0));
                 CHECK (D (6, 6, 2) != Approx (0.0));
                 CHECK (D (0, 1, 0) != Approx (0.0));
+            }
+        }
+
+        WHEN ("An ABC field is generated on edges in scalars mode")
+        {
+            auto A = mo->generate (abcField, MeshLocation::edge, MeshOperator::VectorMode::scalars);
+
+            THEN ("The A field has the expected shape [17, 33, 9] with rank (3, 3)")
+            {
+                CHECK (A.size(0) == 17);
+                CHECK (A.size(1) == 33);
+                CHECK (A.size(2) == 9);
+                CHECK (A.size(3) == 3);
+                CHECK (A.size(4) == 3);
+            }
+        }
+
+        WHEN ("An ABC field is generated on edges in emf mode")
+        {
+            auto A = mo->generate (abcField, MeshLocation::edge, MeshOperator::VectorMode::emflike);
+            auto B = mo->curl (A, MeshLocation::face);
+
+            THEN ("The A field has the expected shape [17, 33, 9] with rank (1, 3)")
+            {
+                CHECK (A.size(0) == 17);
+                CHECK (A.size(1) == 33);
+                CHECK (A.size(2) == 9);
+                CHECK (A.size(3) == 1);
+                CHECK (A.size(4) == 3);
+            }
+
+            THEN ("The curl of A has the expected shape [16, 32, 8] with rank (1, 3)")
+            {
+                CHECK (B.size(0) == 16);
+                CHECK (B.size(1) == 32);
+                CHECK (B.size(2) == 8);
+                CHECK (B.size(3) == 1);
+                CHECK (B.size(4) == 3);
             }
         }
     }

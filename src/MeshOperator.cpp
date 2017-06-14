@@ -27,8 +27,8 @@ void MeshOperator::setMeshGeometry (std::shared_ptr<MeshGeometry> g)
     auto cellsShape = makeCellsShape (1);
 
     edgeLengths = Array (edgesShape);
-    cellVolumes = Array (cellsShape);
     faceAreas   = Array (facesShape);
+    cellVolumes = Array (cellsShape);
 
     for (int i = 0; i < edgesShape[0]; ++i)
     {
@@ -219,9 +219,9 @@ Array MeshOperator::divergence (const Array& flux, MeshLocation location) const
     {
         for (int q = 0; q < numComponents; ++q)
         {
-            d[q] += F (1, 0, 0, q, 0) * A (1, 0, 0, 0, 0) - F (0, 0, 0, q, 0) * A (0, 0, 0, 0, 0);
-            d[q] += F (0, 1, 0, q, 1) * A (0, 1, 0, 0, 1) - F (0, 0, 0, q, 1) * A (0, 0, 0, 0, 1);
-            d[q] += F (0, 0, 1, q, 2) * A (0, 0, 1, 0, 2) - F (0, 0, 0, q, 2) * A (0, 0, 0, 0, 2);
+            d[q] += F (1,0,0,q,0) * A (1,0,0,0,0) - F (0,0,0,q,0) * A (0,0,0,0,0);
+            d[q] += F (0,1,0,q,1) * A (0,1,0,0,1) - F (0,0,0,q,1) * A (0,0,0,0,1);
+            d[q] += F (0,0,1,q,2) * A (0,0,1,0,2) - F (0,0,0,q,2) * A (0,0,0,0,2);
         }
     };
     auto D = stencil.evaluate (div, flux, faceAreas);
@@ -235,10 +235,51 @@ Array MeshOperator::divergence (const Array& flux, MeshLocation location) const
 
 Array MeshOperator::curl (const Array& potential, MeshLocation location) const
 {
-    return Array();
+    ENSURE_GEOMETRY_IS_VALID;
+
+    if (potential.size(4) != 3)
+    {
+        throw std::logic_error ("Attempt to compute curl of EMF-like data whose size(4) != 3");
+    }
+
+
+    /*
+                    E (i, j + 1, k) : 0
+
+                    +-----------------+
+                    |                 |
+                    |                 |
+    E (i, j, k) : 1 |      curl E     | E (i + 1, j, k) : 1
+                    |                 |
+                    |                 |
+                    +-----------------+
+
+                    E (i, j + 0, k) : 0
+    */
+    auto stencil = Stencil();
+    stencil.setFootprintLower (0, 0, 0);
+    stencil.setFootprintUpper (1, 1, 1);
+    stencil.setCodomainRank (1, 3);
+
+    auto rot = [&] (const Array& E, const Array &L, const Array &A, Array& r)
+    {
+        r[0] += E (0,1,0,0,2) * L (0,1,0,0,2) - E (0,0,0,0,2) * L (0,0,0,0,2);
+        r[0] += E (0,0,1,0,1) * L (0,0,1,0,1) - E (0,0,0,0,1) * L (0,0,0,0,1);
+
+        r[1] += E (0,0,1,0,0) * L (0,0,1,0,0) - E (0,0,0,0,0) * L (0,0,0,0,0);
+        r[1] += E (1,0,0,0,2) * L (1,0,0,0,2) - E (0,0,0,0,2) * L (0,0,0,0,2);
+
+        r[2] += E (1,0,0,0,1) * L (1,0,0,0,1) - E (0,0,0,0,1) * L (0,0,0,0,1);
+        r[2] += E (0,1,0,0,0) * L (0,1,0,0,0) - E (0,0,0,0,0) * L (0,0,0,0,0);
+
+        r[0] /= A (0,0,0,0,0);
+        r[1] /= A (0,0,0,0,1);
+        r[2] /= A (0,0,0,0,2);
+    };
+    return stencil.evaluate (rot, potential, edgeLengths, faceAreas);
 }
 
-Shape MeshOperator::makeEdgesShape (int numComponents, VectorMode mode) const
+Shape MeshOperator::makeEdgesShape (int numComponents,VectorMode mode) const
 {
     if (mode == VectorMode::emflike)
     {
