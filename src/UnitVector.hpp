@@ -21,6 +21,11 @@ public:
     static UnitVector fromCartesian (double vx, double vy, double vz, bool normalized=false);
 
     /**
+    Default constructor initializes as x-hat.
+    */
+    UnitVector();
+
+    /**
     Construct a unit vector from its pitch angle, mu = cos (theta), and azimuth phi.
     */
     UnitVector (double pitchAngleMu, double azimuthalAnglePhi);

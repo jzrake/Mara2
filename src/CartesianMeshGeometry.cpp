@@ -29,7 +29,7 @@ MeshGeometry::PatchIndex MeshGeometry::getPatchIndex() const
     return patchIndex;
 }
 
-MeshGeometry::Coordinate MeshGeometry::coordinateAtIndex (Cow::Index index) const
+Coordinate MeshGeometry::coordinateAtIndex (Cow::Index index) const
 {
     return coordinateAtIndex (index[0], index[1], index[2]);
 }
@@ -70,7 +70,7 @@ unsigned long CartesianMeshGeometry::totalCellsInMesh() const
     return shape[0] * shape[1] * shape[2];
 }
 
-MeshGeometry::Coordinate CartesianMeshGeometry::coordinateAtIndex (double i, double j, double k) const
+Coordinate CartesianMeshGeometry::coordinateAtIndex (double i, double j, double k) const
 {
     return Coordinate ({{
         lower[0] + (upper[0] - lower[0]) * (i + 0.5) / shape[0],

@@ -17,6 +17,11 @@ UnitVector UnitVector::fromCartesian (double vx, double vy, double vz, bool norm
     return UnitVector (cosTheta, phi);
 }
 
+UnitVector::UnitVector()
+{
+    *this = xhat;
+}
+
 UnitVector::UnitVector (double pitchAngleMu, double azimuthalAnglePhi) :
 pitchAngleMu (pitchAngleMu),
 azimuthalAnglePhi (azimuthalAnglePhi)

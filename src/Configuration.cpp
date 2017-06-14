@@ -29,7 +29,7 @@ public:
 
     InitialDataFunction makeIDF (sol::function func);
     Cow::Shape makeShape (sol::table table);
-    MeshGeometry::Coordinate makeCoordinate (sol::table table);
+    Coordinate makeCoordinate (sol::table table);
     SimulationSetup fromLuaTable (sol::table);
 };
 
@@ -71,13 +71,13 @@ Cow::Shape Configuration::LuaState::makeShape (sol::table table)
     return shape;
 };
 
-MeshGeometry::Coordinate Configuration::LuaState::makeCoordinate (sol::table table)
+Coordinate Configuration::LuaState::makeCoordinate (sol::table table)
 {
     if (table == sol::nil)
     {
         throw std::runtime_error ("[Configuration]: expected 'coordiante' like {x, y, z}, got nil");
     }
-    auto X = MeshGeometry::Coordinate();
+    auto X = Coordinate();
     X[0] = table[1];
     X[1] = table[2];
     X[2] = table[3];

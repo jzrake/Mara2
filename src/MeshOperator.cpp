@@ -42,7 +42,19 @@ private:
 
 
 // ============================================================================
-MeshOperator::MeshOperator()
+GodunovStencil::GodunovStencil (int footprint, int numCellQ, int numFaceQ) :
+cellCoords (footprint),
+cellData (footprint, numCellQ),
+faceData (numFaceQ),
+faceFlux (numCellQ)
+{
+
+}
+
+
+
+// ============================================================================
+MeshOperator::MeshOperator (std::shared_ptr<MeshGeometry> geometry) : geometry (geometry)
 {
 
 }
@@ -271,7 +283,7 @@ Array MeshOperator::curl (const Array& potential, Index start) const
 
     auto curlfield = Array (potential.shape());
 
-    Array::deploy ( RichShape(curlfield).reduced(1), [&] (int i, int j, int k)
+    Array::deploy (RichShape (curlfield).reduced(1), [&] (int i, int j, int k)
     {
         B (0,0,0,0) = 1. / A (0,0,0,0) * (
             +E (0,1,0,2) * L (0,1,0,2)
@@ -297,4 +309,63 @@ Array MeshOperator::curl (const Array& potential, Index start) const
 #undef L
 #undef E
 #undef B
+}
+
+Array MeshOperator::godunov (
+    GodunovStencil::IntercellFluxFunction Fhat,
+    const Array& cellData,
+    const Array& faceData,
+    Shape footprint,
+    Index start) const
+{
+    int nq = cellData.size(3);
+    int np = faceData.size(3);
+
+    auto& fp = footprint;
+    auto& mg = geometry;
+    auto fs0 = GodunovStencil (fp[0], nq, np);
+    auto fs1 = GodunovStencil (fp[1], nq, np);
+    auto fs2 = GodunovStencil (fp[2], nq, np);
+
+    auto fluxShape = cellData.shape();
+    fluxShape[0] -= 2 * footprint[0] - 1;
+    fluxShape[1] -= 2 * footprint[1] - 1;
+    fluxShape[2] -= 2 * footprint[2] - 1;
+
+    auto result = Array (fluxShape);
+
+    Array::deploy (fluxShape, [&] (int i, int j, int k)
+    {
+        const int ic = i + start[0]; // Indexes for querying geometry
+        const int jc = j + start[1];
+        const int kc = k + start[2];
+
+        for (int q = 0; q < nq; ++q)
+        {
+            for (int n = 0; n < fp[0]; ++n) fs0.cellData (n, q) = cellData (i + n, j, k, q);
+            for (int n = 0; n < fp[1]; ++n) fs1.cellData (n, q) = cellData (i, j + n, k, q);
+            for (int n = 0; n < fp[2]; ++n) fs2.cellData (n, q) = cellData (i, j, k + n, q);
+        }
+
+        for (int n = 0; n < fp[0]; ++n) fs0.cellCoords[n] = mg->coordinateAtIndex (ic + n, jc, kc);
+        for (int n = 0; n < fp[1]; ++n) fs1.cellCoords[n] = mg->coordinateAtIndex (ic, jc + n, kc);
+        for (int n = 0; n < fp[2]; ++n) fs2.cellCoords[n] = mg->coordinateAtIndex (ic, jc, kc + n);
+
+        fs0.faceNormal = mg->faceNormal (ic, jc, kc, 0);
+        fs1.faceNormal = mg->faceNormal (ic, jc, kc, 1);
+        fs2.faceNormal = mg->faceNormal (ic, jc, kc, 2);
+
+        Fhat (fs0);
+        Fhat (fs1);
+        Fhat (fs2);
+
+        for (int q = 0; q < nq; ++q)
+        {
+            result (i, j, k, q, 0) = fs0.faceFlux[q];
+            result (i, j, k, q, 1) = fs1.faceFlux[q];
+            result (i, j, k, q, 2) = fs2.faceFlux[q];
+        }
+    });
+
+    return result;
 }

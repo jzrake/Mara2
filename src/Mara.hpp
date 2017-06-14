@@ -76,6 +76,7 @@ class TimeSeriesManager;
 
 using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
 using AreaElement = std::array<double, 3>;
+using Coordinate = std::array<double, 3>;
 enum class MeshLocation { vert, edge, face, cell };
 enum class MeshBoundary { left, right };
 
@@ -167,11 +168,6 @@ public:
 class MeshGeometry
 {
 public:
-
-    /**
-    A type to represent a three-component coordinate vector.
-    */
-    using Coordinate = std::array<double, 3>;
 
     /**
     A type used to identify a patch in a global composite mesh.

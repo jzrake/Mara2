@@ -256,7 +256,7 @@ SCENARIO ("Time series manager should behave reasonably")
 #include "MeshOperator.hpp"
 #include "BoundaryConditions.hpp"
 
-SCENARIO ("Mesh operator should work as expected", "[mesh]")
+SCENARIO ("Mesh operator should generate data, take div and curl", "[mesh]")
 {
     GIVEN ("A 1D mesh operator and cartesian geometry")
     {
@@ -416,10 +416,11 @@ SCENARIO ("Mesh operator should work as expected", "[mesh]")
             }
         }
 
-        WHEN ("An ABC field is generated on edges in emf mode")
+        WHEN ("An ABC field is generated on edges in EMF mode")
         {
             auto A = mo->generate (abcField, MeshLocation::edge, MeshOperator::VectorMode::emflike);
             auto B = mo->curl (A);
+            auto M = mo->divergence (B);
 
             THEN ("The A field has the expected shape [17, 33, 9] with rank (1, 3)")
             {
@@ -438,6 +439,53 @@ SCENARIO ("Mesh operator should work as expected", "[mesh]")
                 CHECK (B.size(3) == 1);
                 CHECK (B.size(4) == 3);
             }
+
+            THEN ("The div of B has the expected shape [16, 32, 8] with rank (1, 1)")
+            {
+                CHECK (M.size(0) == 16);
+                CHECK (M.size(1) == 32);
+                CHECK (M.size(2) == 8);
+                CHECK (M.size(3) == 1);
+                CHECK (M.size(4) == 1);
+            }
+
+            THEN ("The div of B is zero at some randomly checked locations")
+            {
+                CHECK (M (2, 6, 6) == Approx (0.0));
+                CHECK (M (6, 0, 6) == Approx (0.0));
+                CHECK (M (6, 6, 2) == Approx (0.0));
+                CHECK (M (0, 1, 0) == Approx (0.0));
+            }
+        }
+    }
+}
+
+
+
+
+// ============================================================================
+#include "MeshOperator.hpp"
+
+SCENARIO ("Mesh operator should run flux sweeps", "[mesh]")
+{
+    GIVEN ("A 1D mesh operator, cartesian geometry, and a trivial Godunov flux function")
+    {
+        auto mg = std::make_shared<CartesianMeshGeometry>();
+        auto mo = std::make_shared<MeshOperator>(mg);
+
+        auto id = [] (double x, double, double) { return std::vector<double> { std::sin (M_PI * x) }; };
+        auto cd = [] (double x, double, double) { return std::vector<double> { }; };
+        auto gd = [] (GodunovStencil& stencil) { };
+
+        auto cellData = mo->generate (id, MeshLocation::cell);
+        auto faceData = mo->generate (cd, MeshLocation::face);
+
+        THEN ("Initial data has the expected shape")
+        {
+            CHECK (cellData.size(0) == 128);
+            CHECK (cellData.size(3) == 1);
+            CHECK (faceData.size(0) == 129);
+            CHECK (faceData.size(3) == 0);
         }
     }
 }
