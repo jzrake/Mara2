@@ -480,12 +480,58 @@ SCENARIO ("Mesh operator should run flux sweeps", "[mesh]")
         auto cellData = mo->generate (id, MeshLocation::cell);
         auto faceData = mo->generate (cd, MeshLocation::face);
 
-        THEN ("Initial data has the expected shape")
+        THEN ("Initial data (face and cell) has the expected shape")
         {
             CHECK (cellData.size(0) == 128);
             CHECK (cellData.size(3) == 1);
             CHECK (faceData.size(0) == 129);
             CHECK (faceData.size(3) == 0);
+        }
+
+        // auto footprint = Shape {{ 2, 0, 0 }};
+        // auto faceFlux = mo->godunov (gd, cellData, faceData, footprint);
+
+        // THEN ("Godunov fluxes have the expected shape")
+        // {
+        //     CHECK (faceFlux.size(0) == 125);
+        //     CHECK (faceFlux.size(1) == 2);
+        //     CHECK (faceFlux.size(2) == 2);
+        //     CHECK (faceFlux.size(3) == 1);
+        // }
+    }
+    GIVEN ("A 3D mesh operator, cartesian geometry, and a trivial Godunov flux function")
+    {
+        auto mg = std::make_shared<CartesianMeshGeometry>(8, 8, 8);
+        auto mo = std::make_shared<MeshOperator>(mg);
+
+        auto id = [] (double x, double, double) { return std::vector<double> { std::sin (M_PI * x) }; };
+        auto cd = [] (double x, double, double) { return std::vector<double> { }; };
+        auto gd = [] (GodunovStencil& stencil) { };
+
+        auto cellData = mo->generate (id, MeshLocation::cell);
+        auto faceData = mo->generate (cd, MeshLocation::face);
+
+        THEN ("Initial data (face and cell) has the expected shape")
+        {
+            CHECK (cellData.size(0) == 8);
+            CHECK (cellData.size(1) == 8);
+            CHECK (cellData.size(2) == 8);
+            CHECK (cellData.size(3) == 1);
+            CHECK (faceData.size(0) == 9);
+            CHECK (faceData.size(1) == 9);
+            CHECK (faceData.size(2) == 9);
+            CHECK (faceData.size(3) == 0);
+        }
+
+        auto footprint = Shape {{ 2, 2, 2 }};
+        auto faceFlux = mo->godunov (gd, cellData, faceData, footprint);
+
+        THEN ("Godunov fluxes have the expected shape")
+        {
+            CHECK (faceFlux.size(0) == 9);
+            CHECK (faceFlux.size(1) == 9);
+            CHECK (faceFlux.size(2) == 9);
+            CHECK (faceFlux.size(3) == 1);
         }
     }
 }

@@ -26,6 +26,14 @@ public:
     {
         return Shape {{ S[0] + delta, S[1] + delta, S[2] + delta, S[3], S[4] }};
     }
+    RichShape reduced (Shape delta) const
+    {
+        return Shape {{ S[0] - delta[0], S[1] - delta[1], S[2] - delta[2], S[3], S[4] }};
+    }
+    RichShape increased (Shape delta) const
+    {
+        return Shape {{ S[0] + delta[0], S[1] + delta[1], S[2] + delta[2], S[3], S[4] }};
+    }
     RichShape withComponents (int numComponents)
     {
         return Shape {{ S[0], S[1], S[2], numComponents, S[4] }};
@@ -321,24 +329,26 @@ Array MeshOperator::godunov (
     int nq = cellData.size(3);
     int np = faceData.size(3);
 
-    auto& fp = footprint;
+    auto& fp = footprint; // Footprint is always even (total cells in stencil)
     auto& mg = geometry;
     auto fs0 = GodunovStencil (fp[0], nq, np);
     auto fs1 = GodunovStencil (fp[1], nq, np);
     auto fs2 = GodunovStencil (fp[2], nq, np);
 
-    auto fluxShape = cellData.shape();
-    fluxShape[0] -= 2 * footprint[0] - 1;
-    fluxShape[1] -= 2 * footprint[1] - 1;
-    fluxShape[2] -= 2 * footprint[2] - 1;
-
+    auto fluxShape = RichShape (cellData).increased(1).withRank(3);
     auto result = Array (fluxShape);
 
-    Array::deploy (fluxShape, [&] (int i, int j, int k)
+    Array::deploy (fluxShape.reduced (footprint), [&] (int i, int j, int k)
     {
         const int ic = i + start[0]; // Indexes for querying geometry
         const int jc = j + start[1];
         const int kc = k + start[2];
+
+        const int ir = i + fp[0] / 2; // Indexes into resulting flux array
+        const int jr = j + fp[1] / 2;
+        const int kr = k + fp[2] / 2;
+
+        // std::cout << i << " " << j << " " << k << std::endl;
 
         for (int q = 0; q < nq; ++q)
         {
@@ -361,9 +371,9 @@ Array MeshOperator::godunov (
 
         for (int q = 0; q < nq; ++q)
         {
-            result (i, j, k, q, 0) = fs0.faceFlux[q];
-            result (i, j, k, q, 1) = fs1.faceFlux[q];
-            result (i, j, k, q, 2) = fs2.faceFlux[q];
+            result (ir, jr, kr, q, 0) = fs0.faceFlux[q];
+            result (ir, jr, kr, q, 1) = fs1.faceFlux[q];
+            result (ir, jr, kr, q, 2) = fs2.faceFlux[q];
         }
     });
 

@@ -8,6 +8,8 @@ class CartesianMeshGeometry : public MeshGeometry
 {
 public:
     CartesianMeshGeometry();
+
+    CartesianMeshGeometry(int ni, int nj, int nk);
     
     void setCellsShape (Cow::Shape S) override;
     

@@ -45,6 +45,12 @@ CartesianMeshGeometry::CartesianMeshGeometry()
     upper = {{1.0, 1.0, 1.0}};
 }
 
+CartesianMeshGeometry::CartesianMeshGeometry (int ni, int nj, int nk)
+{
+    shape = {{ni, nj, nk, 1, 1}};
+    lower = {{0.0, 0.0, 0.0}};
+    upper = {{1.0, 1.0, 1.0}};    
+}
 
 void CartesianMeshGeometry::setCellsShape (Cow::Shape S)
 {
