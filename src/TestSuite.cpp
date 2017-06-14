@@ -256,7 +256,7 @@ SCENARIO ("Time series manager should behave reasonably")
 #include "MeshOperator.hpp"
 #include "BoundaryConditions.hpp"
 
-SCENARIO ("Mesh operator should work as expected")
+SCENARIO ("Mesh operator should work as expected", "[mesh]")
 {
     GIVEN ("A 1D mesh operator and cartesian geometry")
     {
@@ -430,11 +430,11 @@ SCENARIO ("Mesh operator should work as expected")
                 CHECK (A.size(4) == 3);
             }
 
-            THEN ("The curl of A has the expected shape [16, 32, 8] with rank (1, 3)")
+            THEN ("The curl of A has the expected shape [17, 33, 9] with rank (1, 3)")
             {
-                CHECK (B.size(0) == 16);
-                CHECK (B.size(1) == 32);
-                CHECK (B.size(2) == 8);
+                CHECK (B.size(0) == 17);
+                CHECK (B.size(1) == 33);
+                CHECK (B.size(2) == 9);
                 CHECK (B.size(3) == 1);
                 CHECK (B.size(4) == 3);
             }
