@@ -12,6 +12,7 @@ class MeshOperator
 public:
     using Array = Cow::Array;
     using Shape = Cow::Shape;
+    using Index = Cow::Index;
     enum class VectorMode { scalars, fluxish, emflike };
 
     MeshOperator();
@@ -30,22 +31,28 @@ public:
     Array generate (InitialDataFunction F, MeshLocation location,
         VectorMode vectorMode=VectorMode::scalars) const;
 
-    Array divergence (const Array& flux, MeshLocation location) const;
+    /**
+    Compute the divergence of a one-form on mesh faces. The input array (flux)
+    must have size=3 on its 4th axis, and may have any number of components on
+    its 3rd axis. One divergence is computed per flux component. The optional
+    start index indicates the left-most index of the input data with respect
+    to the left of the mesh geometry instance, and must be used if passing
+    in data that has guard zones.
+    */
+    Array divergence (const Array& flux, Index start={}) const;
 
-    Array curl (const Array& potential, MeshLocation location) const;
+    /**
+    Compute the curl of a two-form on mesh edges. The input array (potential)
+    must have size=3 on its 4th axis, and must have one component on its 3rd
+    axis. The optional start index indicates the left-most index of the input
+    data with respect to the left of the mesh geometry instance, and must be
+    used if passing in data that has guard zones.
+    */
+    Array curl (const Array& potential, Index start={}) const;
 
 private:
-    /* @internal */
-    Shape makeEdgesShape (int numComponents, VectorMode mode) const;
-    /* @internal */
-    Shape makeFacesShape (int numComponents, VectorMode mode) const;
-    /* @internal */
-    Shape makeCellsShape (int numComponents) const;
-
+    class RichShape;
     std::shared_ptr<MeshGeometry> geometry;
-    Array edgeLengths;
-    Array faceAreas;
-    Array cellVolumes;
 };
 
 #endif

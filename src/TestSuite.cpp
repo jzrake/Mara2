@@ -313,7 +313,7 @@ SCENARIO ("Mesh operator should work as expected", "[mesh]")
         WHEN ("Data is generated on faces")
         {
             auto B = mo->generate (fn, MeshLocation::face);
-            auto M = mo->divergence (B, MeshLocation::cell);
+            auto M = mo->divergence (B);
 
             THEN ("The returned array has the expected shape")
             {
@@ -359,7 +359,7 @@ SCENARIO ("Mesh operator should work as expected", "[mesh]")
         WHEN ("An ABC field is generated on faces in flux mode")
         {
             auto B = mo->generate (abcField, MeshLocation::face, MeshOperator::VectorMode::fluxish);
-            auto M = mo->divergence (B, MeshLocation::cell);
+            auto M = mo->divergence (B);
 
             THEN ("The B field has the expected shape [17, 33, 9] with one rank (1, 3)")
             {
@@ -391,7 +391,7 @@ SCENARIO ("Mesh operator should work as expected", "[mesh]")
         WHEN ("A non-solenoidal field is generated on faces in flux mode")
         {
             auto V = mo->generate (divLikeField, MeshLocation::face, MeshOperator::VectorMode::fluxish);
-            auto D = mo->divergence (V, MeshLocation::cell);
+            auto D = mo->divergence (V);
 
             THEN ("The divergence field is non-zero at some randomly checked locations")
             {
@@ -419,7 +419,7 @@ SCENARIO ("Mesh operator should work as expected", "[mesh]")
         WHEN ("An ABC field is generated on edges in emf mode")
         {
             auto A = mo->generate (abcField, MeshLocation::edge, MeshOperator::VectorMode::emflike);
-            auto B = mo->curl (A, MeshLocation::face);
+            auto B = mo->curl (A);
 
             THEN ("The A field has the expected shape [17, 33, 9] with rank (1, 3)")
             {
