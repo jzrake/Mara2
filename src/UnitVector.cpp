@@ -59,6 +59,13 @@ double UnitVector::getZ() const
     return nz;
 }
 
+std::array<double, 3> UnitVector::cartesian() const
+{
+    double nx, ny, nz;
+    getCartesianComponents (nx, ny, nz);
+    return {{ nx, ny, nz }};
+}
+
 double UnitVector::pitchAngleWith (const UnitVector& other) const
 {
     double u[3];

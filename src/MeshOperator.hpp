@@ -49,6 +49,21 @@ public:
         VectorMode vectorMode=VectorMode::scalars) const;
 
     /**
+
+    */
+    Array measure (MeshLocation location) const;
+
+    /**
+
+    */
+    Array linearCellDimension() const;
+
+    /**
+    Return an array of the cell centroid coordinates.
+    */
+    Array cellCentroidCoordinates() const;
+
+    /**
     Compute the divergence of a two-form (magnetic flux densities or flow of
     conserved quantities) on mesh faces. The input array (flux) must have
     size=3 on its 4th axis, and may have any number of components on its 3rd

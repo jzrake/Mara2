@@ -1,6 +1,9 @@
 #ifndef UnitVector_hpp
 #define UnitVector_hpp
 
+#include <array>
+
+
 
 
 /**
@@ -43,6 +46,9 @@ public:
 
     /** Return one of the cartesian components */
     double getZ() const;
+
+    /** Return the cartesian components as std::array. */
+    std::array<double, 3> cartesian() const;
 
     /**
     Return the cosine of the angle between two unit vectors.

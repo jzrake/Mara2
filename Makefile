@@ -53,16 +53,18 @@ mara: $(OBJ) $(COW) $(LUA)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(H5L)
 
 clean:
-	$(RM) $(EXE) $(OBJ) $(DEP)
+	$(RM) $(OBJ) $(DEP) mara
 
 clean-all: clean
 	$(MAKE) -C Cow clean
 	$(MAKE) -C Lua clean
 
-$(COW):
+$(COW): FORCE
 	$(MAKE) -C Cow
 
-$(LUA):
+$(LUA): FORCE
 	$(MAKE) -C Lua $(LUA_ARCH)
+
+FORCE:
 
 -include $(DEP)

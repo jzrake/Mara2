@@ -154,6 +154,13 @@ ConservationLaw::Request::Request()
     areaElement[2] = 0.0;
 }
 
+ConservationLaw::Request ConservationLaw::Request::oriented (const UnitVector& nhat) const
+{
+    auto R = *this;
+    R.areaElement = nhat.cartesian();
+    return R;
+}
+
 
 
 

@@ -260,7 +260,7 @@ SCENARIO ("Time series manager should behave reasonably")
 #include "MeshOperator.hpp"
 #include "BoundaryConditions.hpp"
 
-SCENARIO ("Mesh operator should generate data, take div and curl", "[mesh]")
+SCENARIO ("Mesh operator should generate data, take div and curl", "[MeshOperator]")
 {
     GIVEN ("A 1D mesh operator and cartesian geometry")
     {
@@ -470,7 +470,7 @@ SCENARIO ("Mesh operator should generate data, take div and curl", "[mesh]")
 // ============================================================================
 #include "MeshOperator.hpp"
 
-SCENARIO ("Mesh operator should run flux sweeps", "[mesh]")
+SCENARIO ("Mesh operator should run flux sweeps", "[MeshOperator]")
 {
     GIVEN ("A 1D mesh operator, cartesian geometry, and a trivial Godunov flux function")
     {
@@ -571,6 +571,78 @@ SCENARIO ("Mesh operator should run flux sweeps", "[mesh]")
             CHECK (godunovFlux (1, 0, 0, 0, 0) == mg->coordinateAtIndex (start[0], 0, 0)[0]);
             CHECK (godunovFlux (0, 1, 0, 1, 1) == mg->coordinateAtIndex (0, start[1], 0)[1]);
             CHECK (godunovFlux (0, 0, 1, 2, 2) == mg->coordinateAtIndex (0, 0, start[2])[2]);
+        }
+    }
+}
+
+
+
+
+// ============================================================================
+#include "FieldOperator.hpp"
+
+SCENARIO ("Field operator should convert prim -> cons", "[FieldOperator]")
+{
+    GIVEN ("A field operator and a 1D mesh")
+    {
+        auto mg = std::make_shared<CartesianMeshGeometry>();
+        auto mo = std::make_shared<MeshOperator>(mg);
+        auto cl = std::make_shared<NewtonianHydro>();
+        auto fo = std::make_shared<FieldOperator>(cl);
+        auto id = [] (double x, double, double) { return std::vector<double> { 1. + 0.5 * std::cos (M_PI * x), 1., 2., 3., 1. }; };
+
+        WHEN ("The mesh operator is used to generate primitives and measures")
+        {
+            auto P = mo->generate (id, MeshLocation::cell);
+            auto V = mo->measure (MeshLocation::cell);
+            auto L = mo->linearCellDimension();
+
+            THEN ("The cell linear dimension is correct")
+            {
+                CHECK (L.shape() == mg->cellsShape());
+                CHECK (L (0, 0, 0) == mg->cellLength (0, 0, 0, 0));
+            }
+
+            THEN ("The cell volume is correct")
+            {
+                CHECK (V.shape() == mg->cellsShape());
+                CHECK (V (0, 0, 0) == mg->cellVolume (0, 0, 0));
+            }
+        }
+
+        WHEN ("The field operator is used to generate conserved variables")
+        {
+            auto P = mo->generate (id, MeshLocation::cell);
+            auto X = mo->cellCentroidCoordinates();
+            auto U = fo->generateConserved (P);
+
+            THEN ("The conserved variables are as expected")
+            {
+                for (int i = 0; i < U.size(0); ++i)
+                {
+                    auto R = ConservationLaw::Request();
+                    auto Pi = id (X (i), 0, 0);
+                    auto Si = cl->fromPrimitive (R, &Pi[0]);
+
+                    CHECK (U (i, 0, 0, 0) == Si.U[0]);
+                    CHECK (U (i, 0, 0, 1) == Si.U[1]);
+                    CHECK (U (i, 0, 0, 2) == Si.U[2]);
+                    CHECK (U (i, 0, 0, 3) == Si.U[3]);
+                    CHECK (U (i, 0, 0, 4) == Si.U[4]);
+                }
+            }
+        }
+
+        WHEN ("The and mesh field operators are used to generate the Courant time")
+        {
+            auto id = [] (double, double, double) { return std::vector<double> { 1, 1, 0, 0, 0 }; };
+            auto P = mo->generate (id, MeshLocation::cell);
+            auto L = mo->linearCellDimension();
+
+            THEN ("The Courant time is as expected")
+            {
+                CHECK (fo->getCourantTimestep (P, L) == mg->cellLength (0, 0, 0, 0));
+            }
         }
     }
 }

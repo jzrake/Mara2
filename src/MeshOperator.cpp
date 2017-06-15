@@ -1,3 +1,4 @@
+#include <cmath>
 #include "MeshOperator.hpp"
 
 #define ENSURE_GEOMETRY_IS_VALID do {\
@@ -221,6 +222,80 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
     }
 }
 
+Array MeshOperator::measure (MeshLocation location) const
+{
+    switch (location)
+    {
+        case MeshLocation::vert:
+        {
+            throw std::logic_error ("No measure associated with vertices");
+        }
+        case MeshLocation::edge:
+        {
+            auto lengths = Array (RichShape (geometry->cellsShape()).increased().withRank(3));
+
+            Array::deploy (lengths.shape(), [&] (int i, int j, int k)
+            {
+                lengths (i, j, k, 0) = geometry->edgeLength (i, j, k, 0);
+                lengths (i, j, k, 1) = geometry->edgeLength (i, j, k, 1);
+                lengths (i, j, k, 2) = geometry->edgeLength (i, j, k, 2);
+            });
+            return lengths;
+        }
+        case MeshLocation::face:
+        {
+            auto areas = Array (RichShape (geometry->cellsShape()).increased().withRank(3));
+
+            Array::deploy (areas.shape(), [&] (int i, int j, int k)
+            {
+                areas (i, j, k, 0) = geometry->faceArea (i, j, k, 0);
+                areas (i, j, k, 1) = geometry->faceArea (i, j, k, 1);
+                areas (i, j, k, 2) = geometry->faceArea (i, j, k, 2);
+            });
+            return areas;
+        }
+        case MeshLocation::cell:
+        {
+            auto volumes = Array (geometry->cellsShape());
+
+            Array::deploy (volumes.shape(), [&] (int i, int j, int k)
+            {
+                volumes (i, j, k) = geometry->cellVolume (i, j, k);
+            });
+            return volumes;
+        }
+    }
+}
+
+Array MeshOperator::linearCellDimension() const
+{
+    auto L = Array (geometry->cellsShape());
+
+    Array::deploy (L.shape(), [&] (int i, int j, int k)
+    {
+        auto L3 = std::array<double, 3> {{ 
+            geometry->cellLength (i, j, k, 0),
+            geometry->cellLength (i, j, k, 1),
+            geometry->cellLength (i, j, k, 2) }};
+        L (i, j, k) = *std::min_element (L3.begin(), L3.end());
+    });
+    return L;
+}
+
+Array MeshOperator::cellCentroidCoordinates() const
+{
+    auto X = Array (RichShape (geometry->cellsShape()).withComponents (3));
+
+    Array::deploy (X.shape(), [&] (int i, int j, int k)
+    {
+        auto C = geometry->coordinateAtIndex (i, j, k);
+        X (i, j, k, 0) = C[0];
+        X (i, j, k, 1) = C[1];
+        X (i, j, k, 2) = C[2];
+    });
+    return X;
+}
+
 Array MeshOperator::divergence (const Array& flux, Index start) const
 {
     ENSURE_GEOMETRY_IS_VALID;
@@ -355,7 +430,7 @@ Array MeshOperator::godunov (
             const int ic = i + start[0]; // Indexes for querying geometry
             const int jc = j + start[1];
             const int kc = k + start[2];
-            
+
             auto gs = GodunovStencil (fp[sweep], nq, np);
 
             for (int n = 0; n < fp[sweep]; ++n)

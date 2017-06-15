@@ -367,6 +367,7 @@ public:
     struct Request
     {
         Request();
+        Request oriented (const UnitVector& nhat) const;
         bool getPrimitive;
         bool getConserved;
         bool getFluxes;
