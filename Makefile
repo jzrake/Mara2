@@ -1,47 +1,66 @@
+# =====================================================================
+# Mara build system
+# =====================================================================
+#
+#
+# External library dependencies: HDF5, MPI
+# Embedded library dependencies: Cow, Lua
+#
+#
+# Notes
+# -----
+#
+# - A useful resource for techniques to process Makefile dependencies:
+# www.microhowto.info/howto/automatically_generate_makefile_dependencies.html
+#
+# - Using -O0 rather than -O3 during development may reduce compilation time
+# significantly.
+
+
+# Build configuration
+# =====================================================================
+#
+# If a Makefile.in exists in this directory, then use it.
+#
 -include Makefile.in
-
+#
+# Any macros that are omitted receive these default values:
 LUA_ARCH ?= generic
-AR ?= ar rcu
-RANLIB ?= ranlib
-CFLAGS ?= -std=c++14 -Wall -O0 -g
-CXX ?= $(HOME)/Software/mpich-3.2/bin/mpicxx
-H5I ?= -I$(HOME)/Software/hdf5-1.10.1/include
-H5L ?= -L$(HOME)/Software/hdf5-1.10.1/lib -lhdf5
-SRC := $(wildcard src/*.cpp)
-HDR := $(wildcard src/*.hpp)
-OBJ := $(SRC:.cpp=.o)
-EXE := mara
-COW := Cow/src/libcow.a
-LUA := Lua/src/liblua.a
+AR       ?= ar rcu
+RANLIB   ?= ranlib
+CXXFLAGS ?= -std=c++14 -Wall -O0 -g
+CXX      ?= mpicxx
+H5I      ?= -I/usr/include
+H5L      ?= -L/usr/lib -lhdf5
 
-default : $(EXE)
 
-$(COW) : .FORCE
-	$(MAKE) -C Cow
+# Build macros
+# =====================================================================
+COW      := Cow/src/libcow.a
+LUA      := Lua/src/liblua.a
+SRC      := $(wildcard src/*.cpp)
+OBJ      := $(SRC:%.cpp=%.o)
+DEP      := $(SRC:%.cpp=%.d)
+CXXFLAGS += -MMD -MP
+CXXFLAGS += -ICow/src -ILua/src
+LDFLAGS  += $(H5L)
 
-$(LUA) : .FORCE
-	$(MAKE) -C Lua $(LUA_ARCH)
 
-# Hard-code no optimzation for tests to speed compilation
-src/TestSuite.o : src/TestSuite.cpp $(HDR)
-	$(CXX) -std=c++11 -Wall -O0 -o $@ -c $< -ICow/src
+# Build rules
+# =====================================================================
+#
+mara: $(OBJ) $(COW) $(LUA)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(H5L)
 
-# Hard-code no optimzation for Mara to speed compilation
-src/Mara.o : src/Mara.cpp $(HDR)
-	$(CXX) -std=c++11 -Wall -O0 -o $@ -c $< -ICow/src
-
-src/Configuration.o : src/Configuration.cpp $(HDR)
-	$(CXX) $(CFLAGS) -o $@ -c $< -ICow/src -ILua/src
-
-%.o : %.cpp $(HDR)
-	$(CXX) $(CFLAGS) -o $@ -c $< -ICow/src
-
-$(EXE) : $(OBJ) $(COW) $(LUA)
-	$(CXX) $(CFLAGS) -o $@ $^ $(H5L)
-
-clean :
+clean:
 	$(MAKE) -C Cow clean
 	$(MAKE) -C Lua clean
-	$(RM) $(EXE) $(OBJ)
+	$(RM) $(EXE) $(OBJ) $(DEP)
 
-.FORCE :
+$(COW):
+	$(MAKE) -C Cow
+
+$(LUA):
+	$(MAKE) -C Lua $(LUA_ARCH)
+
+-include $(DEP)
