@@ -1,10 +1,14 @@
-#define CATCH_CONFIG_RUNNER
+#define CATCH_CONFIG_FAST_COMPILE
 #include "Catch.hpp"
 #include "Array.hpp"
 
-#include "TestSuite.hpp"
-
 using namespace Cow;
+
+
+
+
+// NOTE: TestSuite class implementation is in Mara.cpp to speed compilation
+// time.
 
 
 
@@ -523,7 +527,7 @@ SCENARIO ("Mesh operator should run flux sweeps", "[mesh]")
             CHECK (faceData.size(3) == 0);
         }
 
-        auto footprint = Shape {{ 2, 2, 2 }};
+        auto footprint = Shape {{ 2, 0, 2 }};
         auto faceFlux = mo->godunov (gd, cellData, faceData, footprint);
 
         THEN ("Godunov fluxes have the expected shape")
@@ -587,14 +591,4 @@ SCENARIO ("Rotation matrices should behave appropriately with unit vectors")
             REQUIRE (zhat.withPolarAxis (zhat).azimuthalAnglePhi == Approx (zhat.azimuthalAnglePhi));
         }
     }
-}
-
-
-
-
-// ============================================================================
-int TestSuite::runAllTests (int argc, const char* argv[])
-{
-    int result = Catch::Session().run (argc, argv);
-    return (result < 0xff ? result : 0xff);
 }

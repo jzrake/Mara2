@@ -68,7 +68,16 @@ public:
     */
     Array curl (const Array& potential, Index start={}) const;
 
-
+    /**
+    Return an array of fluxes on cell faces from a dimensionally split Godunov
+    operator, Fhat. The footprint argument determines the stencil size, and the
+    stencil shape is like a plus sign. Footprint must be an even number, 
+    as it corresponds to the total number of cells surrounding the face.
+    Different axes may have different footprint sizes, but Fhat is used to
+    compute the Godunov flux on each axis. The start parameter indicates the
+    lower index of the input data, relative to the index origin of the geometry
+    instance.
+    */
     Array godunov (
         GodunovStencil::IntercellFluxFunction Fhat,
         const Array& cellData,

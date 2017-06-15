@@ -22,8 +22,19 @@ $(COW) : .FORCE
 $(LUA) : .FORCE
 	$(MAKE) -C Lua $(LUA_ARCH)
 
-%.o : %.cpp $(HDR)
+# Hard-code no optimzation for tests to speed compilation
+src/TestSuite.o : src/TestSuite.cpp $(HDR)
+	$(CXX) -std=c++11 -Wall -O0 -o $@ -c $< -ICow/src
+
+# Hard-code no optimzation for Mara to speed compilation
+src/Mara.o : src/Mara.cpp $(HDR)
+	$(CXX) -std=c++11 -Wall -O0 -o $@ -c $< -ICow/src
+
+src/Configuration.o : src/Configuration.cpp $(HDR)
 	$(CXX) $(CFLAGS) -o $@ -c $< -ICow/src -ILua/src
+
+%.o : %.cpp $(HDR)
+	$(CXX) $(CFLAGS) -o $@ -c $< -ICow/src
 
 $(EXE) : $(OBJ) $(COW) $(LUA)
 	$(CXX) $(CFLAGS) -o $@ $^ $(H5L)

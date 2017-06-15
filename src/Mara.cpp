@@ -544,6 +544,21 @@ SimulationStatus MaraSession::launch (SimulationSetup& setup)
 
 
 // ============================================================================
+#define CATCH_CONFIG_RUNNER
+#define CATCH_CONFIG_FAST_COMPILE
+#include "Catch.hpp"
+#include "TestSuite.hpp"
+
+int TestSuite::runAllTests (int argc, const char* argv[])
+{
+    int result = Catch::Session().run (argc, argv);
+    return (result < 0xff ? result : 0xff);
+}
+
+
+
+
+// ============================================================================
 int main (int argc, const char* argv[])
 {
     using namespace Cow;

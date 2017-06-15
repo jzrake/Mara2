@@ -21,7 +21,7 @@ These are algorithm classes that may have inter-dependencies.
 class BoundaryCondition;
 class ConservationLaw;
 class ConstrainedTransport;
-class SolutionAdvancer;
+class SolutionScheme;
 class IntercellFluxScheme;
 class MeshGeometry;
 class RiemannSolver;
