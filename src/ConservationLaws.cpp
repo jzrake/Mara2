@@ -313,6 +313,28 @@ std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const
     }
 }
 
+std::vector<double> NewtonianHydro::makeDiagnostics (const State& state) const
+{
+    auto D = std::vector<double> (5);
+    D[0 ] = state.U[RHO];
+    D[1 ] = state.U[S11];
+    D[2 ] = state.U[S22];
+    D[3 ] = state.U[S33];
+    D[4 ] = state.U[NRG];
+    return D;
+}
+
+std::vector<std::string> NewtonianHydro::getDiagnosticNames() const
+{
+    auto N = std::vector<std::string>(5);
+    N[0 ] = "mass";
+    N[1 ] = "momentum1";
+    N[2 ] = "momentum2";
+    N[3 ] = "momentum3";
+    N[4 ] = "total_energy";
+    return N;
+}
+
 
 
 

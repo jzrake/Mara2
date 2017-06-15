@@ -32,6 +32,8 @@ public:
     int getNumConserved() const override;
     int getIndexFor (VariableType type) const override;
     std::string getPrimitiveName (int fieldIndex) const override;
+    std::vector<double> makeDiagnostics (const State& state) const override;
+    std::vector<std::string> getDiagnosticNames() const override;
 private:
     double gammaLawIndex;
 };

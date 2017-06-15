@@ -633,15 +633,24 @@ SCENARIO ("Field operator should convert prim -> cons", "[FieldOperator]")
             }
         }
 
-        WHEN ("The and mesh field operators are used to generate the Courant time")
+        WHEN ("The and mesh field operators are used to generate the Courant time and diagnostics")
         {
-            auto id = [] (double, double, double) { return std::vector<double> { 1, 1, 0, 0, 0 }; };
+            auto id = [] (double, double, double) { return std::vector<double> { 1., 1., 0., 0., 0. }; };
             auto P = mo->generate (id, MeshLocation::cell);
+            auto V = mo->measure (MeshLocation::cell);
             auto L = mo->linearCellDimension();
+            auto D = fo->volumeIntegratedDiagnostics (P, V);
+            auto N = cl->getDiagnosticNames();
 
             THEN ("The Courant time is as expected")
             {
                 CHECK (fo->getCourantTimestep (P, L) == mg->cellLength (0, 0, 0, 0));
+            }
+
+            THEN ("The diagnostics are reasonable")
+            {
+                CHECK (N[0] == "mass");
+                CHECK (D[0] == mg->meshVolume());
             }
         }
     }
