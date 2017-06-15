@@ -474,43 +474,70 @@ SCENARIO ("Mesh operator should run flux sweeps", "[mesh]")
 {
     GIVEN ("A 1D mesh operator, cartesian geometry, and a trivial Godunov flux function")
     {
-        auto mg = std::make_shared<CartesianMeshGeometry>();
+        auto mg = std::make_shared<CartesianMeshGeometry>(8, 1, 1);
         auto mo = std::make_shared<MeshOperator>(mg);
 
-        auto id = [] (double x, double, double) { return std::vector<double> { std::sin (M_PI * x) }; };
-        auto cd = [] (double x, double, double) { return std::vector<double> { }; };
-        auto gd = [] (GodunovStencil& stencil) { };
+        auto cd = [] (double x, double, double) { return std::vector<double> { std::sin (M_PI * x) }; };
+        auto fd = [] (double x, double, double) { return std::vector<double> { 0., 1., 2. }; };
+        auto gd = [] (GodunovStencil& stencil)
+        {
+            if (stencil.faceNormal == UnitVector::xhat)
+            {
+                CHECK (stencil.cellData.size(0) == 2);
+                CHECK (stencil.cellData.size(1) == 1);
+                CHECK (stencil.faceData.size(0) == 3); // is a 1D array of data on a single face
+                CHECK (stencil.faceData[0] == 0.);
+                CHECK (stencil.faceData[1] == 1.);
+                CHECK (stencil.faceData[2] == 2.);
+            }
+            else
+            {
+                CHECK (stencil.cellData.size(0) == 0);
+                CHECK (stencil.cellData.size(1) == 1);
+                CHECK (stencil.faceData.size(0) == 3);
+            }
+        };
 
-        auto cellData = mo->generate (id, MeshLocation::cell);
-        auto faceData = mo->generate (cd, MeshLocation::face);
+        auto cellData = mo->generate (cd, MeshLocation::cell);
+        auto faceData = mo->generate (fd, MeshLocation::face);
 
         THEN ("Initial data (face and cell) has the expected shape")
         {
-            CHECK (cellData.size(0) == 128);
+            CHECK (cellData.size(0) == 8);
             CHECK (cellData.size(3) == 1);
-            CHECK (faceData.size(0) == 129);
-            CHECK (faceData.size(3) == 0);
+            CHECK (faceData.size(0) == 9);
+            CHECK (faceData.size(3) == 3);
         }
 
-        // auto footprint = Shape {{ 2, 0, 0 }};
-        // auto faceFlux = mo->godunov (gd, cellData, faceData, footprint);
+        auto footprint = Shape {{ 2, 0, 0 }};
+        auto faceFlux = mo->godunov (gd, cellData, faceData, footprint);
 
-        // THEN ("Godunov fluxes have the expected shape")
-        // {
-        //     CHECK (faceFlux.size(0) == 125);
-        //     CHECK (faceFlux.size(1) == 2);
-        //     CHECK (faceFlux.size(2) == 2);
-        //     CHECK (faceFlux.size(3) == 1);
-        // }
+        THEN ("Godunov fluxes have the expected shape")
+        {
+            CHECK (faceFlux.size(0) == 9);
+            CHECK (faceFlux.size(1) == 2);
+            CHECK (faceFlux.size(2) == 2);
+            CHECK (faceFlux.size(3) == 1);
+        }
     }
+
     GIVEN ("A 3D mesh operator, cartesian geometry, and a trivial Godunov flux function")
     {
         auto mg = std::make_shared<CartesianMeshGeometry>(8, 8, 8);
         auto mo = std::make_shared<MeshOperator>(mg);
 
-        auto id = [] (double x, double, double) { return std::vector<double> { std::sin (M_PI * x) }; };
-        auto cd = [] (double x, double, double) { return std::vector<double> { }; };
-        auto gd = [] (GodunovStencil& stencil) { };
+        auto id = [] (double x, double y, double z) { return std::vector<double> { 0., 1., 2. }; };
+        auto cd = [] (double x, double y, double z) { return std::vector<double> { }; };
+        auto gd = [] (GodunovStencil& stencil)
+        {
+            CHECK (stencil.cellData.size(0) == 2);
+            CHECK (stencil.cellData.size(1) == 3);
+            CHECK (stencil.cellCoords.size() == 2);
+            CHECK (stencil.godunovFlux.size(0) == 3);
+            stencil.godunovFlux[0] = stencil.cellCoords[0][0]; // Fhat = x of cell to left of face
+            stencil.godunovFlux[1] = stencil.cellCoords[0][1]; // Fhat = y of cell to left of face
+            stencil.godunovFlux[2] = stencil.cellCoords[0][2]; // Fhat = z of cell to left of face
+        };
 
         auto cellData = mo->generate (id, MeshLocation::cell);
         auto faceData = mo->generate (cd, MeshLocation::face);
@@ -520,22 +547,30 @@ SCENARIO ("Mesh operator should run flux sweeps", "[mesh]")
             CHECK (cellData.size(0) == 8);
             CHECK (cellData.size(1) == 8);
             CHECK (cellData.size(2) == 8);
-            CHECK (cellData.size(3) == 1);
+            CHECK (cellData.size(3) == 3);
             CHECK (faceData.size(0) == 9);
             CHECK (faceData.size(1) == 9);
             CHECK (faceData.size(2) == 9);
             CHECK (faceData.size(3) == 0);
         }
 
-        auto footprint = Shape {{ 2, 0, 2 }};
-        auto faceFlux = mo->godunov (gd, cellData, faceData, footprint);
+        auto footprint = Shape {{ 2, 2, 2 }};
+        auto start = Shape {{ -1, 0, +1 }}; // choose an arbitrary start location
+        auto godunovFlux = mo->godunov (gd, cellData, faceData, footprint, start);
 
         THEN ("Godunov fluxes have the expected shape")
         {
-            CHECK (faceFlux.size(0) == 9);
-            CHECK (faceFlux.size(1) == 9);
-            CHECK (faceFlux.size(2) == 9);
-            CHECK (faceFlux.size(3) == 1);
+            CHECK (godunovFlux.size(0) == 9);
+            CHECK (godunovFlux.size(1) == 9);
+            CHECK (godunovFlux.size(2) == 9);
+            CHECK (godunovFlux.size(3) == 3);
+        }
+
+        THEN ("Godunov fluxes have values consistent with start index")
+        {
+            CHECK (godunovFlux (1, 0, 0, 0, 0) == mg->coordinateAtIndex (start[0], 0, 0)[0]);
+            CHECK (godunovFlux (0, 1, 0, 1, 1) == mg->coordinateAtIndex (0, start[1], 0)[1]);
+            CHECK (godunovFlux (0, 0, 1, 2, 2) == mg->coordinateAtIndex (0, 0, start[2])[2]);
         }
     }
 }
@@ -547,7 +582,7 @@ SCENARIO ("Mesh operator should run flux sweeps", "[mesh]")
 #include "UnitVector.hpp"
 #include "RotationMatrix.hpp"
 
-SCENARIO ("Rotation matrices should behave appropriately with unit vectors")
+SCENARIO ("Rotation matrices should behave appropriately with unit vectors", "[UnitVector]")
 {
     GIVEN ("The unit vector zhat")
     {
@@ -591,4 +626,9 @@ SCENARIO ("Rotation matrices should behave appropriately with unit vectors")
             REQUIRE (zhat.withPolarAxis (zhat).azimuthalAnglePhi == Approx (zhat.azimuthalAnglePhi));
         }
     }
+
+    REQUIRE (UnitVector::xhat != UnitVector::yhat);
+    REQUIRE (UnitVector::xhat == UnitVector::xhat);
+    REQUIRE (UnitVector::yhat == UnitVector::yhat);
+    REQUIRE (UnitVector::zhat == UnitVector::zhat);
 }

@@ -81,3 +81,17 @@ UnitVector UnitVector::withPolarAxis (const UnitVector& newPolarAxis)
     double phi = newPolarAxis.azimuthalAnglePhi;
     return RotationMatrix::aboutZ (phi) * (RotationMatrix::aboutY (theta) * (*this));
 }
+
+bool UnitVector::operator== (const UnitVector& other) const
+{
+    double nx, ny, nz;
+    double mx, my, mz;
+    this->getCartesianComponents (nx, ny, nz);
+    other.getCartesianComponents (mx, my, mz);
+    return nx == mx && ny == my && nz == mz;
+}
+
+bool UnitVector::operator!= (const UnitVector& other) const
+{
+    return ! operator== (other);
+}

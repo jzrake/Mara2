@@ -17,7 +17,7 @@ public:
     std::vector<Coordinate> cellCoords;
     Array cellData;
     Array faceData;
-    Array faceFlux;
+    Array godunovFlux;
     UnitVector faceNormal;
 };
 

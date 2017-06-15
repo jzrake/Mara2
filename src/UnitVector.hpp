@@ -61,6 +61,9 @@ public:
     */
     UnitVector withPolarAxis (const UnitVector& newPolarAxis);
 
+    bool operator== (const UnitVector& other) const;
+    bool operator!= (const UnitVector& other) const;
+
     double pitchAngleMu;
     double azimuthalAnglePhi;
 };

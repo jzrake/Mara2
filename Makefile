@@ -53,9 +53,11 @@ mara: $(OBJ) $(COW) $(LUA)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(H5L)
 
 clean:
+	$(RM) $(EXE) $(OBJ) $(DEP)
+
+clean-all: clean
 	$(MAKE) -C Cow clean
 	$(MAKE) -C Lua clean
-	$(RM) $(EXE) $(OBJ) $(DEP)
 
 $(COW):
 	$(MAKE) -C Cow
