@@ -14,9 +14,248 @@ using namespace Cow;
 
 
 // ============================================================================
+#include "Array.hpp"
+
+SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
+{
+    GIVEN ("An array with 100 elements")
+    {
+        auto A = Array (100);
+
+        THEN ("The array is zero-initialized")
+        {
+            for (auto x : A)
+            {
+                CHECK (x == 0.0);
+            }
+        }
+
+        WHEN ("The array is indexed out-of-bounds")
+        {
+            THEN ("We get an exception")
+            {
+                CHECK_THROWS (A (-1));
+                CHECK_THROWS (A (101));
+            }
+        }
+    }
+
+    GIVEN ("An array A with 100 elements, B with 10, a contiguous region R, and a strided one S")
+    {
+        auto A = Array (100);
+        auto B = Array (10);
+        auto R = Region (A.shape()).withRange (0, 0, 10, 1);
+        auto S = Region (A.shape()).withRange (0, 0, 100, 10);
+        auto T = Region (A.shape()).withRange (0, 0, 100, 20);
+
+        for (int i = 0; i < B.size(); ++i)
+        {
+            B(i) = i;
+        }
+
+        THEN ("R and S have the same shape")
+        {
+            CHECK (R.shape() == S.shape());
+        }
+
+        THEN ("S and T do not have the same shape")
+        {
+            CHECK (S.shape() != T.shape());
+        }
+
+        THEN ("B can be inserted into A[R]")
+        {
+            CHECK_NOTHROW (A[R] = B);
+
+            for (int i = 0; i < 10; ++i)
+            {
+                CHECK (A(i) == B(i));
+            }
+        }
+
+        THEN ("B can be inserted into A[S]")
+        {
+            CHECK_NOTHROW (A[S] = B);
+
+            for (int i = 0; i < 100; i += 10)
+            {
+                CHECK (A(i) == B(i / 10));
+            }
+        }
+
+        THEN ("B cannot be inserted into A[T]")
+        {
+            CHECK_THROWS (A[T] = B);
+        }
+    }
+
+    GIVEN ("An array A with 100 elements, B with 100, and two non-overlapping regions R and S")
+    {
+        auto A = Array (100);
+        auto B = Array (100);
+        auto R = Region().withRange (0, 0, 10);
+        auto S = Region().withRange (0, 90, 100);
+        auto T = Region().withRange (0, 90, 101);
+
+        for (int i = 0; i < B.size(); ++i)
+        {
+            B(i) = i;
+        }
+
+        THEN ("The last 10 elements of B can be loaded into the first of A")
+        {
+            CHECK_NOTHROW (A[R] = B[S]);
+
+            for (int i = 0; i < 10; ++i)
+            {
+                CHECK (A(i) == B(90 + i));
+            }
+        }
+
+        THEN ("An out-of-bounds region cannot be loaded")
+        {
+            CHECK_THROWS (A[R] = B[T]);
+        }
+    }
+
+    GIVEN ("An array A with [8,8,8,1,3] elements, B with [8,8,8,1,1]")
+    {
+        auto A = Array (8, 8, 8, 1, 3);
+        auto B = Array (8, 8, 8, 1, 1);
+
+        for (auto& x : B)
+        {
+            x = 1.;
+        }
+
+        auto R0 = Region(A.shape()).withRange (4, 0, 1);
+        auto R1 = Region(A.shape()).withRange (4, 1, 2);
+        auto R2 = Region(A.shape()).withRange (4, 2, 3);
+        auto R3 = Region(A.shape()).withRange (4, 3, 4); // bad region
+
+        THEN ("B can be inserted into axis 0 of A")
+        {
+            CHECK_NOTHROW (A[R0] = B);
+
+            for (auto it = A[R0].begin(); it != A.end(); ++it)
+            {
+                if (it.index()[4] == 0)
+                {
+                    CHECK (*it == 1.0);
+                }
+                else
+                {
+                    CHECK (*it == 0.0);
+                }
+            }
+        }
+
+        THEN ("B can be inserted into axis 1 of A")
+        {
+            CHECK_NOTHROW (A[R1] = B);
+
+            for (auto it = A[R1].begin(); it != A.end(); ++it)
+            {
+                if (it.index()[4] == 1)
+                {
+                    CHECK (*it == 1.0);
+                }
+                else
+                {
+                    CHECK (*it == 0.0);
+                }
+            }
+        }
+
+        THEN ("B can be inserted into axis 2 of A")
+        {
+            CHECK_NOTHROW (A[R2] = B);
+
+            for (auto it = A[R2].begin(); it != A.end(); ++it)
+            {
+                if (it.index()[4] == 2)
+                {
+                    CHECK (*it == 1.0);
+                }
+                else
+                {
+                    CHECK (*it == 0.0);
+                }
+            }
+        }
+
+        THEN ("B cannot be inserted into axis 3 of A (doesn't exist)")
+        {
+            CHECK_THROWS (A[R3] = B);
+        }
+    }
+}
+
+
+
+
+// ============================================================================
+#include "UnitVector.hpp"
+#include "RotationMatrix.hpp"
+
+SCENARIO ("Rotation matrices should behave appropriately with unit vectors", "[UnitVector]")
+{
+    GIVEN ("The unit vector zhat")
+    {
+        UnitVector xhat = UnitVector::fromCartesian (1, 0, 0);
+        UnitVector yhat = UnitVector::fromCartesian (0, 1, 0);
+        UnitVector zhat = UnitVector::fromCartesian (0, 0, 1);
+
+        THEN ("Y (pi / 2) zhat = xhat")
+        {
+            REQUIRE ((RotationMatrix::aboutY (M_PI / 2) * zhat).pitchAngleMu == Approx (xhat.pitchAngleMu));
+            REQUIRE ((RotationMatrix::aboutY (M_PI / 2) * zhat).azimuthalAnglePhi == Approx (xhat.azimuthalAnglePhi));
+        }
+
+        THEN ("X (-pi / 2) zhat = yhat")
+        {
+            REQUIRE ((RotationMatrix::aboutX (-M_PI / 2) * zhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
+            REQUIRE ((RotationMatrix::aboutX (-M_PI / 2) * zhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
+        }
+
+        THEN ("Z (pi / 2) xhat = yhat")
+        {
+            REQUIRE ((RotationMatrix::aboutZ (M_PI / 2) * xhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
+            REQUIRE ((RotationMatrix::aboutZ (M_PI / 2) * xhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
+        }
+
+        THEN ("zhat.withPolarAxis (xhat) = xhat")
+        {
+            REQUIRE (zhat.withPolarAxis (xhat).pitchAngleMu == Approx (xhat.pitchAngleMu));
+            REQUIRE (zhat.withPolarAxis (xhat).azimuthalAnglePhi == Approx (xhat.azimuthalAnglePhi));
+        }
+
+        THEN ("zhat.withPolarAxis (yhat) = yhat")
+        {
+            REQUIRE (zhat.withPolarAxis (yhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
+            REQUIRE (zhat.withPolarAxis (yhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
+        }
+
+        THEN ("zhat.withPolarAxis (zhat) = zhat")
+        {
+            REQUIRE (zhat.withPolarAxis (zhat).pitchAngleMu == Approx (zhat.pitchAngleMu));
+            REQUIRE (zhat.withPolarAxis (zhat).azimuthalAnglePhi == Approx (zhat.azimuthalAnglePhi));
+        }
+    }
+
+    REQUIRE (UnitVector::xhat != UnitVector::yhat);
+    REQUIRE (UnitVector::xhat == UnitVector::xhat);
+    REQUIRE (UnitVector::yhat == UnitVector::yhat);
+    REQUIRE (UnitVector::zhat == UnitVector::zhat);
+}
+
+
+
+
+// ============================================================================
 #include "Stencil.hpp"
 
-SCENARIO ("Stencil operations should behave correctly")
+SCENARIO ("Stencil operations should behave correctly", "[Stencil]")
 {
     GIVEN ("A stencil with shape [2, 3, 4]")
     {
@@ -174,7 +413,7 @@ SCENARIO ("Stencil operations should behave correctly")
 #include "IntercellFluxSchemes.hpp"
 #include "RiemannSolvers.hpp"
 
-SCENARIO ("Mara session should launch if given minimal setup")
+SCENARIO ("Mara session should launch if given minimal setup", "[Session]")
 {
     auto session = MaraSession();
     auto setup = SimulationSetup();
@@ -204,7 +443,7 @@ SCENARIO ("Mara session should launch if given minimal setup")
 #include "HDF5.hpp"
 #include "TimeSeriesManager.hpp"
 
-SCENARIO ("Time series manager should behave reasonably")
+SCENARIO ("Time series manager should behave reasonably", "[TimeSeriesManager]")
 {
     GIVEN ("A time series manager populated with data series, with unequal lengths")
     {
@@ -674,56 +913,96 @@ SCENARIO ("Field operator should convert prim -> cons", "[FieldOperator]")
 
 
 // ============================================================================
-#include "UnitVector.hpp"
-#include "RotationMatrix.hpp"
+#include "MeshData.hpp"
 
-SCENARIO ("Rotation matrices should behave appropriately with unit vectors", "[UnitVector]")
+SCENARIO ("Mesh data class works OK", "[MeshData]")
 {
-    GIVEN ("The unit vector zhat")
+    GIVEN ("A mesh data class with [8, 12, 16] interior and 2 guard zones on all boundaries")
     {
-        UnitVector xhat = UnitVector::fromCartesian (1, 0, 0);
-        UnitVector yhat = UnitVector::fromCartesian (0, 1, 0);
-        UnitVector zhat = UnitVector::fromCartesian (0, 0, 1);
+        auto cs = Shape {{ 8, 12, 16 }}; // cells shape
+        auto bs = Shape {{ 2, 2, 2 }};   // boundary shape
+        auto md = std::make_shared<MeshData>(cs, bs, 3);
+        auto mg = std::make_shared<CartesianMeshGeometry>(cs);
+        auto mo = std::make_shared<MeshOperator>(mg);
 
-        THEN ("Y (pi / 2) zhat = xhat")
+        WHEN ("Magnetic field index is not set")
         {
-            REQUIRE ((RotationMatrix::aboutY (M_PI / 2) * zhat).pitchAngleMu == Approx (xhat.pitchAngleMu));
-            REQUIRE ((RotationMatrix::aboutY (M_PI / 2) * zhat).azimuthalAnglePhi == Approx (xhat.azimuthalAnglePhi));
+            THEN ("The mesh primitive data has the correct shape")
+            {
+                CHECK (md->P.size(0) == cs[0] + 2 * bs[0]);
+                CHECK (md->P.size(1) == cs[1] + 2 * bs[1]);
+                CHECK (md->P.size(2) == cs[2] + 2 * bs[2]);
+                CHECK (md->P.size(3) == 3);
+                CHECK (md->P.size(4) == 1);
+            }
+
+            THEN ("The mesh magnetic data has the correct shape")
+            {
+                CHECK (md->B.size(0) == cs[0] + 2 * bs[0] + 1);
+                CHECK (md->B.size(1) == cs[1] + 2 * bs[1] + 1);
+                CHECK (md->B.size(2) == cs[2] + 2 * bs[2] + 1);
+                CHECK (md->B.size(3) == 1);
+                CHECK (md->B.size(4) == 3);
+            }
+
+            THEN ("We get an exception if retrieving non-existent magnetic field")
+            {
+                CHECK_THROWS (md->getMagneticField (MeshLocation::cell));
+                CHECK_THROWS (md->getMagneticField (MeshLocation::face));
+            }
         }
 
-        THEN ("X (-pi / 2) zhat = yhat")
+        WHEN ("Magnetic field index is set")
         {
-            REQUIRE ((RotationMatrix::aboutX (-M_PI / 2) * zhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
-            REQUIRE ((RotationMatrix::aboutX (-M_PI / 2) * zhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
+            md->setMagneticIndex(0);
+
+            auto P = md->getPrimitive();
+            auto D = md->getPrimitive(2);
+            auto H = md->getMagneticField (MeshLocation::cell);
+            auto B = md->getMagneticField (MeshLocation::face);
+
+            THEN ("No exception is raised on query magnetic field")
+            {
+                CHECK_NOTHROW (md->getMagneticField (MeshLocation::cell));
+                CHECK_NOTHROW (md->getMagneticField (MeshLocation::face));
+            }
+
+            THEN ("The data returned by get methods has the correct shape")
+            {
+                CHECK (P.shape() == Shape ({{ cs[0], cs[1], cs[2], 3, 1 }}));
+                CHECK (D.shape() == Shape ({{ cs[0], cs[1], cs[2], 1, 1 }}));
+                CHECK (H.shape() == Shape ({{ cs[0], cs[1], cs[2], 3, 1 }}));
+                CHECK (B.shape() == Shape ({{ cs[0] + 1, cs[1] + 1, cs[2] + 1, 1, 3 }}));
+            }
+
+            THEN ("Retrieved data can be sent back to assign methods")
+            {
+                CHECK_NOTHROW (md->assignPrimitive(P));
+                CHECK_NOTHROW (md->assignMagneticField (H, MeshLocation::cell));
+                CHECK_NOTHROW (md->assignMagneticField (B, MeshLocation::face));
+            }
+
+            THEN ("An exception is raised if we mixed up the order of field and cell data")
+            {
+                CHECK_THROWS (md->assignMagneticField (B, MeshLocation::cell)); // should be H
+                CHECK_THROWS (md->assignMagneticField (H, MeshLocation::face)); // should be B
+            }
         }
 
-        THEN ("Z (pi / 2) xhat = yhat")
+        WHEN ("Data is prepared with the mesh operator")
         {
-            REQUIRE ((RotationMatrix::aboutZ (M_PI / 2) * xhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
-            REQUIRE ((RotationMatrix::aboutZ (M_PI / 2) * xhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
-        }
+            md->setMagneticIndex(0);
 
-        THEN ("zhat.withPolarAxis (xhat) = xhat")
-        {
-            REQUIRE (zhat.withPolarAxis (xhat).pitchAngleMu == Approx (xhat.pitchAngleMu));
-            REQUIRE (zhat.withPolarAxis (xhat).azimuthalAnglePhi == Approx (xhat.azimuthalAnglePhi));
-        }
+            auto id = [] (double, double, double) { return std::vector<double> { 0., 1., 2. }; };
+            auto P = mo->generate (id, MeshLocation::cell);
+            auto A = mo->generate (id, MeshLocation::edge, MeshOperator::VectorMode::emflike);
+            auto B = mo->curl (A);
 
-        THEN ("zhat.withPolarAxis (yhat) = yhat")
-        {
-            REQUIRE (zhat.withPolarAxis (yhat).pitchAngleMu == Approx (yhat.pitchAngleMu));
-            REQUIRE (zhat.withPolarAxis (yhat).azimuthalAnglePhi == Approx (yhat.azimuthalAnglePhi));
-        }
-
-        THEN ("zhat.withPolarAxis (zhat) = zhat")
-        {
-            REQUIRE (zhat.withPolarAxis (zhat).pitchAngleMu == Approx (zhat.pitchAngleMu));
-            REQUIRE (zhat.withPolarAxis (zhat).azimuthalAnglePhi == Approx (zhat.azimuthalAnglePhi));
+            THEN ("It is assigned to the mesh data interior as expected")
+            {
+                CHECK_NOTHROW (md->assignPrimitive (P));
+                CHECK_NOTHROW (md->assignMagneticField (B, MeshLocation::face));
+            }
         }
     }
-
-    REQUIRE (UnitVector::xhat != UnitVector::yhat);
-    REQUIRE (UnitVector::xhat == UnitVector::xhat);
-    REQUIRE (UnitVector::yhat == UnitVector::yhat);
-    REQUIRE (UnitVector::zhat == UnitVector::zhat);
 }

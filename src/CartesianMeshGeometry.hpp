@@ -9,8 +9,10 @@ class CartesianMeshGeometry : public MeshGeometry
 public:
     CartesianMeshGeometry();
 
-    CartesianMeshGeometry(int ni, int nj, int nk);
+    CartesianMeshGeometry(Cow::Shape shape);
     
+    CartesianMeshGeometry(int ni, int nj, int nk);
+
     void setCellsShape (Cow::Shape S) override;
     
     void setLowerUpper (Coordinate L, Coordinate U) override;

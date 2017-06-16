@@ -48,7 +48,7 @@ Array Stencil::evaluate (StencilOperation1 operation, const Array& x) const
 
     auto F = [&] (const Region& footprintRegion, Array& localResult)
     {
-        stencilDataArrays[0].copyFrom (x, footprintRegion);
+        stencilDataArrays[0].copyFrom (x, Region(), footprintRegion);
         operation (stencilDataArrays[0], localResult);
     };
     return runStencil (resultShape, F);
@@ -62,8 +62,8 @@ Array Stencil::evaluate (StencilOperation2 operation, const Array& x, const Arra
 
     auto F = [&] (const Region& footprintRegion, Array& localResult)
     {
-        stencilDataArrays[0].copyFrom (x, footprintRegion);
-        stencilDataArrays[1].copyFrom (y, footprintRegion);
+        stencilDataArrays[0].copyFrom (x, Region(), footprintRegion);
+        stencilDataArrays[1].copyFrom (y, Region(), footprintRegion);
         operation (stencilDataArrays[0], stencilDataArrays[1], localResult);
     };
     return runStencil (resultShape, F);
@@ -77,9 +77,9 @@ Array Stencil::evaluate (StencilOperation3 operation, const Array& x, const Arra
 
     auto F = [&] (const Region& footprintRegion, Array& localResult)
     {
-        stencilDataArrays[0].copyFrom (x, footprintRegion);
-        stencilDataArrays[1].copyFrom (y, footprintRegion);
-        stencilDataArrays[2].copyFrom (z, footprintRegion);
+        stencilDataArrays[0].copyFrom (x, Region(), footprintRegion);
+        stencilDataArrays[1].copyFrom (y, Region(), footprintRegion);
+        stencilDataArrays[2].copyFrom (z, Region(), footprintRegion);
         operation (stencilDataArrays[0], stencilDataArrays[1], stencilDataArrays[2], localResult);
     };
     return runStencil (resultShape, F);
