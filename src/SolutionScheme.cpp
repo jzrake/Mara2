@@ -60,24 +60,29 @@ void MethodOfLinesTVD::advance (double dt, MeshData& solution) const
     }
 
     auto newP = fieldOperator->recoverPrimitive (U);
+    solution.P = std::move (newP);
+    applyBoundaryCondition (solution);
+}
+
+void MethodOfLinesTVD::applyBoundaryCondition (MeshData& solution) const
+{
+    auto footprint = Shape {{ 2, 0, 0, }};
 
     for (int axis = 0; axis < 3; ++axis)
     {
-        if (footprint[axis] > 1)
+        if (footprint[axis] > 0)
         {
-            boundaryCondition->apply (newP,
+            boundaryCondition->apply (solution.P,
                 MeshLocation::cell,
                 MeshBoundary::left,
                 axis,
                 footprint[axis] / 2);
 
-            boundaryCondition->apply (newP,
+            boundaryCondition->apply (solution.P,
                 MeshLocation::cell,
                 MeshBoundary::right,
                 axis,
                 footprint[axis] / 2);
         }
     }
-
-    solution.P = std::move (newP);
 }

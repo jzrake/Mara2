@@ -1017,8 +1017,8 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
 {
     GIVEN ("An instance of MethodOflinesTVD")
     {
-        auto cs = Shape {{ 128, 1, 1 }}; // cells shape
-        auto bs = Shape {{ 1, 0, 0 }};   // boundary shape
+        auto cs = Shape {{ 8, 1, 1 }}; // cells shape
+        auto bs = Shape {{ 1, 0, 0 }}; // boundary shape
         auto md = std::make_shared<MeshData>(cs, bs, 5);
         auto mg = std::make_shared<CartesianMeshGeometry>(cs);
         auto mo = std::make_shared<MeshOperator>(mg);
@@ -1028,7 +1028,6 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
         auto bc = std::make_shared<PeriodicBoundaryCondition>();
 
         auto id = [] (double x, double, double) { return std::vector<double> {1., 0., 0., 0., 1.}; };
-        md->assignPrimitive (mo->generate (id, MeshLocation::cell));
 
         WHEN ("No field operator has been set")
         {
@@ -1043,10 +1042,27 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
             ss->setFieldOperator (fo);
             ss->setMeshOperator (mo);
             ss->setBoundaryCondition (bc);
-            
+
+            md->assignPrimitive (mo->generate (id, MeshLocation::cell));
+            ss->applyBoundaryCondition (*md);
+
             THEN ("Calling advance() returns successfully")
             {
                 CHECK_NOTHROW (ss->advance (0.0, *md));
+            }
+
+            THEN ("The solution is unchanged after update (it was uniform)")
+            {
+                auto P0 = md->P;
+
+                ss->advance (1.0, *md);
+
+                CHECK (md->P.shape() == P0.shape());
+                
+                for (int n = 0; n < md->P.size(); ++n)
+                {
+                    CHECK (md->P[n] == P0[n]);
+                }
             }
         }
     }

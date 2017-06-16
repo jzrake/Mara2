@@ -105,6 +105,7 @@ public MayUseMeshOperator
 {
 public:
     virtual void advance (double dt, MeshData& solution) const = 0;
+    virtual void applyBoundaryCondition (MeshData& solution) const = 0;
 };
 
 
