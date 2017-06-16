@@ -13,56 +13,6 @@ using namespace Cow;
 
 
 // ============================================================================
-class MeshOperator::RichShape
-{
-public:
-    RichShape (Shape S) : S (S) {}
-    RichShape (const Array& A) : S (A.shape()) {}
-    operator Shape() { return S; }
-    RichShape reduced (int delta=1) const
-    {
-        return Shape {{ S[0] - delta, S[1] - delta, S[2] - delta, S[3], S[4] }};
-    }
-    RichShape increased (int delta=1) const
-    {
-        return Shape {{ S[0] + delta, S[1] + delta, S[2] + delta, S[3], S[4] }};
-    }
-    RichShape reduced (Shape delta) const
-    {
-        return Shape {{ S[0] - delta[0], S[1] - delta[1], S[2] - delta[2], S[3], S[4] }};
-    }
-    RichShape increased (Shape delta) const
-    {
-        return Shape {{ S[0] + delta[0], S[1] + delta[1], S[2] + delta[2], S[3], S[4] }};
-    }
-    RichShape reduced (int axis, int delta) const
-    {
-        auto s = S;
-        s[axis] -= delta;
-        return s;
-    }
-    RichShape increased (int axis, int delta) const
-    {
-        auto s = S;
-        s[axis] += delta;
-        return s;
-    }
-    RichShape withComponents (int numComponents)
-    {
-        return Shape {{ S[0], S[1], S[2], numComponents, S[4] }};
-    }
-    RichShape withRank (int rank)
-    {
-        return Shape {{ S[0], S[1], S[2], S[3], rank }};
-    }
-private:
-    Shape S;
-};
-
-
-
-
-// ============================================================================
 GodunovStencil::GodunovStencil (int footprint, int numCellQ, int numFaceQ) :
 cellCoords (footprint),
 cellData (footprint, numCellQ),
@@ -109,7 +59,7 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
     {
         case MeshLocation::edge:
         {
-            auto E = Array (RichShape (geometry->cellsShape()).increased(1).withComponents(nq).withRank(3));
+            auto E = Array (Shape3D (geometry->cellsShape()).increased(1).withComponents(nq).withRank(3));
 
             Array::deploy (E.shape(), [&] (int i, int j, int k)
             {
@@ -154,7 +104,7 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
         }
         case MeshLocation::face:
         {
-            auto B = Array (RichShape (geometry->cellsShape()).increased(1).withComponents(nq).withRank(3));
+            auto B = Array (Shape3D (geometry->cellsShape()).increased(1).withComponents(nq).withRank(3));
 
             Array::deploy (B.shape(), [&] (int i, int j, int k)
             {
@@ -200,7 +150,7 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
         case MeshLocation::cell:
         {
             int nq = F (0.0, 0.0, 0.0).size();
-            auto P = Array (RichShape (geometry->cellsShape()).withComponents (nq));
+            auto P = Array (Shape3D (geometry->cellsShape()).withComponents (nq));
             auto R = Region().withStride (3, nq);
 
             for (auto it = P[R].begin(); it != P.end(); ++it)
@@ -232,7 +182,7 @@ Array MeshOperator::measure (MeshLocation location) const
         }
         case MeshLocation::edge:
         {
-            auto lengths = Array (RichShape (geometry->cellsShape()).increased().withRank(3));
+            auto lengths = Array (Shape3D (geometry->cellsShape()).increased().withRank(3));
 
             Array::deploy (lengths.shape(), [&] (int i, int j, int k)
             {
@@ -244,7 +194,7 @@ Array MeshOperator::measure (MeshLocation location) const
         }
         case MeshLocation::face:
         {
-            auto areas = Array (RichShape (geometry->cellsShape()).increased().withRank(3));
+            auto areas = Array (Shape3D (geometry->cellsShape()).increased().withRank(3));
 
             Array::deploy (areas.shape(), [&] (int i, int j, int k)
             {
@@ -273,10 +223,12 @@ Array MeshOperator::linearCellDimension() const
 
     Array::deploy (L.shape(), [&] (int i, int j, int k)
     {
-        auto L3 = std::array<double, 3> {{ 
+        auto L3 = std::array<double, 3>
+        {{ 
             geometry->cellLength (i, j, k, 0),
             geometry->cellLength (i, j, k, 1),
-            geometry->cellLength (i, j, k, 2) }};
+            geometry->cellLength (i, j, k, 2)
+        }};
         L (i, j, k) = *std::min_element (L3.begin(), L3.end());
     });
     return L;
@@ -284,7 +236,7 @@ Array MeshOperator::linearCellDimension() const
 
 Array MeshOperator::cellCentroidCoordinates() const
 {
-    auto X = Array (RichShape (geometry->cellsShape()).withComponents (3));
+    auto X = Array (Shape3D (geometry->cellsShape()).withComponents (3));
 
     Array::deploy (X.shape(), [&] (int i, int j, int k)
     {
@@ -323,7 +275,7 @@ Array MeshOperator::divergence (const Array& flux, Index start) const
 #define D(di, dj, dk, q   ) divergence           (i + di, j + dj, k + dk, q, 0)
 
     const int nq = flux.size(3);
-    auto divergence = Array (RichShape (flux).reduced(1).withComponents (nq).withRank(1));
+    auto divergence = Array (Shape3D (flux).reduced(1).withComponents (nq).withRank(1));
 
     Array::deploy (divergence.shape(), [&] (int i, int j, int k)
     {
@@ -378,7 +330,7 @@ Array MeshOperator::curl (const Array& potential, Index start) const
 
     auto curlfield = Array (potential.shape());
 
-    Array::deploy (RichShape (curlfield).reduced(1), [&] (int i, int j, int k)
+    Array::deploy (Shape3D (curlfield).reduced(1), [&] (int i, int j, int k)
     {
         B (0,0,0,0) = 1. / A (0,0,0,0) * (
             +E (0,1,0,2) * L (0,1,0,2)
@@ -418,12 +370,12 @@ Array MeshOperator::godunov (
 
     auto& fp = footprint; // Footprint is always even (total cells in stencil)
     auto& mg = geometry;
-    auto fluxShape = RichShape (cellData).increased(1).withRank(3);
+    auto fluxShape = Shape3D (cellData).increased(1).withRank(3);
     auto result = Array (fluxShape);
 
     for (int sweep = 0; sweep < 3; ++sweep)
     {
-        auto shape = RichShape (mg->cellsShape()).reduced (sweep, fp[sweep]);
+        auto shape = Shape3D (mg->cellsShape()).reduced (sweep, fp[sweep]);
 
         Array::deploy (shape, [&] (int i, int j, int k)
         {

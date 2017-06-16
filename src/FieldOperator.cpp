@@ -45,9 +45,13 @@ Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P) c
     auto zoneHealth = Array (shape[0], shape[1], shape[2]);
     auto inversionFailure = InversionFailure();
 
-    for (auto pit = P.begin(), uit = U.begin(); uit != U.end();
-        ++pit,
-        ++uit)
+    auto Treg = P.getRegion().withStride (3, law->getNumConserved());
+    auto Preg = P.getArray()[Treg];
+    auto Ureg = U.getArray()[Treg];
+    auto pit = Preg.begin();
+    auto uit = Ureg.begin();
+
+    for ( ; uit != U.end(); ++pit, ++uit)
     {
         try
         {
@@ -57,7 +61,7 @@ Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P) c
             {
                 pit[q] = S.P[q];
             }
-            auto index = uit.relativeIndex();
+            const auto index = uit.relativeIndex();
             zoneHealth (index[0], index[1], index[2]) = S.healthFlag;
         }
         catch (ConservationLaw::StateFailure& stateFailure)
@@ -74,6 +78,13 @@ Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P) c
     return zoneHealth;
 }
 
+Array FieldOperator::recoverPrimitive (Array::Reference U) const
+{
+    auto P = Array (U.shape());
+    recoverPrimitive (U, P);
+    return P;
+}
+
 void FieldOperator::generateConserved (Array::Reference P, Array::Reference U) const
 {
     int numConserved = law->getNumConserved();
@@ -82,13 +93,13 @@ void FieldOperator::generateConserved (Array::Reference P, Array::Reference U) c
     // This ensures that we are stepping over the axis (3) with the field
     // components.
     // ------------------------------------------------------------------------
-    auto reg = P.getRegion().withStride (3, law->getNumConserved());
-    auto Preg = P.getArray()[reg];
-    auto Ureg = U.getArray()[reg];
+    auto Treg = P.getRegion().withStride (3, law->getNumConserved());
+    auto Preg = P.getArray()[Treg];
+    auto Ureg = U.getArray()[Treg];
+    auto pit = Preg.begin();
+    auto uit = Ureg.begin();
 
-    for (auto pit = Preg.begin(), uit = Ureg.begin(); uit != Ureg.end();
-        ++pit,
-        ++uit)
+    for ( ; uit != Ureg.end(); ++pit, ++uit)
     {
         auto S = law->fromPrimitive (request, pit);
 
@@ -118,27 +129,28 @@ double FieldOperator::getCourantTimestep (
     // This ensures that we are stepping over the axis (3) with the field
     // components.
     // ------------------------------------------------------------------------
-    auto reg = P.getRegion().withStride (3, law->getNumConserved());
-    auto Preg = P.getArray()[reg];
+    auto Treg = P.getRegion().withStride (3, law->getNumConserved());
+    auto Preg = P.getArray()[Treg];
+    auto pit = Preg.begin();
+    auto lit = L.begin();
 
-    for (auto pit = Preg.begin(), lit = L.begin(); pit != Preg.end();
-        ++pit,
-        ++lit)
+    for ( ; pit != Preg.end(); ++pit, ++lit)
     {
         auto S0 = law->fromPrimitive (request0, pit);
         auto S1 = law->fromPrimitive (request1, pit);
         auto S2 = law->fromPrimitive (request2, pit);
 
-        auto lambdas = std::array<double, 3> {{
+        auto lambdas = std::array<double, 3>
+        {{
             law->maxEigenvalueMagnitude (S0),
             law->maxEigenvalueMagnitude (S1),
             law->maxEigenvalueMagnitude (S2)
         }};
-        const double tmin = *lit / *std::max_element (lambdas.begin(), lambdas.end());
+        const double dt = *lit / *std::max_element (lambdas.begin(), lambdas.end());
 
-        if (tmin < courantTimestep)
+        if (dt < courantTimestep)
         {
-            courantTimestep = tmin;
+            courantTimestep = dt;
         }
     }
     return courantTimestep;
@@ -154,12 +166,12 @@ std::vector<double> FieldOperator::volumeIntegratedDiagnostics (
     // This ensures that we are stepping over the axis (3) with the field
     // components.
     // ------------------------------------------------------------------------
-    auto reg = P.getRegion().withStride (3, law->getNumConserved());
-    auto Preg = P.getArray()[reg];
+    auto Treg = P.getRegion().withStride (3, law->getNumConserved());
+    auto Preg = P.getArray()[Treg];
+    auto pit = Preg.begin();
+    auto vit = V.begin();
 
-    for (auto pit = Preg.begin(), vit = V.begin(); pit != Preg.end();
-        ++pit,
-        ++vit)
+    for ( ; pit != Preg.end(); ++pit, ++vit)
     {
         auto state = law->fromPrimitive (request, pit);
         auto celld = law->makeDiagnostics (state);

@@ -50,7 +50,7 @@ LDFLAGS  += $(H5L)
 # =====================================================================
 #
 mara: $(OBJ) $(COW) $(LUA)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(H5L)
+	$(CXX) $(LDFLAGS) -o $@ $^
 
 clean:
 	$(RM) $(OBJ) $(DEP) mara

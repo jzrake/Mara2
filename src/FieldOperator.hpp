@@ -50,6 +50,11 @@ public:
     Array recoverPrimitive (Array::Reference U, Array::Reference P) const;
 
     /**
+    Convenience function; Returns P rather than zone health array.
+    */
+    Array recoverPrimitive (Array::Reference U) const;
+
+    /**
     Convert an array of primitive variables to conserved variables.
     */
     void generateConserved (Array::Reference P, Array::Reference U) const;

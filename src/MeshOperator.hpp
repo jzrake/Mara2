@@ -101,7 +101,6 @@ public:
         Index start={}) const;
 
 private:
-    class RichShape;
     std::shared_ptr<MeshGeometry> geometry;
 };
 

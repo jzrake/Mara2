@@ -589,7 +589,10 @@ SCENARIO ("Field operator should convert prim -> cons", "[FieldOperator]")
         auto mo = std::make_shared<MeshOperator>(mg);
         auto cl = std::make_shared<NewtonianHydro>();
         auto fo = std::make_shared<FieldOperator>(cl);
-        auto id = [] (double x, double, double) { return std::vector<double> { 1. + 0.5 * std::cos (M_PI * x), 1., 2., 3., 1. }; };
+        auto id = [] (double x, double, double)
+        {
+            return std::vector<double> { 1. + 0.5 * std::cos (M_PI * x), 1., 2., 3., 1. };
+        };
 
         WHEN ("The mesh operator is used to generate primitives and measures")
         {
@@ -615,6 +618,7 @@ SCENARIO ("Field operator should convert prim -> cons", "[FieldOperator]")
             auto P = mo->generate (id, MeshLocation::cell);
             auto X = mo->cellCentroidCoordinates();
             auto U = fo->generateConserved (P);
+            auto Q = fo->recoverPrimitive (U);
 
             THEN ("The conserved variables are as expected")
             {
@@ -629,6 +633,16 @@ SCENARIO ("Field operator should convert prim -> cons", "[FieldOperator]")
                     CHECK (U (i, 0, 0, 2) == Si.U[2]);
                     CHECK (U (i, 0, 0, 3) == Si.U[3]);
                     CHECK (U (i, 0, 0, 4) == Si.U[4]);
+                }
+            }
+
+            THEN ("The re-generated primatives are the same as the originals")
+            {
+                CHECK (P.size() == Q.size());
+                
+                for (int n = 0; n < P.size(); ++n)
+                {
+                    CHECK (P[n] == Approx (Q[n]));
                 }
             }
         }
