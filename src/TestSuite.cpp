@@ -1006,3 +1006,48 @@ SCENARIO ("Mesh data class works OK", "[MeshData]")
         }
     }
 }
+
+
+
+
+// ============================================================================
+#include "SolutionSchemes.hpp"
+
+SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
+{
+    GIVEN ("An instance of MethodOflinesTVD")
+    {
+        auto cs = Shape {{ 128, 1, 1 }}; // cells shape
+        auto bs = Shape {{ 1, 0, 0 }};   // boundary shape
+        auto md = std::make_shared<MeshData>(cs, bs, 5);
+        auto mg = std::make_shared<CartesianMeshGeometry>(cs);
+        auto mo = std::make_shared<MeshOperator>(mg);
+        auto cl = std::make_shared<NewtonianHydro>();
+        auto fo = std::make_shared<FieldOperator>(cl);
+        auto ss = std::make_shared<MethodOfLinesTVD>();
+        auto bc = std::make_shared<PeriodicBoundaryCondition>();
+
+        auto id = [] (double x, double, double) { return std::vector<double> {1., 0., 0., 0., 1.}; };
+        md->assignPrimitive (mo->generate (id, MeshLocation::cell));
+
+        WHEN ("No field operator has been set")
+        {
+            THEN ("Calling advance() raises an exception as it should")
+            {
+                CHECK_THROWS (ss->advance (0.0, *md));
+            }
+        }
+
+        WHEN ("All necessary operators have been set")
+        {
+            ss->setFieldOperator (fo);
+            ss->setMeshOperator (mo);
+            ss->setBoundaryCondition (bc);
+            
+            THEN ("Calling advance() returns successfully")
+            {
+                CHECK_NOTHROW (ss->advance (0.0, *md));
+            }
+        }
+    }
+}

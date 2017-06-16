@@ -38,6 +38,8 @@ public:
     */
     void setConservationLaw (std::shared_ptr<ConservationLaw>);
 
+    std::shared_ptr<ConservationLaw> getConservationLaw() { return law; }
+
     /**
     Deploy the ConservationLaw::fromConserved function over the array of
     conserved variables U. Note that this function may throw an exception if

@@ -375,6 +375,11 @@ Array MeshOperator::godunov (
 
     for (int sweep = 0; sweep < 3; ++sweep)
     {
+        if (fp[sweep] == 0)
+        {
+            continue; // It's a zero-stencil in this direction
+        }
+
         auto shape = Shape3D (mg->cellsShape()).reduced (sweep, fp[sweep]);
 
         Array::deploy (shape, [&] (int i, int j, int k)

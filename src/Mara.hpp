@@ -21,10 +21,13 @@ These are algorithm classes that may have inter-dependencies.
 class BoundaryCondition;
 class ConservationLaw;
 class ConstrainedTransport;
-class SolutionScheme;
+class FieldOperator;
 class IntercellFluxScheme;
+class MeshData;
 class MeshGeometry;
+class MeshOperator;
 class RiemannSolver;
+class SolutionScheme;
 
 
 
@@ -42,6 +45,8 @@ initialization stage.
 class MayUseBoundaryCondition    { public: virtual void setBoundaryCondition    (std::shared_ptr<BoundaryCondition>)    {} };
 class MayUseConservationLaw      { public: virtual void setConservationLaw      (std::shared_ptr<ConservationLaw>)      {} };
 class MayUseConstrainedTransport { public: virtual void setConstrainedTransport (std::shared_ptr<ConstrainedTransport>) {} };
+class MayUseFieldOperator        { public: virtual void setFieldOperator        (std::shared_ptr<FieldOperator>)        {} };
+class MayUseMeshOperator         { public: virtual void setMeshOperator         (std::shared_ptr<MeshOperator>)         {} };
 class MayUseIntercellFluxScheme  { public: virtual void setIntercellFluxScheme  (std::shared_ptr<IntercellFluxScheme>)  {} };
 class MayUseMeshGeometry         { public: virtual void setMeshGeometry         (std::shared_ptr<MeshGeometry>)         {} };
 class MayUseRiemannSolver        { public: virtual void setRiemannSolver        (std::shared_ptr<RiemannSolver>)        {} };
@@ -88,6 +93,18 @@ class MaraSession : public MayUseLogger
 public:
     MaraSession();
     SimulationStatus launch (SimulationSetup& setup);
+};
+
+
+
+
+class SolutionScheme :
+public MayUseBoundaryCondition,
+public MayUseFieldOperator,
+public MayUseMeshOperator
+{
+public:
+    virtual void advance (double dt, MeshData& solution) const = 0;
 };
 
 
