@@ -40,9 +40,30 @@ void TaskScheduler::Recurrence::update (char reason)
 
 
 // ============================================================================
+class TaskScheduler::LambdaTask : public TaskScheduler::Task
+{
+public:
+	LambdaTask (TaskFunction taskFunction) : taskFunction (taskFunction) {}
+    void run (SimulationStatus status, int rep) override
+    {
+    	taskFunction (status, rep);
+    }
+private:
+    TaskFunction taskFunction;
+};
+
+
+
+
+// ============================================================================
 void TaskScheduler::schedule (std::shared_ptr<Task> task, Recurrence recurrence)
 {
 	tasks.push_back (std::make_pair (recurrence, task));
+}
+
+void TaskScheduler::schedule (TaskFunction task, Recurrence recurrence)
+{
+	schedule (std::make_shared<LambdaTask>(task), recurrence);
 }
 
 void TaskScheduler::dispatch (SimulationStatus status)

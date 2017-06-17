@@ -257,17 +257,19 @@ Array MeshOperator::divergence (const Array& flux, Index start) const
         throw std::logic_error ("Attempt to compute divergence from data whose size(4) != 3");
     }
     /*
-                    F (i, j + 1, k) : 1
-
-                    +-----------------+
-                    |                 |
-                    |                 |
-    F (i, j, k) : 0 |      div F      | F (i + 1, j, k) : 0
-                    |                 |
-                    |                 |
-                    +-----------------+
-
-                    F (i, j + 0, k) : 1
+                        F (i, j + 1, k) : 1
+                                ^
+                                |
+                        +-----------------+
+                        |                 |
+                        |                 |
+    F (i, j, k) : 0  <--|      div F      |--> F (i + 1, j, k) : 0
+                        |                 |
+                        |                 |
+                        +-----------------+
+                                |
+                                v
+                        F (i, j + 0, k) : 1
     */
 #define A(di, dj, dk, a   ) geometry->faceArea   (i + di + start[0], j + dj + start[1], k + dk + start[2], a)
 #define V(di, dj, dk      ) geometry->cellVolume (i + di + start[0], j + dj + start[1], k + dk + start[2])
@@ -313,13 +315,13 @@ Array MeshOperator::curl (const Array& potential, Index start) const
     /*
                     E (i, j + 1, k) : 0
 
-                    +-----------------+
+                    +--------<--------+
                     |                 |
                     |                 |
-    E (i, j, k) : 1 |      curl E     | E (i + 1, j, k) : 1
+    E (i, j, k) : 1 v      curl E     ^ E (i + 1, j, k) : 1
                     |                 |
                     |                 |
-                    +-----------------+
+                    +-------->--------+
 
                     E (i, j + 0, k) : 0
     */

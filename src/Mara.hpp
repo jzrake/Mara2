@@ -161,6 +161,9 @@ public:
     double lastCheckpoint;
     double lastVtkOutput;
     double lastTimeSeriesEntry;
+
+    double wallMinutes;
+    long totalCellsInMesh;
 };
 
 
@@ -174,7 +177,7 @@ Currently there is only one implementation, which is a block decomposition.
 class MeshDecomposition
 {
 public:
-    std::shared_ptr<MeshGeometry> decompose() const;
+    virtual std::shared_ptr<MeshGeometry> decompose() const = 0;
 };
 
 

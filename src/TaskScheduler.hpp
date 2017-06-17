@@ -34,10 +34,14 @@ public:
 		virtual void run (SimulationStatus status, int repetition) = 0;
 	};
 
+	using TaskFunction = std::function<void (SimulationStatus status, int repetition)>;
+
 	void schedule (std::shared_ptr<Task> task, Recurrence recurrence);
+	void schedule (TaskFunction task, Recurrence recurrence);
 	void dispatch (SimulationStatus status);
 
 private:
+	class LambdaTask;
 	Cow::Timer timer;
 	using RecurrenceTask = std::pair<Recurrence, std::shared_ptr<Task>>;
 	std::vector<RecurrenceTask> tasks;
