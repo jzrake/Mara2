@@ -1019,14 +1019,14 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
     {
         auto cs = Shape {{ 8, 1, 1 }}; // cells shape
         auto bs = Shape {{ 1, 0, 0 }}; // boundary shape
-        auto md = std::make_shared<MeshData>(cs, bs, 5);
+
         auto mg = std::make_shared<CartesianMeshGeometry>(cs);
         auto mo = std::make_shared<MeshOperator>(mg);
         auto cl = std::make_shared<NewtonianHydro>();
         auto fo = std::make_shared<FieldOperator>(cl);
         auto ss = std::make_shared<MethodOfLinesTVD>();
         auto bc = std::make_shared<PeriodicBoundaryCondition>();
-
+        auto md = std::make_shared<MeshData>(cs, bs, 5);
         auto id = [] (double x, double, double) { return std::vector<double> {1., 0., 0., 0., 1.}; };
 
         WHEN ("No field operator has been set")
@@ -1066,4 +1066,130 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
             }
         }
     }
+}
+
+
+
+
+// ============================================================================
+#include "TaskScheduler.hpp"
+
+class Task1 : public TaskScheduler::Task
+{
+public:
+    Task1() : numberOfRuns (0) {}
+    void run (SimulationStatus status, int rep) override
+    {
+        CHECK (status.simulationIter % 12 == 0);
+        CHECK (numberOfRuns == rep);
+        ++numberOfRuns;
+    }
+    int numberOfRuns;
+};
+
+class Task2 : public TaskScheduler::Task
+{
+public:
+    Task2() : numberOfRuns (0) {}
+    void run (SimulationStatus status, int rep) override
+    {
+        CHECK (status.simulationTime == Approx (numberOfRuns * 0.1));
+        CHECK (numberOfRuns == rep);
+        ++numberOfRuns;
+    }
+    int numberOfRuns;
+};
+
+SCENARIO ("Task scheduler works reasonably", "[TaskScheduler]")
+{
+    GIVEN ("A scheduler with two tasks")
+    {
+        auto ts = TaskScheduler();
+        auto t1 = std::make_shared<Task1>();
+        auto t2 = std::make_shared<Task2>();
+        auto status = SimulationStatus();
+
+        ts.schedule (t1, TaskScheduler::Recurrence (0.0, 0.0, 12));
+        ts.schedule (t2, TaskScheduler::Recurrence (0.1, 0.0));
+
+        for (int i = 0; i < 144; ++i)
+        {
+            ts.dispatch (status);
+            status.simulationIter += 1;
+            status.simulationTime += 0.01;
+        }
+        ts.dispatch (status);
+
+        THEN ("The tasks were run the expected number of times")
+        {
+            CHECK (t1->numberOfRuns == 13);
+            CHECK (t2->numberOfRuns == 15);
+        }
+    }
+}
+
+
+
+
+// ============================================================================
+#include "Timer.hpp"
+
+void run()
+{
+    auto cs = Shape {{128, 1, 1 }}; // cells shape
+    auto bs = Shape {{  1, 0, 0 }}; // boundary shape
+    auto mg = std::make_shared<CartesianMeshGeometry>(cs);
+    auto mo = std::make_shared<MeshOperator>(mg);
+    auto cl = std::make_shared<NewtonianHydro>();
+    auto fo = std::make_shared<FieldOperator>(cl);
+    auto ss = std::make_shared<MethodOfLinesTVD>();
+    auto bc = std::make_shared<PeriodicBoundaryCondition>();
+    auto md = std::make_shared<MeshData>(cs, bs, 5);
+    auto id = [] (double x, double, double) { return std::vector<double> {1., 0., 0., 0., 1.}; };
+
+    ss->setFieldOperator (fo);
+    ss->setMeshOperator (mo);
+    ss->setBoundaryCondition (bc);
+
+    md->assignPrimitive (mo->generate (id, MeshLocation::cell));
+    ss->applyBoundaryCondition (*md);
+
+    auto status = SimulationStatus();
+    auto finalTime = 0.0;
+    auto cflParameter = 0.5;
+
+    auto L = mo->linearCellDimension();
+    auto P = md->getPrimitive();
+    auto logger = std::make_shared<Logger>();
+
+    while (status.simulationTime < finalTime)
+    {
+        // ts->dispatch (status);
+
+
+        // Invoke the solver to advance the solution
+        // --------------------------------------------------------------------
+        auto timer = Timer();
+
+        double dt = fo->getCourantTimestep (P, L);
+        ss->advance (dt, *md);
+
+        status.simulationTime += dt;
+        status.simulationIter += 1;
+
+
+        // Generate iteration output message
+        // --------------------------------------------------------------------
+        double kzps = 1e-3 * mg->totalCellsInMesh() / timer.age();
+        logger->log() << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
+        logger->log() << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
+        logger->log() << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
+        logger->log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
+    }
+}
+
+
+SCENARIO ("A partial scale run")
+{
+    run();
 }

@@ -50,9 +50,6 @@ class MayUseMeshOperator         { public: virtual void setMeshOperator         
 class MayUseIntercellFluxScheme  { public: virtual void setIntercellFluxScheme  (std::shared_ptr<IntercellFluxScheme>)  {} };
 class MayUseMeshGeometry         { public: virtual void setMeshGeometry         (std::shared_ptr<MeshGeometry>)         {} };
 class MayUseRiemannSolver        { public: virtual void setRiemannSolver        (std::shared_ptr<RiemannSolver>)        {} };
-
-
-
 class MayUseLogger
 {
 public:
