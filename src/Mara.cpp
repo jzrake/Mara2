@@ -558,6 +558,11 @@ int TestSuite::runAllTests (int argc, const char* argv[])
 
 
 
+#include "Problems.hpp"
+
+
+
+
 // ============================================================================
 int main (int argc, const char* argv[])
 {
@@ -594,6 +599,11 @@ int main (int argc, const char* argv[])
     if (command == "test")
     {
         return TestSuite().runAllTests (argc - 1, argv + 1);
+    }
+    if (command == "regression")
+    {
+        auto program = SimpleTestProgram();
+        return program.run (argc - 1, argv + 1);
     }
     if (command == "run")
     {

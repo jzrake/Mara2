@@ -12,7 +12,9 @@ public:
 	CheckpointWriter();
 
 	void setOutputDirectory (std::string outputDirectoryToUse);
+	void setFilenamePrefix (std::string filenamePrefixToUse);
 	void setMeshDecomposition (std::shared_ptr<MeshDecomposition> meshDecompositionToUse);
+	void setTimeSeriesManager (std::shared_ptr<TimeSeriesManager> timeSeriesManagerToUse);
 
 	void writeCheckpoint (
 		int checkpointNumber,
@@ -20,13 +22,14 @@ public:
 	    ConservationLaw& conservationLaw,
 	    MeshData& meshData,
 	    MeshGeometry& meshGeometry,
-	    TimeSeriesManager& tseries,
 	    Logger& logger) const;
 
 private:
+	std::string filenamePrefix;
 	std::string outputDirectory;
 	std::shared_ptr<MeshDecomposition> meshDecomposition;
 	std::shared_ptr<MeshGeometry> meshGeometry;
+	std::shared_ptr<TimeSeriesManager> timeSeriesManager;
 };
 
 

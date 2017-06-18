@@ -1132,10 +1132,10 @@ SCENARIO ("Task scheduler works reasonably", "[TaskScheduler]")
 
 
 // ============================================================================
-#include "Problems.hpp"
+// #include "Problems.hpp"
 
-SCENARIO ("Simple test problems can be run", "[Problems]")
-{
-    auto program = SimpleTestProgram();
-    CHECK (program.run (0, nullptr) == 0);
-}
+// SCENARIO ("Simple test problems can be run", "[Problems]")
+// {
+//     auto program = SimpleTestProgram();
+//     CHECK (program.run (0, nullptr) == 0);
+// }

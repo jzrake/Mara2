@@ -28,8 +28,8 @@
 LUA_ARCH ?= generic
 AR       ?= ar rcu
 RANLIB   ?= ranlib
-CXXFLAGS ?= -std=c++14 -Wall -O0 -g
 CXX      ?= mpicxx
+CXXFLAGS ?= -std=c++14 -Wall -O0 -g
 H5I      ?= -I/usr/include
 H5L      ?= -L/usr/lib -lhdf5
 

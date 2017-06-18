@@ -1,4 +1,5 @@
 #include <iomanip>
+#include <cmath>
 #include "Problems.hpp"
 #include "Mara.hpp"
 #include "TaskScheduler.hpp"
@@ -46,6 +47,72 @@ static void maraMainLoop (
 
 
 // ============================================================================
+struct SimpleTestProgram::Problem
+{
+    std::string name;
+    double finalTime;
+    bool periodicBC;
+    InitialDataFunction idf;
+};
+
+static std::vector<SimpleTestProgram::Problem> getProblems()
+{
+    auto Shocktube1 = [&] (double x, double, double)
+    {
+        auto S1 = std::vector<double> {1.000, 0.000, 0.0, 0.0, 1.000};
+        auto S2 = std::vector<double> {0.125, 0.000, 0.0, 0.0, 0.100};
+        return x < 0.5 ? S1 : S2;
+    };
+    auto Shocktube2 = [&] (double x, double, double)
+    {
+        auto S1 = std::vector<double> {1.000,-2.000, 0.0, 0.0, 0.400};
+        auto S2 = std::vector<double> {1.000, 2.000, 0.0, 0.0, 0.400};
+        return x < 0.5 ? S1 : S2;
+    };
+    auto Shocktube3 = [&] (double x, double, double)
+    {
+        auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e+3};
+        auto S2 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e-2};
+        return x < 0.5 ? S1 : S2;
+    };
+    auto Shocktube4 = [&] (double x, double, double)
+    {
+        auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e-2};
+        auto S2 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e+2};
+        return x < 0.5 ? S1 : S2;
+    };
+    auto Shocktube5 = [&] (double x, double, double)
+    {
+        auto S1 = std::vector<double> {5.99924, 19.59750, 0.0, 0.0, 460.894};
+        auto S2 = std::vector<double> {5.99924, -6.19633, 0.0, 0.0,  46.095};
+        return x < 0.5 ? S1 : S2;
+    };
+    auto ContactWave = [&] (double x, double, double)
+    {
+        auto S1 = std::vector<double> {1.0, 0.0, 0.7, 0.2, 1.0};
+        auto S2 = std::vector<double> {0.1, 0.0, 0.7, 0.2, 1.0};
+        return x < 0.5 ? S1 : S2;
+    };
+    auto DensityWave = [&] (double x, double, double)
+    {
+        return std::vector<double> {1.0 + 0.1 * std::sin (4 * M_PI * x), 1.0, 0.0, 0.0, 1.0};
+    };
+
+    auto problems = std::vector<SimpleTestProgram::Problem>();
+    problems.push_back ({ "Shocktube1", 0.100, false, Shocktube1 });
+    problems.push_back ({ "Shocktube2", 0.100, false, Shocktube2 });
+    problems.push_back ({ "Shocktube3", 0.005, false, Shocktube3 });
+    problems.push_back ({ "Shocktube4", 0.01, false, Shocktube4 });
+    problems.push_back ({ "Shocktube5", 0.01, false, Shocktube5 });
+    problems.push_back ({ "ContactWave", 0.1, false, ContactWave });
+    problems.push_back ({ "DensityWave", 1.0, true, DensityWave });
+    return problems;
+}
+
+
+
+
+// ============================================================================
 #include "BoundaryConditions.hpp"
 #include "CartesianMeshGeometry.hpp"
 #include "Checkpoint.hpp"
@@ -56,52 +123,73 @@ static void maraMainLoop (
 #include "SolutionSchemes.hpp"
 #include "TimeSeriesManager.hpp"
 
-int SimpleTestProgram::run (int argc, const char* argv[]) const
+void SimpleTestProgram::setup (const Problem& problem)
 {
     auto cs = Shape {{128, 1, 1 }}; // cells shape
     auto bs = Shape {{  1, 0, 0 }}; // boundary shape
-    auto mg = std::make_shared<CartesianMeshGeometry>(cs);
-    auto mo = std::make_shared<MeshOperator>(mg);
-    auto cl = std::make_shared<NewtonianHydro>();
-    auto fo = std::make_shared<FieldOperator>(cl);
-    auto ss = std::make_shared<MethodOfLinesTVD>();
-    auto bc = std::make_shared<PeriodicBoundaryCondition>();
-    auto md = std::make_shared<MeshData>(cs, bs, 5);
-    auto id = [] (double x, double, double) { return std::vector<double> {1., 0., 0., 0., 1.}; };
 
+    mg = std::make_shared<CartesianMeshGeometry>(cs);
+    mo = std::make_shared<MeshOperator>();
+    cl = std::make_shared<NewtonianHydro>();
+    fo = std::make_shared<FieldOperator>();
+    ss = std::make_shared<MethodOfLinesTVD>();
+    md = std::make_shared<MeshData>(cs, bs, 5);
+
+    if (problem.periodicBC)
+    {
+        bc = std::make_shared<PeriodicBoundaryCondition>();
+    }
+    else
+    {
+        bc = std::make_shared<OutflowBoundaryCondition>();
+    }
+
+    fo->setConservationLaw (cl);
+    mo->setMeshGeometry (mg);
     ss->setFieldOperator (fo);
     ss->setMeshOperator (mo);
     ss->setBoundaryCondition (bc);
+}
 
-    md->assignPrimitive (mo->generate (id, MeshLocation::cell));
-    ss->applyBoundaryCondition (*md);
-
-    auto status = SimulationStatus();
-    auto finalTime = 0.5;
-    auto cflParameter = 0.5;
-
-    auto L = mo->linearCellDimension();
-    auto P = md->getPrimitive();
-
-    auto timestep  = [&] () { return cflParameter * fo->getCourantTimestep (P, L); };
-    auto condition = [&] () { return status.simulationTime < finalTime; };
-    auto advance   = [&] (double dt) { return ss->advance (dt, *md); };
-    auto scheduler = std::make_shared<TaskScheduler>();
-    auto logger    = std::make_shared<Logger>();
-
-    status.totalCellsInMesh = mg->totalCellsInMesh();
-
-    scheduler->schedule ([&] (SimulationStatus status, int rep)
+int SimpleTestProgram::run (int argc, const char* argv[])
+{
+    for (const auto& problem : getProblems())
     {
-    	// place-holder
-    }, TaskScheduler::Recurrence (0.2));
+        setup (problem);
 
-    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
+        auto status = SimulationStatus();
+        auto finalTime = double();
+        auto cflParameter = 0.5;
 
-    auto tseries = std::make_shared<TimeSeriesManager>();
-    auto writer = CheckpointWriter();
+        auto L = mo->linearCellDimension();
+        auto P = md->getPrimitive();
 
-    writer.writeCheckpoint (0, status, *cl, *md, *mg, *tseries, *logger);
+        auto timestep  = [&] ()
+        {
+            const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+            const double dt2 = finalTime - status.simulationTime;
+            return dt1 < dt2 ? dt1 : dt2;
+        };
+        auto condition = [&] () { return status.simulationTime < finalTime; };
+        auto advance   = [&] (double dt) { return ss->advance (dt, *md); };
+        auto scheduler = std::make_shared<TaskScheduler>();
+        auto logger    = std::make_shared<Logger>();
+        auto writer    = CheckpointWriter();
 
+        writer.setFilenamePrefix (problem.name);
+        writer.setMeshDecomposition (nullptr);
+        writer.setTimeSeriesManager (nullptr);
+
+        status = SimulationStatus();
+        status.totalCellsInMesh = mg->totalCellsInMesh();
+        finalTime = problem.finalTime;
+
+        md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
+        ss->applyBoundaryCondition (*md);
+
+        writer.writeCheckpoint (0, status, *cl, *md, *mg, *logger);
+        maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
+        writer.writeCheckpoint (1, status, *cl, *md, *mg, *logger);
+    }
     return 0;
 }

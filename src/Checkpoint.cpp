@@ -18,16 +18,27 @@ using namespace Cow;
 CheckpointWriter::CheckpointWriter()
 {
 	outputDirectory = "data";
-}
-
-void CheckpointWriter::setMeshDecomposition (std::shared_ptr<MeshDecomposition> meshDecompositionToUse)
-{
-	meshDecomposition = meshDecompositionToUse;
+    filenamePrefix = "chkpt";
 }
 
 void CheckpointWriter::setOutputDirectory (std::string outputDirectoryToUse)
 {
 	outputDirectory = outputDirectoryToUse;
+}
+
+void CheckpointWriter::setFilenamePrefix (std::string filenamePrefixToUse)
+{
+    filenamePrefix = filenamePrefixToUse;
+}
+
+void CheckpointWriter::setMeshDecomposition (std::shared_ptr<MeshDecomposition> meshDecompositionToUse)
+{
+    meshDecomposition = meshDecompositionToUse;
+}
+
+void CheckpointWriter::setTimeSeriesManager (std::shared_ptr<TimeSeriesManager> timeSeriesManagerToUse)
+{
+    timeSeriesManager = timeSeriesManagerToUse;
 }
 
 void CheckpointWriter::writeCheckpoint (
@@ -36,11 +47,10 @@ void CheckpointWriter::writeCheckpoint (
     ConservationLaw& conservationLaw,
     MeshData& meshData,
     MeshGeometry& meshGeometry,
-    TimeSeriesManager& tseries,
     Logger& logger) const
 {
     auto timer = Timer();
-    auto filename = FileSystem::makeFilename (outputDirectory, "chkpt", ".h5", checkpointNumber);
+    auto filename = FileSystem::makeFilename (outputDirectory, filenamePrefix, ".h5", checkpointNumber);
     auto block = dynamic_cast<const BlockDecomposition*>(meshDecomposition.get());
 
     if (meshDecomposition != nullptr && block == nullptr)
@@ -88,11 +98,6 @@ void CheckpointWriter::writeCheckpoint (
         }
 
 
-        // if (conservationLaw.getIndexFor (VT::magnetic) != -1)
-        // {
-        //     diagnosticGroup.createDataSet ("monopole", globalShape, dtype, plist);
-        // }
-
 
         // Write the simulation status data into the checkpoint
         // --------------------------------------------------------------------
@@ -116,7 +121,10 @@ void CheckpointWriter::writeCheckpoint (
 
         // Write the time series data
         // --------------------------------------------------------------------
-        tseries.write (tseriesGroup);
+        if (timeSeriesManager)
+        {
+            timeSeriesManager->write (tseriesGroup);
+        }
     };
 
 
