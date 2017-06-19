@@ -23,6 +23,8 @@ static void maraMainLoop (
 {
     auto simulationTimer = Timer();
 
+    logger.log ("Mara") << "Beginning main loop" << std::endl;
+
     while (condition())
     {
         scheduler.dispatch (status);
@@ -41,6 +43,9 @@ static void maraMainLoop (
         logger.log() << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
         logger.log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
     }
+
+    scheduler.dispatch (status);
+    logger.log ("Mara") << "Completed main loop" << std::endl;
 }
 
 
@@ -158,7 +163,6 @@ int SimpleTestProgram::run (int argc, const char* argv[])
         setup (problem);
 
         auto status = SimulationStatus();
-        auto finalTime = double();
         auto cflParameter = 0.5;
 
         auto L = mo->linearCellDimension();
@@ -167,29 +171,31 @@ int SimpleTestProgram::run (int argc, const char* argv[])
         auto timestep  = [&] ()
         {
             const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
-            const double dt2 = finalTime - status.simulationTime;
+            const double dt2 = problem.finalTime - status.simulationTime;
             return dt1 < dt2 ? dt1 : dt2;
         };
-        auto condition = [&] () { return status.simulationTime < finalTime; };
+        auto condition = [&] () { return status.simulationTime < problem.finalTime; };
         auto advance   = [&] (double dt) { return ss->advance (dt, *md); };
         auto scheduler = std::make_shared<TaskScheduler>();
         auto logger    = std::make_shared<Logger>();
-        auto writer    = CheckpointWriter();
+        auto writer    = std::make_shared<CheckpointWriter>();
 
-        writer.setFilenamePrefix (problem.name);
-        writer.setMeshDecomposition (nullptr);
-        writer.setTimeSeriesManager (nullptr);
+        writer->setFilenamePrefix (problem.name);
+        writer->setMeshDecomposition (nullptr);
+        writer->setTimeSeriesManager (nullptr);
+
+        scheduler->schedule ([&] (SimulationStatus, int rep)
+        {
+            writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+        }, TaskScheduler::Recurrence (problem.finalTime));
 
         status = SimulationStatus();
         status.totalCellsInMesh = mg->totalCellsInMesh();
-        finalTime = problem.finalTime;
 
         md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
         ss->applyBoundaryCondition (*md);
 
-        writer.writeCheckpoint (0, status, *cl, *md, *mg, *logger);
         maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
-        writer.writeCheckpoint (1, status, *cl, *md, *mg, *logger);
     }
     return 0;
 }
