@@ -192,6 +192,36 @@ SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
 }
 
 
+SCENARIO ("Shape3D objects should work correctly", "[Shape3D]")
+{
+    GIVEN ("Three shapes A, B, C where A contains B but not C")
+    {
+        auto A = Shape3D (4, 2, 8);
+        auto B = Shape3D (4, 0, 8);
+        auto C = Shape3D (1, 1, 9);
+
+        THEN ("The contains member function works as expected")
+        {
+            CHECK (A.contains(A));
+            CHECK (A.contains(B));
+            CHECK_FALSE (A.contains(C));
+            CHECK_FALSE (B.contains(C));
+            CHECK_FALSE (C.contains(A));
+        }
+
+        WHEN ("C is reduced by one on the last axis")
+        {
+            C = C.reduced (2, 1);
+
+            THEN ("A now contains C")
+            {
+                CHECK (A.contains(C));
+            }
+        }
+    }
+}
+
+
 
 
 // ============================================================================
@@ -1033,7 +1063,7 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
         {
             THEN ("Calling advance() raises an exception as it should")
             {
-                CHECK_THROWS (ss->advance (0.0, *md));
+                CHECK_THROWS (ss->advance (*md, 0.0));
             }
         }
 
@@ -1042,20 +1072,19 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
             ss->setFieldOperator (fo);
             ss->setMeshOperator (mo);
             ss->setBoundaryCondition (bc);
-
             md->assignPrimitive (mo->generate (id, MeshLocation::cell));
-            ss->applyBoundaryCondition (*md);
+            md->applyBoundaryCondition (*bc);
 
             THEN ("Calling advance() returns successfully")
             {
-                CHECK_NOTHROW (ss->advance (0.0, *md));
+                CHECK_NOTHROW (ss->advance (*md, 0.0));
             }
 
             THEN ("The solution is unchanged after update (it was uniform)")
             {
                 auto P0 = md->P;
 
-                ss->advance (1.0, *md);
+                ss->advance (*md, 1.0);
 
                 CHECK (md->P.shape() == P0.shape());
                 
@@ -1063,6 +1092,28 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
                 {
                     CHECK (md->P[n] == P0[n]);
                 }
+            }
+        }
+
+        WHEN ("The solution data guard zone region is too small for the scheme")
+        {
+            ss->setFieldOperator (fo);
+            ss->setMeshOperator (mo);
+            ss->setBoundaryCondition (bc);
+
+            auto bs2 = Shape {{ 0, 0, 0 }};
+            auto md2 = std::make_shared<MeshData>(cs, bs2, 5);
+            md2->assignPrimitive (mo->generate (id, MeshLocation::cell));
+            md2->applyBoundaryCondition (*bc);
+
+            THEN ("The scheme works with the old mesh data")
+            {
+                CHECK_NOTHROW (ss->advance (*md, 1.0));
+            }
+
+            THEN ("But it raises an exception with the new mesh data")
+            {
+                CHECK_THROWS (ss->advance (*md2, 1.0));
             }
         }
     }
@@ -1127,15 +1178,3 @@ SCENARIO ("Task scheduler works reasonably", "[TaskScheduler]")
         }
     }
 }
-
-
-
-
-// ============================================================================
-// #include "Problems.hpp"
-
-// SCENARIO ("Simple test problems can be run", "[Problems]")
-// {
-//     auto program = SimpleTestProgram();
-//     CHECK (program.run (0, nullptr) == 0);
-// }

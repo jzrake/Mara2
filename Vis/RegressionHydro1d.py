@@ -1,4 +1,10 @@
-class Shocktube1():
+
+
+class Plot(object):
+    pass
+
+
+class Shocktube1(Plot):
     def plot(self, fig):
         import os
         import h5py
@@ -16,9 +22,25 @@ class Shocktube1():
         fig.suptitle('DensityWave')
 
 
+class Shocktube3(Plot):
+    def plot(self, fig):
+        import os
+        import h5py
+
+        chkpt = h5py.File (os.path.join('data', 'Shocktube3.0001.h5'), 'r')
+        d = chkpt['primitive']['density'][...]
+        p = chkpt['primitive']['pressure'][...]
+        u = chkpt['primitive']['velocity1'][...]
+
+        ax1 = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        ax1.plot(d, '-o', mfc='none', label=r'$\rho$')
+        ax1.plot(p, '-o', mfc='none', label=r'$p$')
+        ax1.set_yscale('log')
+        ax1.legend(loc='best')
+        fig.suptitle('DensityWave')
 
 
-class DensityWave():
+class DensityWave(Plot):
     def plot(self, fig):
         import os
         import h5py
@@ -35,8 +57,6 @@ class DensityWave():
         fig.suptitle('DensityWave')
 
 
-
-
 def search(name, terms):
     if not terms: return True
 
@@ -48,8 +68,6 @@ def search(name, terms):
     return False
 
 
-
-
 def main():
     import matplotlib.pyplot as plt
     import argparse
@@ -57,13 +75,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("search_terms", nargs='*', help="search terms to match in test figures")
     parser.add_argument("-l", "--list", action='store_true', help="only show the list of tests")
+    parser.add_argument("--pdf", action='store_true', help="export figures to PDF")
     args = parser.parse_args()
 
-    plotters = [Shocktube1(), DensityWave()]
+    plotters = [Shocktube1(), Shocktube3(), DensityWave()]
 
     for plotter in plotters:
 
-        if not search(plotter.__class__.__name__, args.search_terms):
+        name = plotter.__class__.__name__
+
+        if not search(name, args.search_terms):
             continue
 
         print plotter.__class__
@@ -74,7 +95,11 @@ def main():
         fig = plt.figure()
         plotter.plot(fig)
 
-    plt.show()
+        if args.pdf:
+            fig.savefig(name + '.pdf')
+
+    if not args.pdf:
+        plt.show()
 
 
 if __name__ == "__main__":

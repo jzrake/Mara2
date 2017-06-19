@@ -19,7 +19,8 @@ class MeshData
 {
 public:
 	using Array = Cow::Array;
-	using Shape = Cow::Shape;
+    using Shape = Cow::Shape;
+    using Shape3D = Cow::Shape3D;
     using Region = Cow::Region;
 
 	MeshData (Shape baseShape, Shape boundaryShape, int numComponents);
@@ -71,6 +72,16 @@ public:
     */
     Array::Reference getZoneHealth();
 
+    /**
+    Return the shape of the boundary zones. This is the number of cells, along
+    each axis, by which the boundary region extends inwards from the array
+    extent. It has the same value as the object with the same name that was
+    passed to the constructor.
+    */
+    Shape3D getBoundaryShape() const;
+
+    void applyBoundaryCondition (BoundaryCondition& bc);
+
     Array P; /**< Primitive variable array */
     Array B; /**< Face-centered magnetic field */
     Array Z; /**< Zone health array */
@@ -79,6 +90,7 @@ private:
     int velocityIndex;
     int magneticIndex;
     Region interior;
+    Shape boundaryShape;
 };
 
 #endif

@@ -5,7 +5,7 @@ using namespace Cow;
 
 
 
-MeshData::MeshData (Shape baseShape, Shape boundaryShape, int numComponents)
+MeshData::MeshData (Shape baseShape, Shape boundaryShape, int numComponents) : boundaryShape (boundaryShape)
 {
 	auto cellsShape = Shape3D (baseShape);
 
@@ -76,4 +76,21 @@ Array::Reference MeshData::getMagneticField (MeshLocation location)
 Array::Reference MeshData::getZoneHealth()
 {
     return Z;
+}
+
+Shape3D MeshData::getBoundaryShape() const
+{
+    return boundaryShape;
+}
+
+void MeshData::applyBoundaryCondition (BoundaryCondition& bc)
+{
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        if (boundaryShape[axis] > 0)
+        {
+            bc.apply (P, MeshLocation::cell, MeshBoundary::left , axis, boundaryShape[axis]);
+            bc.apply (P, MeshLocation::cell, MeshBoundary::right, axis, boundaryShape[axis]);
+        }
+    }
 }

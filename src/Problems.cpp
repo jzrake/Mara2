@@ -130,15 +130,11 @@ static std::vector<SimpleTestProgram::Problem> getProblems()
 
 void SimpleTestProgram::setup (const Problem& problem)
 {
-    auto cs = Shape {{128, 1, 1 }}; // cells shape
-    auto bs = Shape {{  1, 0, 0 }}; // boundary shape
-
-    mg = std::make_shared<CartesianMeshGeometry>(cs);
+    mg = std::make_shared<CartesianMeshGeometry>();
     mo = std::make_shared<MeshOperator>();
     cl = std::make_shared<NewtonianHydro>();
     fo = std::make_shared<FieldOperator>();
     ss = std::make_shared<MethodOfLinesTVD>();
-    md = std::make_shared<MeshData>(cs, bs, 5);
 
     if (problem.periodicBC)
     {
@@ -149,6 +145,11 @@ void SimpleTestProgram::setup (const Problem& problem)
         bc = std::make_shared<OutflowBoundaryCondition>();
     }
 
+    auto cs = Shape {{128, 1, 1 }}; // cells shape
+    auto bs = Shape {{  2, 0, 0 }};
+    md = std::make_shared<MeshData> (cs, bs, 5);
+
+    mg->setCellsShape (cs);    
     fo->setConservationLaw (cl);
     mo->setMeshGeometry (mg);
     ss->setFieldOperator (fo);
@@ -160,6 +161,8 @@ int SimpleTestProgram::run (int argc, const char* argv[])
 {
     for (const auto& problem : getProblems())
     {
+        if (problem.name != "DensityWave") continue;
+
         setup (problem);
 
         auto status = SimulationStatus();
@@ -175,7 +178,7 @@ int SimpleTestProgram::run (int argc, const char* argv[])
             return dt1 < dt2 ? dt1 : dt2;
         };
         auto condition = [&] () { return status.simulationTime < problem.finalTime; };
-        auto advance   = [&] (double dt) { return ss->advance (dt, *md); };
+        auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
         auto scheduler = std::make_shared<TaskScheduler>();
         auto logger    = std::make_shared<Logger>();
         auto writer    = std::make_shared<CheckpointWriter>();
@@ -193,7 +196,7 @@ int SimpleTestProgram::run (int argc, const char* argv[])
         status.totalCellsInMesh = mg->totalCellsInMesh();
 
         md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
-        ss->applyBoundaryCondition (*md);
+        md->applyBoundaryCondition (*bc);
 
         maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
     }

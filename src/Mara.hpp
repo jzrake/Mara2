@@ -101,8 +101,8 @@ public MayUseFieldOperator,
 public MayUseMeshOperator
 {
 public:
-    virtual void advance (double dt, MeshData& solution) const = 0;
-    virtual void applyBoundaryCondition (MeshData& solution) const = 0;
+    virtual int getStencilSize() const = 0;
+    virtual void advance (MeshData& solution, double dt) const = 0;
 };
 
 

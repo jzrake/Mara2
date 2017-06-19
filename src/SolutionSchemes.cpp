@@ -16,33 +16,43 @@ using namespace Cow;
 // ============================================================================
 MethodOfLinesTVD::MethodOfLinesTVD()
 {
+    auto rs = std::make_shared<HlleRiemannSolver>();
+    auto fs = std::make_shared<MethodOfLinesPlm>();
+    auto ng = fs->getStencilSize();
 
+    fs->setRiemannSolver (rs);
+    footprint = Shape {{ 2 * ng, 0, 0, }};
+    startIndex = Index {{ -ng, 0, 0 }};
+    fluxScheme = fs;
 }
 
-void MethodOfLinesTVD::advance (double dt, MeshData& solution) const
+int MethodOfLinesTVD::getStencilSize() const
+{
+    return fluxScheme->getStencilSize();
+}
+
+void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
 {
     if (! fieldOperator)     throw std::logic_error ("No FieldOperator instance");
     if (! meshOperator)      throw std::logic_error ("No MeshOperator instance");
     if (! boundaryCondition) throw std::logic_error ("No BoundaryCondition instance");
+    if (! solution.getBoundaryShape().contains (footprint / 2))
+    {
+        throw std::logic_error ("Boundary region of mesh data is smaller than the scheme's stencil");
+    }
 
     auto cl = fieldOperator->getConservationLaw();
-    auto rs = std::make_shared<HlleRiemannSolver>();
-    auto fs = std::make_shared<MethodOfLines>();
+    auto nq = cl->getNumConserved();
 
-    fs->setRiemannSolver (rs);
-
-    int nq = cl->getNumConserved();
-    auto footprint = Shape {{ 2, 0, 0, }};
-    auto start = Shape {{ -1, 0, 0 }};
+    auto D = IntercellFluxScheme::FaceData();
+    D.conservationLaw = cl;
 
     auto Fhat = [&] (GodunovStencil& stencil)
     {
-        IntercellFluxScheme::FaceData D;
         D.areaElement = stencil.faceNormal.cartesian();
         D.stencilData = stencil.cellData;
-        D.conservationLaw = cl;
 
-        auto S = fs->intercellFlux (D);
+        auto S = fluxScheme->intercellFlux (D);
 
         for (int q = 0; q < nq; ++q)
         {
@@ -51,7 +61,7 @@ void MethodOfLinesTVD::advance (double dt, MeshData& solution) const
     };
 
     auto U = fieldOperator->generateConserved (solution.P);
-    auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, start);
+    auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex);
     auto L = meshOperator->divergence (F);
 
     for (int n = 0; n < L.size(); ++n)
@@ -61,28 +71,5 @@ void MethodOfLinesTVD::advance (double dt, MeshData& solution) const
 
     auto newP = fieldOperator->recoverPrimitive (U);
     solution.P = std::move (newP);
-    applyBoundaryCondition (solution);
-}
-
-void MethodOfLinesTVD::applyBoundaryCondition (MeshData& solution) const
-{
-    auto footprint = Shape {{ 2, 0, 0, }};
-
-    for (int axis = 0; axis < 3; ++axis)
-    {
-        if (footprint[axis] > 0)
-        {
-            boundaryCondition->apply (solution.P,
-                MeshLocation::cell,
-                MeshBoundary::left,
-                axis,
-                footprint[axis] / 2);
-
-            boundaryCondition->apply (solution.P,
-                MeshLocation::cell,
-                MeshBoundary::right,
-                axis,
-                footprint[axis] / 2);
-        }
-    }
+    solution.applyBoundaryCondition (*boundaryCondition);
 }
