@@ -136,7 +136,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
             U[n] = uold * (1 - b[rk]) + unew * b[rk];
         }
 
-        solution.P = std::move (fieldOperator->recoverPrimitive (U));
+        solution.P = fieldOperator->recoverPrimitive (U);
         solution.applyBoundaryCondition (*boundaryCondition);
     }
 }

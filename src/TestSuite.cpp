@@ -16,6 +16,37 @@ using namespace Cow;
 // ============================================================================
 #include "Array.hpp"
 
+SCENARIO ("A HeapAllocation H(10) and another I(0)", "[HeapAllocation]")
+{
+    GIVEN ("A HeapAllocation H(10) and another I(0)")
+    {
+        auto H = HeapAllocation(10);
+        auto I = HeapAllocation();
+
+        WHEN ("H is std::move'd to I")
+        {
+            I = std::move(H);
+            THEN ("H has zero size and I has size 10")
+            {
+                CHECK (H.size() == 0);
+                CHECK (I.size() == 10);
+            }
+        }
+
+        WHEN ("H is std::move constructed to a new allocation J")
+        {
+            auto J = std::move(H);
+
+            THEN ("H has zero size and J has size 10")
+            {
+                CHECK (H.size() == 0);
+                CHECK (J.size() == 10);
+            }
+        }
+    }
+}
+
+
 SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
 {
     GIVEN ("An array with 100 elements")
@@ -192,6 +223,55 @@ SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
             if (! Array::isBoundsCheckDisabled())
             {
                 CHECK_THROWS (A[R3] = B);
+            }
+        }
+    }
+
+    GIVEN ("An array A(10) and another B(0)")
+    {
+        auto A = Array(10);
+        auto B = Array();
+
+        WHEN ("A is copy-constructed to B")
+        {
+            B = A;
+
+            THEN ("A has size 10 and B has size 10")
+            {
+                CHECK (A.size() == 10);
+                CHECK (B.size() == 10);
+            }
+        }
+
+        WHEN ("A is copy-assigned to C")
+        {
+            auto C = A;
+
+            THEN ("A has size 10 and C has size 10")
+            {
+                CHECK (A.size() == 10);
+                CHECK (C.size() == 10);
+            }
+        }
+
+        WHEN ("A is std::move'd to B")
+        {
+            B = std::move(A);
+            THEN ("A has zero size and B has size 10")
+            {
+                CHECK (A.size() == 0);
+                CHECK (B.size() == 10);
+            }
+        }
+
+        WHEN ("A is std::move constructed to a new array C")
+        {
+            auto C = std::move(A);
+
+            THEN ("A has zero size and C has size 10")
+            {
+                CHECK (A.size() == 0);
+                CHECK (C.size() == 10);
             }
         }
     }

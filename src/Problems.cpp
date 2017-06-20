@@ -311,7 +311,7 @@ std::vector<Hydro2DTestProgram::Scheme> Hydro2DTestProgram::Scheme::get()
     plm2->setIntercellFluxScheme (std::make_shared<MethodOfLinesPlm>());
     pcm2->setRungeKuttaOrder(2);
     plm2->setRungeKuttaOrder(2);
-    // schemes.push_back ({ "pcm2", pcm2 });
+    schemes.push_back ({ "pcm2", pcm2 });
     schemes.push_back ({ "plm2", plm2 });
 
     return schemes;
