@@ -31,7 +31,7 @@ int ScalarUpwind::getStencilSize() const
 // ============================================================================
 MethodOfLines::MethodOfLines()
 {
-    riemannSolver.reset (new HlleRiemannSolver);
+    riemannSolver = std::make_shared<HlleRiemannSolver>();
 }
 
 void MethodOfLines::setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse)
@@ -65,7 +65,7 @@ int MethodOfLines::getStencilSize() const
 MethodOfLinesPlm::MethodOfLinesPlm()
 {
     plm.setPlmTheta (1.5);
-    riemannSolver.reset (new HlleRiemannSolver);
+    riemannSolver = std::make_shared<HlleRiemannSolver>();
 }
 
 void MethodOfLinesPlm::setPlmTheta (double plmTheta)

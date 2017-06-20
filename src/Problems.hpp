@@ -10,17 +10,9 @@ class SimpleTestProgram
 {
 public:
 	struct Problem;
+	struct Scheme;
 	int run (int argc, const char* argv[]);
-
-private:
-	void setup (const Problem&);
-	std::shared_ptr<MeshGeometry>        mg;
-	std::shared_ptr<MeshOperator>        mo;
-	std::shared_ptr<ConservationLaw>     cl;
-	std::shared_ptr<FieldOperator>       fo;
-	std::shared_ptr<SolutionScheme>      ss;
-	std::shared_ptr<BoundaryCondition>   bc;
-	std::shared_ptr<MeshData>            md;
+	void run (const Problem& problem, const Scheme& scheme);
 };
 
 #endif

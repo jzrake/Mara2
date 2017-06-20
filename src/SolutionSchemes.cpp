@@ -16,19 +16,22 @@ using namespace Cow;
 // ============================================================================
 MethodOfLinesTVD::MethodOfLinesTVD()
 {
-    auto rs = std::make_shared<HlleRiemannSolver>();
-    auto fs = std::make_shared<MethodOfLinesPlm>();
-    auto ng = fs->getStencilSize();
-
-    fs->setRiemannSolver (rs);
-    footprint = Shape {{ 2 * ng, 0, 0, }};
-    startIndex = Index {{ -ng, 0, 0 }};
-    fluxScheme = fs;
+    auto fs = std::make_shared<MethodOfLines>();
+    setIntercellFluxScheme (fs);
 }
 
 int MethodOfLinesTVD::getStencilSize() const
 {
+    if (! fluxScheme) throw std::logic_error ("No IntercellFluxScheme instance");
     return fluxScheme->getStencilSize();
+}
+
+void MethodOfLinesTVD::setIntercellFluxScheme (std::shared_ptr<IntercellFluxScheme> fs)
+{
+    auto ng = fs->getStencilSize();
+    footprint = Shape {{ 2 * ng, 0, 0, }};
+    startIndex = Index {{ -ng, 0, 0 }};
+    fluxScheme = fs;
 }
 
 void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
@@ -36,6 +39,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
     if (! fieldOperator)     throw std::logic_error ("No FieldOperator instance");
     if (! meshOperator)      throw std::logic_error ("No MeshOperator instance");
     if (! boundaryCondition) throw std::logic_error ("No BoundaryCondition instance");
+    if (! fluxScheme)        throw std::logic_error ("No IntercellFluxScheme instance");
     if (! solution.getBoundaryShape().contains (footprint / 2))
     {
         throw std::logic_error ("Boundary region of mesh data is smaller than the scheme's stencil");

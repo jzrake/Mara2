@@ -50,17 +50,32 @@ static void maraMainLoop (
 
 
 
+// ============================================================================
+#include "BoundaryConditions.hpp"
+#include "CartesianMeshGeometry.hpp"
+#include "Checkpoint.hpp"
+#include "ConservationLaws.hpp"
+#include "FieldOperator.hpp"
+#include "IntercellFluxSchemes.hpp"
+#include "MeshData.hpp"
+#include "MeshOperator.hpp"
+#include "SolutionSchemes.hpp"
+#include "TimeSeriesManager.hpp"
+
+
+
 
 // ============================================================================
 struct SimpleTestProgram::Problem
 {
     std::string name;
     double finalTime;
-    bool periodicBC;
+    std::shared_ptr<BoundaryCondition> bc;
     InitialDataFunction idf;
+    static std::vector<Problem> get();
 };
 
-static std::vector<SimpleTestProgram::Problem> getProblems()
+std::vector<SimpleTestProgram::Problem> SimpleTestProgram::Problem::get()
 {
     auto Shocktube1 = [&] (double x, double, double)
     {
@@ -103,14 +118,16 @@ static std::vector<SimpleTestProgram::Problem> getProblems()
         return std::vector<double> {1.0 + 0.1 * std::sin (4 * M_PI * x), 1.0, 0.0, 0.0, 1.0};
     };
 
+    auto periodic = std::make_shared<PeriodicBoundaryCondition>();
+    auto outflow  = std::make_shared<OutflowBoundaryCondition>();
     auto problems = std::vector<SimpleTestProgram::Problem>();
-    problems.push_back ({ "Shocktube1", 0.100, false, Shocktube1 });
-    problems.push_back ({ "Shocktube2", 0.100, false, Shocktube2 });
-    problems.push_back ({ "Shocktube3", 0.005, false, Shocktube3 });
-    problems.push_back ({ "Shocktube4", 0.01, false, Shocktube4 });
-    problems.push_back ({ "Shocktube5", 0.01, false, Shocktube5 });
-    problems.push_back ({ "ContactWave", 0.1, false, ContactWave });
-    problems.push_back ({ "DensityWave", 1.0, true, DensityWave });
+    problems.push_back ({ "Shocktube1", 0.100, outflow, Shocktube1 });
+    problems.push_back ({ "Shocktube2", 0.100, outflow, Shocktube2 });
+    problems.push_back ({ "Shocktube3", 0.005, outflow, Shocktube3 });
+    problems.push_back ({ "Shocktube4", 0.01, outflow, Shocktube4 });
+    problems.push_back ({ "Shocktube5", 0.01, outflow, Shocktube5 });
+    problems.push_back ({ "ContactWave", 0.1, outflow, ContactWave });
+    problems.push_back ({ "DensityWave", 1.0, periodic, DensityWave });
     return problems;
 }
 
@@ -118,87 +135,94 @@ static std::vector<SimpleTestProgram::Problem> getProblems()
 
 
 // ============================================================================
-#include "BoundaryConditions.hpp"
-#include "CartesianMeshGeometry.hpp"
-#include "Checkpoint.hpp"
-#include "ConservationLaws.hpp"
-#include "MeshData.hpp"
-#include "MeshOperator.hpp"
-#include "FieldOperator.hpp"
-#include "SolutionSchemes.hpp"
-#include "TimeSeriesManager.hpp"
-
-void SimpleTestProgram::setup (const Problem& problem)
+struct SimpleTestProgram::Scheme
 {
-    mg = std::make_shared<CartesianMeshGeometry>();
-    mo = std::make_shared<MeshOperator>();
-    cl = std::make_shared<NewtonianHydro>();
-    fo = std::make_shared<FieldOperator>();
-    ss = std::make_shared<MethodOfLinesTVD>();
+    std::string name;
+    std::shared_ptr<SolutionScheme> ss;
+    static std::vector<Scheme> get();
+};
 
-    if (problem.periodicBC)
-    {
-        bc = std::make_shared<PeriodicBoundaryCondition>();
-    }
-    else
-    {
-        bc = std::make_shared<OutflowBoundaryCondition>();
-    }
+std::vector<SimpleTestProgram::Scheme> SimpleTestProgram::Scheme::get()
+{
+    auto schemes = std::vector<Scheme>();
+    auto pcm = std::make_shared<MethodOfLinesTVD>();
+    auto plm = std::make_shared<MethodOfLinesTVD>();
 
+    pcm->setIntercellFluxScheme (std::make_shared<MethodOfLines>());
+    plm->setIntercellFluxScheme (std::make_shared<MethodOfLinesPlm>());
+
+    schemes.push_back ({ "pcm", pcm });
+    schemes.push_back ({ "plm", plm });
+
+    return schemes;
+}
+
+
+
+
+// ============================================================================
+int SimpleTestProgram::run (int argc, const char* argv[])
+{
+    for (const auto& problem : Problem::get())
+    {
+        for (const auto& scheme : Scheme::get())
+        {
+            run (problem, scheme);
+        }
+    }
+    return 0;
+}
+
+void SimpleTestProgram::run (const Problem& problem, const Scheme& scheme)
+{
     auto cs = Shape {{128, 1, 1 }}; // cells shape
     auto bs = Shape {{  2, 0, 0 }};
-    md = std::make_shared<MeshData> (cs, bs, 5);
+    auto ss = scheme.ss;
+    auto bc = problem.bc;
+    auto mg = std::make_shared<CartesianMeshGeometry>();
+    auto mo = std::make_shared<MeshOperator>();
+    auto cl = std::make_shared<NewtonianHydro>();
+    auto fo = std::make_shared<FieldOperator>();
+    auto md = std::make_shared<MeshData> (cs, bs, 5);
 
-    mg->setCellsShape (cs);    
+    mg->setCellsShape (cs);
     fo->setConservationLaw (cl);
     mo->setMeshGeometry (mg);
     ss->setFieldOperator (fo);
     ss->setMeshOperator (mo);
     ss->setBoundaryCondition (bc);
-}
 
-int SimpleTestProgram::run (int argc, const char* argv[])
-{
-    for (const auto& problem : getProblems())
+    auto status = SimulationStatus();
+    auto cflParameter = 0.5;
+    auto L = mo->linearCellDimension();
+    auto P = md->getPrimitive();
+
+    auto timestep  = [&] ()
     {
-        if (problem.name != "DensityWave") continue;
+        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+        const double dt2 = problem.finalTime - status.simulationTime;
+        return dt1 < dt2 ? dt1 : dt2;
+    };
+    auto condition = [&] () { return status.simulationTime < problem.finalTime; };
+    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+    auto scheduler = std::make_shared<TaskScheduler>();
+    auto logger    = std::make_shared<Logger>();
+    auto writer    = std::make_shared<CheckpointWriter>();
 
-        setup (problem);
+    writer->setFilenamePrefix (problem.name + "-" + scheme.name);
+    writer->setMeshDecomposition (nullptr);
+    writer->setTimeSeriesManager (nullptr);
 
-        auto status = SimulationStatus();
-        auto cflParameter = 0.5;
+    scheduler->schedule ([&] (SimulationStatus, int rep)
+    {
+        writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+    }, TaskScheduler::Recurrence (problem.finalTime));
 
-        auto L = mo->linearCellDimension();
-        auto P = md->getPrimitive();
+    status = SimulationStatus();
+    status.totalCellsInMesh = mg->totalCellsInMesh();
 
-        auto timestep  = [&] ()
-        {
-            const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
-            const double dt2 = problem.finalTime - status.simulationTime;
-            return dt1 < dt2 ? dt1 : dt2;
-        };
-        auto condition = [&] () { return status.simulationTime < problem.finalTime; };
-        auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
-        auto scheduler = std::make_shared<TaskScheduler>();
-        auto logger    = std::make_shared<Logger>();
-        auto writer    = std::make_shared<CheckpointWriter>();
+    md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
+    md->applyBoundaryCondition (*bc);
 
-        writer->setFilenamePrefix (problem.name);
-        writer->setMeshDecomposition (nullptr);
-        writer->setTimeSeriesManager (nullptr);
-
-        scheduler->schedule ([&] (SimulationStatus, int rep)
-        {
-            writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
-        }, TaskScheduler::Recurrence (problem.finalTime));
-
-        status = SimulationStatus();
-        status.totalCellsInMesh = mg->totalCellsInMesh();
-
-        md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
-        md->applyBoundaryCondition (*bc);
-
-        maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
-    }
-    return 0;
+    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   
 }

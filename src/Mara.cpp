@@ -600,7 +600,7 @@ int main (int argc, const char* argv[])
     {
         return TestSuite().runAllTests (argc - 1, argv + 1);
     }
-    if (command == "regression")
+    if (command == "regress")
     {
         auto program = SimpleTestProgram();
         return program.run (argc - 1, argv + 1);

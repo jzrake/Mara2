@@ -98,7 +98,8 @@ public:
 class SolutionScheme :
 public MayUseBoundaryCondition,
 public MayUseFieldOperator,
-public MayUseMeshOperator
+public MayUseMeshOperator,
+public MayUseIntercellFluxScheme
 {
 public:
     virtual int getStencilSize() const = 0;

@@ -9,7 +9,7 @@ class Shocktube1(Plot):
         import os
         import h5py
 
-        chkpt = h5py.File (os.path.join('data', 'Shocktube1.0001.h5'), 'r')
+        chkpt = h5py.File (os.path.join('data', 'Shocktube1-plm.0001.h5'), 'r')
         d = chkpt['primitive']['density'][...]
         p = chkpt['primitive']['pressure'][...]
         u = chkpt['primitive']['velocity1'][...]
@@ -27,7 +27,7 @@ class Shocktube3(Plot):
         import os
         import h5py
 
-        chkpt = h5py.File (os.path.join('data', 'Shocktube3.0001.h5'), 'r')
+        chkpt = h5py.File (os.path.join('data', 'Shocktube3-plm.0001.h5'), 'r')
         d = chkpt['primitive']['density'][...]
         p = chkpt['primitive']['pressure'][...]
         u = chkpt['primitive']['velocity1'][...]
@@ -45,8 +45,8 @@ class DensityWave(Plot):
         import os
         import h5py
 
-        chkpt0 = h5py.File (os.path.join('data', 'DensityWave.0000.h5'), 'r')
-        chkpt1 = h5py.File (os.path.join('data', 'DensityWave.0001.h5'), 'r')
+        chkpt0 = h5py.File (os.path.join('data', 'DensityWave-plm.0000.h5'), 'r')
+        chkpt1 = h5py.File (os.path.join('data', 'DensityWave-plm.0001.h5'), 'r')
         d0 = chkpt0['primitive']['density'][...]
         d1 = chkpt1['primitive']['density'][...]
 
