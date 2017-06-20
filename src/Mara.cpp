@@ -600,10 +600,15 @@ int main (int argc, const char* argv[])
     {
         return TestSuite().runAllTests (argc - 1, argv + 1);
     }
-    if (command == "regress")
+    if (command == "regress1d")
     {
-        auto program = SimpleTestProgram();
-        return program.run (argc - 1, argv + 1);
+        auto hydro1d = Hydro1DTestProgram();
+        return hydro1d.run (argc - 1, argv + 1);
+    }
+    if (command == "regress2d")
+    {
+        auto hydro2d = Hydro2DTestProgram();
+        return hydro2d.run (argc - 1, argv + 1);
     }
     if (command == "run")
     {

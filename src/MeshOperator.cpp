@@ -382,7 +382,8 @@ Array MeshOperator::godunov (
             continue; // It's a zero-stencil in this direction
         }
 
-        auto shape = Shape3D (cellData).reduced (sweep, fp[sweep] - 1);
+        auto shape = cellData.shape3D().reduced (sweep, fp[sweep] - 1);
+        auto gs = GodunovStencil (fp[sweep], nq, np);
 
         Array::deploy (shape, [&] (int i, int j, int k)
         {
@@ -390,7 +391,7 @@ Array MeshOperator::godunov (
             const int jc = j + start[1];
             const int kc = k + start[2];
 
-            auto gs = GodunovStencil (fp[sweep], nq, np);
+            // auto gs = GodunovStencil (fp[sweep], nq, np);
 
             for (int n = 0; n < fp[sweep]; ++n)
             {

@@ -4,68 +4,22 @@ class MethodOfLinesTVD(object):
 
     def plot(self):
         figs = [ ]
-        for scheme in ['pcm1', 'pcm2', 'pcm3', 'plm1', 'plm2', 'plm3']:
+        for scheme in ['pcm2', 'plm2']:
             try:
                 figs.append(self.with_scheme(scheme))
             except IOError as e:
-                print e
+                print e, "for scheme", scheme
         return figs
 
 
-class Shocktube1(MethodOfLinesTVD):
+class DensityWave2D(MethodOfLinesTVD):
 
     def with_scheme(self, scheme):
         import os
         import h5py
         import matplotlib.pyplot as plt
 
-        base = 'Shocktube1-{0}'.format(scheme)
-        chkpt = h5py.File (os.path.join('data', '{0}.0001.h5'.format(base)), 'r')
-        d = chkpt['primitive']['density'][...]
-        p = chkpt['primitive']['pressure'][...]
-        u = chkpt['primitive']['velocity1'][...]
-
-        fig = plt.figure()
-        ax1 = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-        ax1.plot(d, '-o', mfc='none', label=r'$\rho$')
-        ax1.plot(p, '-o', mfc='none', label=r'$p$')
-        ax1.plot(u, '-o', mfc='none', label=r'$u$')
-        ax1.legend(loc='best')
-        fig.suptitle(base)
-        return fig
-
-
-class Shocktube3(MethodOfLinesTVD):
-
-    def with_scheme(self, scheme):
-        import os
-        import h5py
-        import matplotlib.pyplot as plt
-
-        base = 'Shocktube3-{0}'.format(scheme)
-        chkpt = h5py.File (os.path.join('data', '{0}.0001.h5'.format(base)), 'r')
-        d = chkpt['primitive']['density'][...]
-        p = chkpt['primitive']['pressure'][...]
-        u = chkpt['primitive']['velocity1'][...]
-
-        fig = plt.figure()
-        ax1 = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-        ax1.plot(d, '-o', mfc='none', label=r'$\rho$')
-        ax1.plot(p, '-o', mfc='none', label=r'$p$')
-        ax1.set_yscale('log')
-        ax1.legend(loc='best')
-        fig.suptitle(base)
-        return fig
-
-
-class DensityWave(MethodOfLinesTVD):
-
-    def with_scheme(self, scheme):
-        import os
-        import h5py
-        import matplotlib.pyplot as plt
-
-        base = 'DensityWave-{0}'.format(scheme)
+        base = 'DensityWave2D-{0}'.format(scheme)
         chkpt0 = h5py.File (os.path.join('data', '{0}.0000.h5'.format(base)), 'r')
         chkpt1 = h5py.File (os.path.join('data', '{0}.0001.h5'.format(base)), 'r')
         d0 = chkpt0['primitive']['density'][...]
@@ -73,9 +27,8 @@ class DensityWave(MethodOfLinesTVD):
 
         fig = plt.figure()
         ax1 = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-        ax1.plot(d0, '-o', mfc='none', label=r'$\rho(t=0)$')
-        ax1.plot(d1, '-o', mfc='none', label=r'$\rho(t=1)$')
-        ax1.legend(loc='best')
+        cax = ax1.imshow(d1, interpolation='nearest')
+        fig.colorbar(cax)
         fig.suptitle(base)
         return fig
 
@@ -101,7 +54,7 @@ def main():
     parser.add_argument("--pdf", action='store_true', help="export figures to PDF")
     args = parser.parse_args()
 
-    plotters = [Shocktube1(), Shocktube3(), DensityWave()]
+    plotters = [DensityWave2D()]
 
     for plotter in plotters:
 

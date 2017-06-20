@@ -12,6 +12,31 @@ using namespace Cow;
 
 
 
+static void makeFootprint (const MeshData& solution, const IntercellFluxScheme& fs, Shape3D& footprint, Index& startIndex)
+{
+    int ng = fs.getStencilSize();
+
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        if (solution.P.size (axis) > 1)
+        {
+            footprint[axis] = 2 * ng;
+            startIndex[axis] = -ng;
+        }
+        else
+        {
+            footprint[axis] = 0;
+            startIndex[axis] = 0;
+        }
+    }
+
+    if (! solution.getBoundaryShape().contains (footprint / 2))
+    {
+        throw std::logic_error ("Boundary region of mesh data is smaller than the scheme's stencil");
+    }
+}
+
+
 
 // ============================================================================
 MethodOfLinesTVD::MethodOfLinesTVD()
@@ -28,11 +53,17 @@ int MethodOfLinesTVD::getStencilSize() const
     return fluxScheme->getStencilSize();
 }
 
+void MethodOfLinesTVD::setRungeKuttaOrder (int rungeKuttaOrderToUse)
+{
+    if (0 >= rungeKuttaOrderToUse || rungeKuttaOrderToUse > 3)
+    {
+        throw std::logic_error ("Runge-Kutta order not 1, 2, or 3");
+    }
+    rungeKuttaOrder = rungeKuttaOrderToUse;
+}
+
 void MethodOfLinesTVD::setIntercellFluxScheme (std::shared_ptr<IntercellFluxScheme> fs)
 {
-    auto ng = fs->getStencilSize();
-    footprint = Shape {{ 2 * ng, 0, 0, }};
-    startIndex = Index {{ -ng, 0, 0 }};
     fluxScheme = fs;
 }
 
@@ -42,10 +73,13 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
     if (! meshOperator)      throw std::logic_error ("No MeshOperator instance");
     if (! boundaryCondition) throw std::logic_error ("No BoundaryCondition instance");
     if (! fluxScheme)        throw std::logic_error ("No IntercellFluxScheme instance");
-    if (! solution.getBoundaryShape().contains (footprint / 2))
-    {
-        throw std::logic_error ("Boundary region of mesh data is smaller than the scheme's stencil");
-    }
+
+
+    // Figure out the scheme footprint, and if we have enough guard zones
+    // ------------------------------------------------------------------------
+    auto footprint = Shape3D();
+    auto startIndex = Index();
+    makeFootprint (solution, *fluxScheme, footprint, startIndex);
 
 
     // Setup callback to compute Godunov fluxes

@@ -34,8 +34,11 @@ SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
         {
             THEN ("We get an exception")
             {
-                CHECK_THROWS (A (-1));
-                CHECK_THROWS (A (101));
+                if (! Array::isBoundsCheckDisabled())
+                {
+                    CHECK_THROWS (A (-1));
+                    CHECK_THROWS (A (101));
+                }
             }
         }
     }
@@ -186,7 +189,10 @@ SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
 
         THEN ("B cannot be inserted into axis 3 of A (doesn't exist)")
         {
-            CHECK_THROWS (A[R3] = B);
+            if (! Array::isBoundsCheckDisabled())
+            {
+                CHECK_THROWS (A[R3] = B);
+            }
         }
     }
 }
