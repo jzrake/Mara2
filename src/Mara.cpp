@@ -93,6 +93,22 @@ void SimulationStatus::print (std::ostream& stream)
 
 
 // ============================================================================
+void BoundaryCondition::applySimple (Cow::Array& A, Cow::Shape boundaryShape) const
+{
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        if (boundaryShape[axis] > 0)
+        {
+            apply (A, MeshLocation::cell, MeshBoundary::left , axis, boundaryShape[axis]);
+            apply (A, MeshLocation::cell, MeshBoundary::right, axis, boundaryShape[axis]);
+        }
+    }
+}
+
+
+
+
+// ============================================================================
 void checkpointToVtk (std::string filename, Logger& logger)
 {
     using namespace Cow;

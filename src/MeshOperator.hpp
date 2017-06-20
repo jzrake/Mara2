@@ -49,12 +49,13 @@ public:
         VectorMode vectorMode=VectorMode::scalars) const;
 
     /**
-
+    Return the 1, 2, or 3 dimensional measure of the given mesh locations:
+    length of edges, area of faces, or volume of cells.
     */
     Array measure (MeshLocation location) const;
 
     /**
-
+    Return some measure of the smallest linear dimension in each cell.
     */
     Array linearCellDimension() const;
 

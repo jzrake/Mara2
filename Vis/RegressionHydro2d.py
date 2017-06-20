@@ -11,15 +11,12 @@ class MethodOfLinesTVD(object):
                 print e, "for scheme", scheme
         return figs
 
-
-class DensityWave2D(MethodOfLinesTVD):
-
     def with_scheme(self, scheme):
         import os
         import h5py
         import matplotlib.pyplot as plt
 
-        base = 'DensityWave2D-{0}'.format(scheme)
+        base = '{0}-{1}'.format(self.name, scheme)
         chkpt0 = h5py.File (os.path.join('data', '{0}.0000.h5'.format(base)), 'r')
         chkpt1 = h5py.File (os.path.join('data', '{0}.0001.h5'.format(base)), 'r')
         d0 = chkpt0['primitive']['density'][...]
@@ -31,6 +28,11 @@ class DensityWave2D(MethodOfLinesTVD):
         fig.colorbar(cax)
         fig.suptitle(base)
         return fig
+
+
+class Shocktube2D(MethodOfLinesTVD): name = "Shocktube2D"
+class ContactWave2D(MethodOfLinesTVD): name = "ContactWave2D"
+class DensityWave2D(MethodOfLinesTVD): name = "DensityWave2D"
 
 
 def search(name, terms):
@@ -54,7 +56,7 @@ def main():
     parser.add_argument("--pdf", action='store_true', help="export figures to PDF")
     args = parser.parse_args()
 
-    plotters = [DensityWave2D()]
+    plotters = [Shocktube2D(), ContactWave2D(), DensityWave2D()]
 
     for plotter in plotters:
 

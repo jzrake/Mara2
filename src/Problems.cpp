@@ -268,24 +268,24 @@ std::vector<Hydro2DTestProgram::Problem> Hydro2DTestProgram::Problem::get()
     {
         auto S1 = std::vector<double> {1.000, 0.000, 0.0, 0.0, 1.000};
         auto S2 = std::vector<double> {0.125, 0.000, 0.0, 0.0, 0.100};
-        return x + y < 0.5 ? S1 : S2;
+        return x + y < 1. ? S1 : S2;
     };
     auto ContactWave2D = [&] (double x, double y, double)
     {
-        auto S1 = std::vector<double> {1.0, 0.0, 0.7, 0.2, 1.0};
-        auto S2 = std::vector<double> {0.1, 0.0, 0.7, 0.2, 1.0};
-        return x + y < 0.5 ? S1 : S2;
+        auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1.0};
+        auto S2 = std::vector<double> {0.1, 0.0, 0.0, 0.0, 1.0};
+        return x + y < 1. ? S1 : S2;
     };
     auto DensityWave2D = [&] (double x, double y, double)
     {
-        return std::vector<double> {1.0 + 0.1 * std::sin (4 * M_PI * (x + y)), 1.0, .0, 0.0, 1.0};
+        return std::vector<double> {1.0 + 0.1 * std::sin (4 * M_PI * (x + y)), 1.0, 1.0, 0.0, 1.0};
     };
 
     auto periodic = std::make_shared<PeriodicBoundaryCondition>();
     auto outflow  = std::make_shared<OutflowBoundaryCondition>();
     auto problems = std::vector<Hydro2DTestProgram::Problem>();
     problems.push_back ({ "Shocktube2D", 0.100, outflow, Shocktube2D });
-    problems.push_back ({ "ContactWave2D", 0.1, outflow, ContactWave2D });
+    problems.push_back ({ "ContactWave2D", 0.1, periodic, ContactWave2D });
     problems.push_back ({ "DensityWave2D", 1.0, periodic, DensityWave2D });
     return problems;
 }

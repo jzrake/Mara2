@@ -331,6 +331,14 @@ public:
         int axis,
         int numGuard) const = 0;
 
+
+    /**
+    A convenience function that calls the derived class's apply on both sides
+    of each axis with size > 1 and the given boundaryShape used for the
+    numGuard argument. Location is cells.
+    */
+    void applySimple (Cow::Array& A, Cow::Shape boundaryShape) const;
+
     /**
     To utilize a callback function, derived classes may override this function.
     */

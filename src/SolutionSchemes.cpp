@@ -1,5 +1,6 @@
 #include "BoundaryConditions.hpp"
 #include "CartesianMeshGeometry.hpp"
+#include "CellCenteredFieldCT.hpp"
 #include "ConservationLaws.hpp"
 #include "FieldOperator.hpp"
 #include "IntercellFluxSchemes.hpp"
@@ -9,6 +10,7 @@
 #include "RiemannSolvers.hpp"
 
 using namespace Cow;
+
 
 
 
@@ -118,6 +120,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         case 3: b = b3; break;
     }
 
+    // auto ct = std::make_shared<CellCenteredFieldCT>();
 
     // RK updates
     // ------------------------------------------------------------------------
@@ -127,6 +130,12 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
     for (int rk = 0; rk < rungeKuttaOrder; ++rk)
     {
         auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex);
+
+        // if (ct)
+        // {
+        //     ct->correctGodunovFluxes (F, cl->getIndexFor (ConservationLaw::VariableType::magnetic));
+        // }
+
         auto L = meshOperator->divergence (F);
 
         for (int n = 0; n < L.size(); ++n)
