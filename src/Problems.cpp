@@ -22,6 +22,8 @@ static void maraMainLoop (
     Logger& logger)
 {
     auto simulationTimer = Timer();
+    auto totKzps = 0.0;
+    auto totIter = 0;
 
     logger.log ("Mara") << "Beginning main loop" << std::endl;
 
@@ -42,10 +44,14 @@ static void maraMainLoop (
         logger.log() << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
         logger.log() << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
         logger.log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
+
+        totKzps += kzps;
+        totIter +=1;
     }
 
     scheduler.dispatch (status);
     logger.log ("Mara") << "Completed main loop" << std::endl;
+    logger.log ("Mara") << "Mean kzps was " << totKzps / totIter << std::endl;
 }
 
 

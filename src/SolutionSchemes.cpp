@@ -18,6 +18,8 @@ MethodOfLinesTVD::MethodOfLinesTVD()
 {
     auto fs = std::make_shared<MethodOfLines>();
     setIntercellFluxScheme (fs);
+
+    rungeKuttaOrder = 1;
 }
 
 int MethodOfLinesTVD::getStencilSize() const
@@ -45,6 +47,9 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         throw std::logic_error ("Boundary region of mesh data is smaller than the scheme's stencil");
     }
 
+
+    // Setup callback to compute Godunov fluxes
+    // ------------------------------------------------------------------------
     auto cl = fieldOperator->getConservationLaw();
     auto nq = cl->getNumConserved();
 
@@ -64,16 +69,40 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         }
     };
 
-    auto U = fieldOperator->generateConserved (solution.P);
-    auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex);
-    auto L = meshOperator->divergence (F);
 
-    for (int n = 0; n < L.size(); ++n)
+    // RK parameters
+    // ------------------------------------------------------------------------
+    double b1[1] = {1.0};
+    double b2[2] = {1.0, 0.5};
+    double b3[3] = {1.0, 1./4, 2./3};
+    double *b = nullptr;
+
+    switch (rungeKuttaOrder)
     {
-        U[n] -= dt * L[n];
+        case 1: b = b1; break;
+        case 2: b = b2; break;
+        case 3: b = b3; break;
     }
 
-    auto newP = fieldOperator->recoverPrimitive (U);
-    solution.P = std::move (newP);
-    solution.applyBoundaryCondition (*boundaryCondition);
+
+    // RK updates
+    // ------------------------------------------------------------------------
+    auto U0 = fieldOperator->generateConserved (solution.P);
+    auto U = U0;
+
+    for (int rk = 0; rk < rungeKuttaOrder; ++rk)
+    {
+        auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex);
+        auto L = meshOperator->divergence (F);
+
+        for (int n = 0; n < L.size(); ++n)
+        {
+            const double uold = U0[n];
+            const double unew = U[n] - dt * L[n];
+            U[n] = uold * (1 - b[rk]) + unew * b[rk];
+        }
+
+        solution.P = std::move (fieldOperator->recoverPrimitive (U));
+        solution.applyBoundaryCondition (*boundaryCondition);
+    }
 }

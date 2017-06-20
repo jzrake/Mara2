@@ -26,6 +26,7 @@ private:
     std::shared_ptr<IntercellFluxScheme>  fluxScheme;
     Shape3D footprint;
     Index startIndex;
+    int rungeKuttaOrder;
 };
 
 #endif
