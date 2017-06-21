@@ -127,7 +127,9 @@ Array CellCenteredFieldCT::monopole (Array& B, MeshLocation location) const
     const int s = B.size(1) > 1 ? 1 : 0;
     const int t = B.size(2) > 1 ? 1 : 0;
 
-    B.shape3D().reduced(1).deploy ([&] (int i, int j, int k)
+    auto S = Shape3D (B.size(0) - r, B.size(1) - s, B.size(2) - t);
+
+    S.deploy ([&] (int i, int j, int k)
     {
         const double B0x00 = B(i + 0, j + 0, k + 0, 0);
         const double B0x01 = B(i + 0, j + 0, k + t, 0);

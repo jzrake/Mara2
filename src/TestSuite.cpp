@@ -1131,88 +1131,36 @@ SCENARIO ("Mesh data class works OK", "[MeshData]")
 
 SCENARIO ("Cell-centered field CT should behave reasonalby", "[CellCenteredFieldCT]")
 {
-    GIVEN ("An instance of CellCenteredFieldCT and An [8, 8, 8] : (3, 3) array of 'Godunov flux'")
+    GIVEN ("An instance of CellCenteredFieldCT and random Godunov flux (EMF)")
     {
-        auto cs = Shape {{ 8, 8, 8 }}; // cells shape
-        auto bs = Shape {{ 1, 1, 1 }}; // cells shape
+        auto cs = Shape {{ 16, 16, 16 }};
         auto mg = std::make_shared<CartesianMeshGeometry>(cs);
         auto mo = std::make_shared<MeshOperator>(mg);
         auto ct = std::make_shared<CellCenteredFieldCT>();
-        auto bc = std::make_shared<PeriodicBoundaryCondition>();
-        auto id = [] (double x, double y, double z)
+        auto id = [] (double, double, double)
         {
-            const double k = 2 * M_PI;
-            const double F0 = 1 * (double) rand() / RAND_MAX;
-            const double F1 = 1 * (double) rand() / RAND_MAX;
-            const double F2 = 1 * (double) rand() / RAND_MAX;
+            const double F0 = rand();
+            const double F1 = rand();
+            const double F2 = rand();
             return std::vector<double> { F0, F1, F2 };
         };
 
         auto F = mo->generate (id, MeshLocation::face);
-        bc->applySimple (F, bs);
+        auto G = ct->generateGodunovFluxes (F, 0);
+        auto interior = Region().withRange (0, 2, -2).withRange (1, 2, -2).withRange (2, 2, -2);
+        auto Bf = mo->divergence (F);
+        auto Bg = mo->divergence (G);
+        auto Mf = Array (ct->monopole (Bf, MeshLocation::cell)[interior]);
+        auto Mg = Array (ct->monopole (Bg, MeshLocation::cell)[interior]);
 
-        THEN ("The fluxes have the correct shape")
+        THEN ("Cell-centered div-B's are zero excluding a boudary with shape (2, 2, 2)")
         {
-            // CHECK ((F.shape() == Shape {{ 9, 9, 9, 3, 3 }}));
-        }
-
-        WHEN ("We use CT to correct F -> G, and take the div.G")
-        {
-            auto G = ct->generateGodunovFluxes (F, 0);
-            auto B = mo->divergence (F);
-            auto C = mo->divergence (G);
-            bc->applySimple (B, bs);
-            bc->applySimple (C, bs);
-
-            auto M = ct->monopole (B, MeshLocation::vert);
-            auto N = ct->monopole (C, MeshLocation::vert);
-            auto O = ct->monopole (C, MeshLocation::cell);
-            bc->applySimple (M, bs);
-            bc->applySimple (N, bs);
-            bc->applySimple (O, bs);
-
-            // THEN ("The shape of B = div.G is correct")
-            // {
-            //     CHECK ((B.shape() == Shape {{ 8, 8, 8, 3, 1 }}));
-            // }
-
-            // THEN ("The shape of vertex div.B is correct, [9, 9, 9]")
-            // {
-            //     CHECK ((M.shape() == Shape {{ 9, 9, 9, 1, 1 }}));
-            // }
-
-            // THEN ("The shape of cell div.B is correct, [8, 8, 8]")
-            // {
-            //     CHECK ((O.shape() == Shape {{ 8, 8, 8, 1, 1 }}));
-            // }
-
-
-            THEN ("The vertex-situated monopole of B = div.F is non-zero")
+            Mg.shape3D().deploy ([&] (int i, int j, int k)
             {
-                M.shape3D().deploy ([&] (int i, int j, int k)
-                {
-                    INFO (i << " " << j << " " << k);
-                    CHECK (M (i, j, k) != Approx (0.0));
-                });
-            }
-
-            THEN ("The vertex-situated monopole of C = div.G is zero")
-            {
-                N.shape3D().deploy ([&] (int i, int j, int k)
-                {
-                    INFO (i << " " << j << " " << k);
-                    CHECK (N (i, j, k) == Approx (0.0));
-                });
-            }
-
-            // THEN ("The cell-situated monopole of C = div.G is zero")
-            // {
-            //     O.shape3D().deploy ([&] (int i, int j, int k)
-            //     {
-            //         INFO (i << " " << j << " " << k);
-            //         CHECK (O (i, j, k) == Approx (0.0));
-            //     });
-            // }
+                INFO (i << " " << j << " " << k);
+                CHECK (Mf (i, j, k) != Approx (0.0));
+                CHECK (Mg (i, j, k) == Approx (0.0));
+            });
         }
     }
 }

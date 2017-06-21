@@ -36,7 +36,7 @@ void MeshData::assignMagneticField (Array newB, MeshLocation location)
 {
     if (magneticIndex == -1)
     {
-        throw std::logic_error ("Attempt to assign to non-existent magnetic field data");
+        throw std::logic_error ("Attempt to assign magnetic field data when magnetic index = -1 (call setMgneticIndex)");
     }
     const int bi = magneticIndex;
 
