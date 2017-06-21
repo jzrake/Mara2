@@ -1131,21 +1131,69 @@ SCENARIO ("Mesh data class works OK", "[MeshData]")
 
 SCENARIO ("Cell-centered field CT should behave reasonalby", "[CellCenteredFieldCT]")
 {
-    GIVEN ("An instance of CellCenteredFieldCT and random Godunov flux (EMF)")
+    GIVEN ("An instance of CellCenteredFieldCT and random 2D Godunov flux (EMF)")
     {
         auto cs = Shape {{ 16, 16, 16 }};
         auto mg = std::make_shared<CartesianMeshGeometry>(cs);
         auto mo = std::make_shared<MeshOperator>(mg);
         auto ct = std::make_shared<CellCenteredFieldCT>();
-        auto id = [] (double, double, double)
-        {
-            const double F0 = rand();
-            const double F1 = rand();
-            const double F2 = rand();
-            return std::vector<double> { F0, F1, F2 };
-        };
+        auto F = Array (17, 17, 2, 3, 3);
 
-        auto F = mo->generate (id, MeshLocation::face);
+        for (int i = 0; i < 17; ++i)
+        for (int j = 0; j < 17; ++j)
+        for (int k = 0; k < 2; ++k)
+        {
+            F(i, j, k, 0, 0) = 0;
+            F(i, j, k, 0, 1) = rand();
+            F(i, j, k, 0, 2) = 0;
+            F(i, j, k, 1, 0) = rand();
+            F(i, j, k, 1, 1) = 0;
+            F(i, j, k, 1, 2) = 0;
+            F(i, j, k, 2, 0) = rand();
+            F(i, j, k, 2, 1) = rand();
+            F(i, j, k, 2, 2) = 0;
+        }
+
+        auto G = ct->generateGodunovFluxes (F, 0);
+        auto interior = Region().withRange (0, 2, -2).withRange (1, 2, -2);//.withRange (2, 2, -2);
+        auto Bf = mo->divergence (F);
+        auto Bg = mo->divergence (G);
+        auto Mf = Array (ct->monopole (Bf, MeshLocation::cell)[interior]);
+        auto Mg = Array (ct->monopole (Bg, MeshLocation::cell)[interior]);
+
+        THEN ("Cell-centered div-B's are zero excluding a boudary with shape (2, 2, 2)")
+        {
+            Mg.shape3D().deploy ([&] (int i, int j, int k)
+            {
+                INFO (i << " " << j << " " << k);
+                CHECK (Mf (i, j, k) != Approx (0.0));
+                CHECK (Mg (i, j, k) == Approx (0.0));
+            });
+        }
+    }
+    GIVEN ("An instance of CellCenteredFieldCT and random 3D Godunov flux (EMF)")
+    {
+        auto cs = Shape {{ 16, 16, 16 }};
+        auto mg = std::make_shared<CartesianMeshGeometry>(cs);
+        auto mo = std::make_shared<MeshOperator>(mg);
+        auto ct = std::make_shared<CellCenteredFieldCT>();
+        auto F = Array (17, 17, 17, 3, 3);
+
+        for (int i = 0; i < 17; ++i)
+        for (int j = 0; j < 17; ++j)
+        for (int k = 0; k < 17; ++k)
+        {
+            F(i, j, k, 0, 0) = rand();
+            F(i, j, k, 0, 1) = rand();
+            F(i, j, k, 0, 2) = rand();
+            F(i, j, k, 1, 0) = rand();
+            F(i, j, k, 1, 1) = rand();
+            F(i, j, k, 1, 2) = rand();
+            F(i, j, k, 2, 0) = rand();
+            F(i, j, k, 2, 1) = rand();
+            F(i, j, k, 2, 2) = rand();
+        }
+
         auto G = ct->generateGodunovFluxes (F, 0);
         auto interior = Region().withRange (0, 2, -2).withRange (1, 2, -2).withRange (2, 2, -2);
         auto Bf = mo->divergence (F);

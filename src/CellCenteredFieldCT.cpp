@@ -17,31 +17,37 @@ void CellCenteredFieldCT::correctGodunovFluxes (Array& F, int magneticIndex) con
     const int B1 = magneticIndex + 1;
     const int B2 = magneticIndex + 2;
 
+    // To deal with flat axes, use variables r, s, t
+    // ------------------------------------------------------------------------
+    const int r = F.size(0) >= 3 ? 1 : 0;
+    const int s = F.size(1) >= 3 ? 1 : 0;
+    const int t = F.size(2) >= 3 ? 1 : 0;
+
     // ------------------------------------------------------------------------
     for (int i = 1; i < F.size(0) - 0; ++i)
-    for (int j = 1; j < F.size(1) - 1; ++j)
+    for (int j = s; j < F.size(1) - s; ++j)
     for (int k = 0; k < F.size(2) - 0; ++k)
     {
         G (i, j, k, B1, 0) = 0.125 * (
             + 2 * F(i + 0, j + 0, k + 0, B1, 0) // Fx(By)
-            + 1 * F(i + 0, j + 1, k + 0, B1, 0)
-            + 1 * F(i + 0, j - 1, k + 0, B1, 0)
-            - 1 * F(i + 0, j + 1, k + 0, B0, 1) // Fy(Bx)
-            - 1 * F(i - 1, j + 1, k + 0, B0, 1)
+            + 1 * F(i + 0, j + s, k + 0, B1, 0)
+            + 1 * F(i + 0, j - s, k + 0, B1, 0)
+            - 1 * F(i + 0, j + s, k + 0, B0, 1) // Fy(Bx)
+            - 1 * F(i - 1, j + s, k + 0, B0, 1)
             - 1 * F(i + 0, j + 0, k + 0, B0, 1)
             - 1 * F(i - 1, j + 0, k + 0, B0, 1));
     }
 
     for (int i = 1; i < F.size(0) - 0; ++i)
     for (int j = 0; j < F.size(1) - 0; ++j)
-    for (int k = 1; k < F.size(2) - 1; ++k)
+    for (int k = t; k < F.size(2) - t; ++k)
     {
         G (i, j, k, B2, 0) = 0.125 * (
             + 2 * F(i + 0, j + 0, k + 0, B2, 0) // Fx(Bz)
-            + 1 * F(i + 0, j + 0, k + 1, B2, 0)
-            + 1 * F(i + 0, j + 0, k - 1, B2, 0)
-            - 1 * F(i + 0, j + 0, k + 1, B0, 2) // Fz(Bx)
-            - 1 * F(i - 1, j + 0, k + 1, B0, 2)
+            + 1 * F(i + 0, j + 0, k + t, B2, 0)
+            + 1 * F(i + 0, j + 0, k - t, B2, 0)
+            - 1 * F(i + 0, j + 0, k + t, B0, 2) // Fz(Bx)
+            - 1 * F(i - 1, j + 0, k + t, B0, 2)
             - 1 * F(i + 0, j + 0, k + 0, B0, 2)
             - 1 * F(i - 1, j + 0, k + 0, B0, 2));
     }
@@ -49,57 +55,57 @@ void CellCenteredFieldCT::correctGodunovFluxes (Array& F, int magneticIndex) con
     // ------------------------------------------------------------------------
     for (int i = 0; i < F.size(0) - 0; ++i)
     for (int j = 1; j < F.size(1) - 0; ++j)
-    for (int k = 1; k < F.size(2) - 1; ++k)
+    for (int k = t; k < F.size(2) - t; ++k)
     {
         G (i, j, k, B2, 1) = 0.125 * (
             + 2 * F(i + 0, j + 0, k + 0, B2, 1) // Fy(Bz)
-            + 1 * F(i + 0, j + 0, k + 1, B2, 1)
-            + 1 * F(i + 0, j + 0, k - 1, B2, 1)
-            - 1 * F(i + 0, j + 0, k + 1, B1, 2) // Fz(By)
-            - 1 * F(i + 0, j - 1, k + 1, B1, 2)
+            + 1 * F(i + 0, j + 0, k + t, B2, 1)
+            + 1 * F(i + 0, j + 0, k - t, B2, 1)
+            - 1 * F(i + 0, j + 0, k + t, B1, 2) // Fz(By)
+            - 1 * F(i + 0, j - 1, k + t, B1, 2)
             - 1 * F(i + 0, j + 0, k + 0, B1, 2)
             - 1 * F(i + 0, j - 1, k + 0, B1, 2));
     }
 
-    for (int i = 1; i < F.size(0) - 1; ++i)
+    for (int i = r; i < F.size(0) - r; ++i)
     for (int j = 1; j < F.size(1) - 0; ++j)
     for (int k = 0; k < F.size(2) - 0; ++k)
     {
         G (i, j, k, B0, 1) = 0.125 * (
             + 2 * F(i + 0, j + 0, k + 0, B0, 1) // Fy(Bx)
-            + 1 * F(i + 1, j + 0, k + 0, B0, 1)
-            + 1 * F(i - 1, j + 0, k + 0, B0, 1)
-            - 1 * F(i + 1, j + 0, k + 0, B1, 0) // Fx(By)
-            - 1 * F(i + 1, j - 1, k + 0, B1, 0)
+            + 1 * F(i + r, j + 0, k + 0, B0, 1)
+            + 1 * F(i - r, j + 0, k + 0, B0, 1)
+            - 1 * F(i + r, j + 0, k + 0, B1, 0) // Fx(By)
+            - 1 * F(i + r, j - 1, k + 0, B1, 0)
             - 1 * F(i + 0, j + 0, k + 0, B1, 0)
             - 1 * F(i + 0, j - 1, k + 0, B1, 0));
     }
 
     // ------------------------------------------------------------------------
-    for (int i = 1; i < F.size(0) - 1; ++i)
+    for (int i = r; i < F.size(0) - r; ++i)
     for (int j = 0; j < F.size(1) - 0; ++j)
     for (int k = 1; k < F.size(2) - 0; ++k)
     {
         G (i, j, k, B0, 2) = 0.125 * (
             + 2 * F(i + 0, j + 0, k + 0, B0, 2) // Fz(Bx)
-            + 1 * F(i + 1, j + 0, k + 0, B0, 2)
-            + 1 * F(i - 1, j + 0, k + 0, B0, 2)
-            - 1 * F(i + 1, j + 0, k + 0, B2, 0) // Fx(Bz)
-            - 1 * F(i + 1, j + 0, k - 1, B2, 0)
+            + 1 * F(i + r, j + 0, k + 0, B0, 2)
+            + 1 * F(i - r, j + 0, k + 0, B0, 2)
+            - 1 * F(i + r, j + 0, k + 0, B2, 0) // Fx(Bz)
+            - 1 * F(i + r, j + 0, k - 1, B2, 0)
             - 1 * F(i + 0, j + 0, k + 0, B2, 0)
             - 1 * F(i + 0, j + 0, k - 1, B2, 0));
     }
 
     for (int i = 0; i < F.size(0) - 0; ++i)
-    for (int j = 1; j < F.size(1) - 1; ++j)
+    for (int j = s; j < F.size(1) - s; ++j)
     for (int k = 1; k < F.size(2) - 0; ++k)
     {
         G (i, j, k, B1, 2) = 0.125 * (
             + 2 * F(i + 0, j + 0, k + 0, B1, 2) // Fz(By)
-            + 1 * F(i + 0, j + 1, k + 0, B1, 2)
-            + 1 * F(i + 0, j - 1, k + 0, B1, 2)
-            - 1 * F(i + 0, j + 1, k + 0, B2, 1) // Fy(Bz)
-            - 1 * F(i + 0, j + 1, k - 1, B2, 1)
+            + 1 * F(i + 0, j + s, k + 0, B1, 2)
+            + 1 * F(i + 0, j - s, k + 0, B1, 2)
+            - 1 * F(i + 0, j + s, k + 0, B2, 1) // Fy(Bz)
+            - 1 * F(i + 0, j + s, k - 1, B2, 1)
             - 1 * F(i + 0, j + 0, k + 0, B2, 1)
             - 1 * F(i + 0, j + 0, k - 1, B2, 1));
     }
