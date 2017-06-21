@@ -16,7 +16,7 @@ using namespace Cow;
 // ============================================================================
 #include "Array.hpp"
 
-SCENARIO ("A HeapAllocation H(10) and another I(0)", "[HeapAllocation]")
+SCENARIO ("Heap allocations can be move-constructed and move-assigned", "[HeapAllocation]")
 {
     GIVEN ("A HeapAllocation H(10) and another I(0)")
     {
@@ -45,7 +45,6 @@ SCENARIO ("A HeapAllocation H(10) and another I(0)", "[HeapAllocation]")
         }
     }
 }
-
 
 SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
 {
@@ -166,6 +165,7 @@ SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
         auto R1 = Region(A.shape()).withRange (4, 1, 2);
         auto R2 = Region(A.shape()).withRange (4, 2, 3);
         auto R3 = Region(A.shape()).withRange (4, 3, 4); // bad region
+        auto R4 = Region(A.shape()).withRange (3, 0, -2); // bad region
 
         THEN ("B can be inserted into axis 0 of A")
         {
@@ -225,8 +225,19 @@ SCENARIO ("Arrays should work with slicing and indexing", "[Array]")
                 CHECK_THROWS (A[R3] = B);
             }
         }
-    }
 
+        THEN ("A cannot be referenced with a bad region")
+        {
+            if (! Array::isBoundsCheckDisabled())
+            {
+                CHECK_THROWS (A[R4] = B);
+            }
+        }
+    }
+}
+
+SCENARIO ("Arrays can be move-constructed and move-assigned", "[Array]")
+{
     GIVEN ("An array A(10) and another B(0)")
     {
         auto A = Array(10);
