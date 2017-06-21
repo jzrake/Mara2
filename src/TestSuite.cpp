@@ -1133,7 +1133,7 @@ SCENARIO ("Cell-centered field CT should behave reasonalby", "[CellCenteredField
 {
     GIVEN ("An instance of CellCenteredFieldCT and random 2D Godunov flux (EMF)")
     {
-        auto cs = Shape {{ 16, 16, 16 }};
+        auto cs = Shape {{ 16, 16, 1 }};
         auto mg = std::make_shared<CartesianMeshGeometry>(cs);
         auto mo = std::make_shared<MeshOperator>(mg);
         auto ct = std::make_shared<CellCenteredFieldCT>();
@@ -1143,32 +1143,41 @@ SCENARIO ("Cell-centered field CT should behave reasonalby", "[CellCenteredField
         for (int j = 0; j < 17; ++j)
         for (int k = 0; k < 2; ++k)
         {
-            F(i, j, k, 0, 0) = 0;
+            F(i, j, k, 0, 0) = rand();
             F(i, j, k, 0, 1) = rand();
-            F(i, j, k, 0, 2) = 0;
+            F(i, j, k, 0, 2) = rand();
             F(i, j, k, 1, 0) = rand();
-            F(i, j, k, 1, 1) = 0;
-            F(i, j, k, 1, 2) = 0;
+            F(i, j, k, 1, 1) = rand();
+            F(i, j, k, 1, 2) = rand();
             F(i, j, k, 2, 0) = rand();
             F(i, j, k, 2, 1) = rand();
-            F(i, j, k, 2, 2) = 0;
+            F(i, j, k, 2, 2) = rand();
         }
 
         auto G = ct->generateGodunovFluxes (F, 0);
-        auto interior = Region().withRange (0, 2, -2).withRange (1, 2, -2);//.withRange (2, 2, -2);
         auto Bf = mo->divergence (F);
         auto Bg = mo->divergence (G);
-        auto Mf = Array (ct->monopole (Bf, MeshLocation::cell)[interior]);
-        auto Mg = Array (ct->monopole (Bg, MeshLocation::cell)[interior]);
+        auto Mf = ct->monopole (Bf, MeshLocation::cell);
+        auto Nf = ct->monopole (Bf, MeshLocation::vert);
+        auto Mg = ct->monopole (Bg, MeshLocation::cell);
+        auto Ng = ct->monopole (Bg, MeshLocation::vert);
 
-        THEN ("Cell-centered div-B's are zero excluding a boudary with shape (2, 2, 2)")
+        CHECK (Mf.size(0) == 16);
+        CHECK (Mf.size(1) == 16);
+        CHECK (Mf.size(2) == 1);
+        CHECK (Mf.size(3) == 1);
+        CHECK (Mf.size(4) == 1);
+
+        CHECK (Nf.size(0) == 17);
+        CHECK (Nf.size(1) == 17);
+        CHECK (Nf.size(2) == 2);
+        CHECK (Nf.size(3) == 1);
+        CHECK (Nf.size(4) == 1);
+
+        THEN ("Cell-centered div-B's are zero")
         {
-            Mg.shape3D().deploy ([&] (int i, int j, int k)
-            {
-                INFO (i << " " << j << " " << k);
-                CHECK (Mf (i, j, k) != Approx (0.0));
-                CHECK (Mg (i, j, k) == Approx (0.0));
-            });
+            CHECK (Mf (8, 8, 0) != Approx (0.0));
+            CHECK (Mg (8, 8, 0) == Approx (0.0));
         }
     }
     GIVEN ("An instance of CellCenteredFieldCT and random 3D Godunov flux (EMF)")
