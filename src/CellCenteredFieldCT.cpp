@@ -18,18 +18,12 @@ void CellCenteredFieldCT::correctGodunovFluxes (Array& F, int magneticIndex) con
     const int B2 = magneticIndex + 2;
 
     // ------------------------------------------------------------------------
-    for (int i = 0; i < F.size(0) - 0; ++i)
-    for (int j = 0; j < F.size(1) - 0; ++j)
-    for (int k = 0; k < F.size(2) - 0; ++k)
+    for (int i = 0; i < F.size(0); ++i)
+    for (int j = 0; j < F.size(1); ++j)
+    for (int k = 0; k < F.size(2); ++k)
     {
         G (i, j, k, B0, 0) = 0.0;
-        G (i, j, k, B1, 0) = 0.0;
-        G (i, j, k, B2, 0) = 0.0;
-        G (i, j, k, B0, 1) = 0.0;
         G (i, j, k, B1, 1) = 0.0;
-        G (i, j, k, B2, 1) = 0.0;
-        G (i, j, k, B0, 2) = 0.0;
-        G (i, j, k, B1, 2) = 0.0;
         G (i, j, k, B2, 2) = 0.0;
     }
 

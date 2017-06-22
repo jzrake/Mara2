@@ -28,8 +28,9 @@ class MeshOperator
 {
 public:
     using Array = Cow::Array;
-    using Shape = Cow::Shape;
     using Index = Cow::Index;
+    using Shape = Cow::Shape;
+    using Shape3D = Cow::Shape3D;
     using FluxCorrection = std::function<void (Array&)>;
     enum class VectorMode { scalars, fluxish, emflike };
 
@@ -44,10 +45,12 @@ public:
     in the mesh geometry. In scalars mode, the size of the returned array on
     the 4th axis is the number of components returned by F. In fluxish mode, F
     must return a 3-component vector, whose projection onto the face normal is
-    returned as the sole entry on the 4th axis.
+    returned as the sole entry on the 4th axis. An optional boundaryShape
+    argument specifies a number of cells to add above the mesh geometry shape
+    on each axis.
     */
     Array generate (InitialDataFunction F, MeshLocation location,
-        VectorMode vectorMode=VectorMode::scalars) const;
+        VectorMode vectorMode=VectorMode::scalars, Shape3D boundaryShape=Shape3D()) const;
 
     /**
     Return the 1, 2, or 3 dimensional measure of the given mesh locations:

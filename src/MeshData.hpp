@@ -48,7 +48,7 @@ public:
     Assign a new set of magnetic field variables to the interior region of
     either mesh or faces.
     */
-    void assignMagneticField (Array newB, MeshLocation location);
+    void assignMagneticField (Array newB, MeshLocation location, int flags=0);
 
     /**
     Allocate storage for diagnostic fields with given names.

@@ -32,7 +32,7 @@ void MeshData::assignPrimitive (Array newP)
     P[interior] = newP;
 }
 
-void MeshData::assignMagneticField (Array newB, MeshLocation location)
+void MeshData::assignMagneticField (Array newB, MeshLocation location, int flags)
 {
     if (magneticIndex == -1)
     {
@@ -42,8 +42,8 @@ void MeshData::assignMagneticField (Array newB, MeshLocation location)
 
     switch (location)
     {
-        case MeshLocation::cell: P[interior.withRange (3, bi, bi + 3)] = newB; break;
-        case MeshLocation::face: B[interior] = newB; break;
+        case MeshLocation::cell: P[getRegion (flags).withRange (3, bi, bi + 3)] = newB; break;
+        case MeshLocation::face: B[getRegion (flags)] = newB; break;
         default: throw std::logic_error ("Bad mesh location for magnetic field data");
     }
 }

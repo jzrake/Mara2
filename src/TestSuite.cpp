@@ -1152,17 +1152,16 @@ SCENARIO ("Cell-centered field CT should behave reasonalby", "[CellCenteredField
 
         for (int i = 0; i < 17; ++i)
         for (int j = 0; j < 17; ++j)
-        for (int k = 0; k < 2; ++k)
         {
-            F(i, j, k, 0, 0) = rand();
-            F(i, j, k, 0, 1) = rand();
-            F(i, j, k, 0, 2) = rand();
-            F(i, j, k, 1, 0) = rand();
-            F(i, j, k, 1, 1) = rand();
-            F(i, j, k, 1, 2) = rand();
-            F(i, j, k, 2, 0) = rand();
-            F(i, j, k, 2, 1) = rand();
-            F(i, j, k, 2, 2) = rand();
+            F(i, j, 0, 0, 0) = F(i, j, 1, 0, 0) = rand();
+            F(i, j, 0, 0, 1) = F(i, j, 1, 0, 1) = rand();
+            F(i, j, 0, 0, 2) = F(i, j, 1, 0, 2) = rand();
+            F(i, j, 0, 1, 0) = F(i, j, 1, 1, 0) = rand();
+            F(i, j, 0, 1, 1) = F(i, j, 1, 1, 1) = rand();
+            F(i, j, 0, 1, 2) = F(i, j, 1, 1, 2) = rand();
+            F(i, j, 0, 2, 0) = F(i, j, 1, 2, 0) = rand();
+            F(i, j, 0, 2, 1) = F(i, j, 1, 2, 1) = rand();
+            F(i, j, 0, 2, 2) = F(i, j, 1, 2, 2) = rand();
         }
 
         auto G = ct->generateGodunovFluxes (F, 0);

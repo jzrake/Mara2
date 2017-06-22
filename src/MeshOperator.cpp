@@ -35,11 +35,12 @@ void MeshOperator::setMeshGeometry (std::shared_ptr<MeshGeometry> g)
     geometry = g;
 }
 
-Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, VectorMode vectorMode) const
+Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, VectorMode vectorMode, Shape3D boundaryShape) const
 {
     ENSURE_GEOMETRY_IS_VALID;
 
     int nq = F (0.0, 0.0, 0.0).size();
+    auto totalCellsShape = Shape3D (geometry->cellsShape()).increased (boundaryShape * 2);
 
     switch (vectorMode)
     {
@@ -59,13 +60,17 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
     {
         case MeshLocation::edge:
         {
-            auto E = Array (Shape3D (geometry->cellsShape()).increased(1).withComponents(nq).withRank(3));
+            auto E = Array (totalCellsShape.increased(1).withComponents(nq).withRank(3));
 
-            Array::deploy (E.shape(), [&] (int i, int j, int k)
+            E.shape3D().deploy ([&] (int i, int j, int k)
             {
-                auto coord0 = geometry->coordinateAtIndex (i, j - 0.5, k - 0.5);
-                auto coord1 = geometry->coordinateAtIndex (i - 0.5, j, k - 0.5);
-                auto coord2 = geometry->coordinateAtIndex (i - 0.5, j - 0.5, k);
+                int ic = i - boundaryShape[0];
+                int jc = j - boundaryShape[1];
+                int kc = k - boundaryShape[2];
+
+                auto coord0 = geometry->coordinateAtIndex (ic, jc - 0.5, kc - 0.5);
+                auto coord1 = geometry->coordinateAtIndex (ic - 0.5, jc, kc - 0.5);
+                auto coord2 = geometry->coordinateAtIndex (ic - 0.5, jc - 0.5, kc);
 
                 auto P0 = F (coord0[0], coord0[1], coord0[2]);
                 auto P1 = F (coord1[0], coord1[1], coord1[2]);
@@ -85,9 +90,9 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
                     }
                     case VectorMode::emflike:
                     {
-                        auto nhat0 = geometry->edgeVector (i, j, k, 0);
-                        auto nhat1 = geometry->edgeVector (i, j, k, 1);
-                        auto nhat2 = geometry->edgeVector (i, j, k, 2);
+                        auto nhat0 = geometry->edgeVector (ic, jc, kc, 0);
+                        auto nhat1 = geometry->edgeVector (ic, jc, kc, 1);
+                        auto nhat2 = geometry->edgeVector (ic, jc, kc, 2);
 
                         E (i, j, k, 0, 0) = nhat0.project (P0[0], P0[1], P0[2]);
                         E (i, j, k, 0, 1) = nhat1.project (P1[0], P1[1], P1[2]);
@@ -104,13 +109,17 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
         }
         case MeshLocation::face:
         {
-            auto B = Array (Shape3D (geometry->cellsShape()).increased(1).withComponents(nq).withRank(3));
+            auto B = Array (totalCellsShape.increased(1).withComponents(nq).withRank(3));
 
-            Array::deploy (B.shape(), [&] (int i, int j, int k)
+            B.shape3D().deploy ([&] (int i, int j, int k)
             {
-                auto coord0 = geometry->coordinateAtIndex (i - 0.5, j, k);
-                auto coord1 = geometry->coordinateAtIndex (i, j - 0.5, k);
-                auto coord2 = geometry->coordinateAtIndex (i, j, k - 0.5);
+                int ic = i - boundaryShape[0];
+                int jc = j - boundaryShape[1];
+                int kc = k - boundaryShape[2];
+
+                auto coord0 = geometry->coordinateAtIndex (ic - 0.5, jc, kc);
+                auto coord1 = geometry->coordinateAtIndex (ic, jc - 0.5, kc);
+                auto coord2 = geometry->coordinateAtIndex (ic, jc, kc - 0.5);
 
                 auto P0 = F (coord0[0], coord0[1], coord0[2]);
                 auto P1 = F (coord1[0], coord1[1], coord1[2]);
@@ -130,9 +139,9 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
                     }
                     case VectorMode::fluxish:
                     {
-                        auto nhat0 = geometry->faceNormal (i, j, k, 0);
-                        auto nhat1 = geometry->faceNormal (i, j, k, 1);
-                        auto nhat2 = geometry->faceNormal (i, j, k, 2);
+                        auto nhat0 = geometry->faceNormal (ic, jc, kc, 0);
+                        auto nhat1 = geometry->faceNormal (ic, jc, kc, 1);
+                        auto nhat2 = geometry->faceNormal (ic, jc, kc, 2);
 
                         B (i, j, k, 0, 0) = nhat0.project (P0[0], P0[1], P0[2]);
                         B (i, j, k, 0, 1) = nhat1.project (P1[0], P1[1], P1[2]);
@@ -150,12 +159,16 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
         case MeshLocation::cell:
         {
             int nq = F (0.0, 0.0, 0.0).size();
-            auto P = Array (Shape3D (geometry->cellsShape()).withComponents (nq));
+            auto P = Array (totalCellsShape.withComponents (nq));
             auto R = Region().withStride (3, nq);
 
             for (auto it = P[R].begin(); it != P.end(); ++it)
             {
-                auto coord = geometry->coordinateAtIndex (it.index());
+                int ic = it.index()[0] - boundaryShape[0];
+                int jc = it.index()[1] - boundaryShape[1];
+                int kc = it.index()[2] - boundaryShape[2];
+
+                auto coord = geometry->coordinateAtIndex (ic, jc, kc);
                 auto P0 = F (coord[0], coord[1], coord[2]);
 
                 for (unsigned int q = 0; q < nq; ++q)

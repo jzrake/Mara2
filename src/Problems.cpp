@@ -408,7 +408,6 @@ std::vector<NewtonianMHD2DTestProgram::Problem> NewtonianMHD2DTestProgram::Probl
     {
         x -= 0.5;
         y -= 0.5;
-
         const double R = std::sqrt (x * x + y * y);
         auto S1 = std::vector<double> {1.000, 0., 0., 0., 1.000, 1.33, 1.33, 0.};
         auto S2 = std::vector<double> {0.125, 0., 0., 0., 0.100, 1.33, 1.33, 0.};
@@ -444,11 +443,31 @@ std::vector<NewtonianMHD2DTestProgram::Problem> NewtonianMHD2DTestProgram::Probl
         return std::vector<double>  {0.0, 0.0, A };
     };
 
+    const double A = 1.0;
+    const double B = 1.0;
+    const double C = 0.0;
+    const double k = 2 * M_PI;
+    auto AbcFieldP = [&] (double x, double y, double z)
+    {
+        auto bx = C * std::cos (k * z) - B * std::sin (k * y);
+        auto by = A * std::cos (k * x) - C * std::sin (k * z);
+        auto bz = B * std::cos (k * y) - A * std::sin (k * x);
+        return std::vector<double> { 1., 0., 0., 0., 1., bx, by, bz };
+    };
+    auto AbcFieldA = [&] (double x, double y, double z)
+    {
+        auto bx = C * std::cos (k * z) - B * std::sin (k * y);
+        auto by = A * std::cos (k * x) - C * std::sin (k * z);
+        auto bz = B * std::cos (k * y) - A * std::sin (k * x);
+        return std::vector<double> { bx / k, by / k, bz / k };
+    };
+
     auto periodic = std::make_shared<PeriodicBoundaryCondition>();
     auto outflow  = std::make_shared<OutflowBoundaryCondition>();
     auto problems = std::vector<NewtonianMHD2DTestProgram::Problem>();
-    problems.push_back ({ "CylindricalBlast", 0.100, periodic, CylindricalBlast, nullptr });
+    problems.push_back ({ "CylindricalBlast", 0.1, periodic, CylindricalBlast, nullptr });
     problems.push_back ({ "FieldLoop", 1.0, periodic, FieldLoopP, FieldLoopA });
+    problems.push_back ({ "AbcField", 0.1, periodic, AbcFieldP, AbcFieldA });
     return problems;
 }
 
@@ -553,18 +572,11 @@ void NewtonianMHD2DTestProgram::run (const Problem& problem, const Scheme& schem
 
     if (problem.ivp)
     {
-        // Note: This piece of code generates divergenceless initial data for
-        // cell-centered magnetic fields, But, it's not general in that it
-        // leaves the boundary data unspecified; the mesh operator generates
-        // data with no guard zones, while the field-CT averaging and
-        // divergence chew up a layer two cells wide. There's no consequence
-        // when the field is zero near the boundary. We should give the mesh
-        // operator's generate function an option to add a guard zone region.
-        auto A = mo->generate (problem.ivp, MeshLocation::face);
+        auto A = mo->generate (problem.ivp, MeshLocation::face, MeshOperator::VectorMode::scalars, bs);
         auto F = ct->vectorPotentialToFluxes (A);
         auto G = ct->generateGodunovFluxes (F, 0);
         auto Bcell = mo->divergence (G);
-        md->assignMagneticField (Bcell, MeshLocation::cell);
+        md->assignMagneticField (Bcell, MeshLocation::cell, MeshData::includeGuard);
     }
     md->applyBoundaryCondition (*bc);
 

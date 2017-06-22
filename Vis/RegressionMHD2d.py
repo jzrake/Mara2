@@ -20,10 +20,11 @@ class MethodOfLinesTVD(object):
         chkpt = h5py.File (os.path.join('data', '{0}.0001.h5'.format(base)), 'r')
         d = chkpt['primitive']['density'][...]
         p = chkpt['primitive']['pressure'][...]
-        b = chkpt['primitive']['magnetic1'][...]
-        c = chkpt['primitive']['magnetic2'][...]
+        b1 = chkpt['primitive']['magnetic1'][...]
+        b2 = chkpt['primitive']['magnetic2'][...]
+        b3 = chkpt['primitive']['magnetic3'][...]
         m = chkpt['diagnostic']['monopole'][...]
-        q = (b**2 + c**2) / 2
+        q = (b1**2 + b2**2 + b3**2) / 2
 
         fig = plt.figure()
         ax1 = fig.add_subplot(2, 2, 1)
@@ -38,7 +39,6 @@ class MethodOfLinesTVD(object):
         ax2.set_title(r'$p$')
         ax3.set_title(r'$B^2$')
         ax4.set_title(r'$\nabla \cdot \vec B$')
-
         fig.colorbar(cmd, ax=ax1)
         fig.colorbar(cmp, ax=ax2)
         fig.colorbar(cmq, ax=ax3)
@@ -54,6 +54,7 @@ class MethodOfLinesTVD(object):
 
 class CylindricalBlast(MethodOfLinesTVD): name = "CylindricalBlast"
 class FieldLoop(MethodOfLinesTVD): name = "FieldLoop"
+class AbcField(MethodOfLinesTVD): name = "AbcField"
 
 
 def search(name, terms):
@@ -77,7 +78,7 @@ def main():
     parser.add_argument("--pdf", action='store_true', help="export figures to PDF")
     args = parser.parse_args()
 
-    plotters = [FieldLoop(), CylindricalBlast()]
+    plotters = [CylindricalBlast(), FieldLoop(), AbcField()]
 
     for plotter in plotters:
 
