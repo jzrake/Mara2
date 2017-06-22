@@ -21,6 +21,7 @@ public:
     void setFieldOperator     (std::shared_ptr<FieldOperator> fo)         override { fieldOperator = fo; }
     void setIntercellFluxScheme (std::shared_ptr<IntercellFluxScheme> fs) override;
 private:
+    void makeFootprint (const MeshData&, const IntercellFluxScheme&, Shape3D&, Index&) const;
     std::shared_ptr<BoundaryCondition>    boundaryCondition;
     std::shared_ptr<FieldOperator>        fieldOperator;
     std::shared_ptr<MeshOperator>         meshOperator;

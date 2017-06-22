@@ -11,103 +11,122 @@ void CellCenteredFieldCT::correctGodunovFluxes (Array& F, int magneticIndex) con
     // This function implements the stencil shown in Fig. 3 of Toth (2000), and
     // the formula in Equation (25).
 
-    auto G = Array (F.shape());
+    auto G = F;
 
     const int B0 = magneticIndex + 0;
     const int B1 = magneticIndex + 1;
     const int B2 = magneticIndex + 2;
 
     // ------------------------------------------------------------------------
-    if (F.size(0) >= 3)
-    for (int i = 1; i < F.size(0) - 0; ++i)
-    for (int j = 1; j < F.size(1) - 1; ++j)
+    for (int i = 0; i < F.size(0) - 0; ++i)
+    for (int j = 0; j < F.size(1) - 0; ++j)
     for (int k = 0; k < F.size(2) - 0; ++k)
     {
-        G (i, j, k, B1, 0) = 0.125 * (
-            + 2 * F(i + 0, j + 0, k + 0, B1, 0) // Fx(By)
-            + 1 * F(i + 0, j + 1, k + 0, B1, 0)
-            + 1 * F(i + 0, j - 1, k + 0, B1, 0)
-            - 1 * F(i + 0, j + 1, k + 0, B0, 1) // Fy(Bx)
-            - 1 * F(i - 1, j + 1, k + 0, B0, 1)
-            - 1 * F(i + 0, j + 0, k + 0, B0, 1)
-            - 1 * F(i - 1, j + 0, k + 0, B0, 1));
+        G (i, j, k, B0, 0) = 0.0;
+        G (i, j, k, B1, 0) = 0.0;
+        G (i, j, k, B2, 0) = 0.0;
+        G (i, j, k, B0, 1) = 0.0;
+        G (i, j, k, B1, 1) = 0.0;
+        G (i, j, k, B2, 1) = 0.0;
+        G (i, j, k, B0, 2) = 0.0;
+        G (i, j, k, B1, 2) = 0.0;
+        G (i, j, k, B2, 2) = 0.0;
     }
 
+    // ------------------------------------------------------------------------
     if (F.size(0) >= 3)
-    for (int i = 1; i < F.size(0) - 0; ++i)
-    for (int j = 0; j < F.size(1) - 0; ++j)
-    for (int k = 1; k < F.size(2) - 1; ++k)
     {
-        G (i, j, k, B2, 0) = 0.125 * (
-            + 2 * F(i + 0, j + 0, k + 0, B2, 0) // Fx(Bz)
-            + 1 * F(i + 0, j + 0, k + 1, B2, 0)
-            + 1 * F(i + 0, j + 0, k - 1, B2, 0)
-            - 1 * F(i + 0, j + 0, k + 1, B0, 2) // Fz(Bx)
-            - 1 * F(i - 1, j + 0, k + 1, B0, 2)
-            - 1 * F(i + 0, j + 0, k + 0, B0, 2)
-            - 1 * F(i - 1, j + 0, k + 0, B0, 2));
+        for (int i = 1; i < F.size(0) - 0; ++i)
+        for (int j = 1; j < F.size(1) - 1; ++j)
+        for (int k = 0; k < F.size(2) - 0; ++k)
+        {
+            G (i, j, k, B1, 0) = 0.125 * (
+                + 2 * F(i + 0, j + 0, k + 0, B1, 0) // Fx(By)
+                + 1 * F(i + 0, j + 1, k + 0, B1, 0)
+                + 1 * F(i + 0, j - 1, k + 0, B1, 0)
+                - 1 * F(i + 0, j + 1, k + 0, B0, 1) // Fy(Bx)
+                - 1 * F(i - 1, j + 1, k + 0, B0, 1)
+                - 1 * F(i + 0, j + 0, k + 0, B0, 1)
+                - 1 * F(i - 1, j + 0, k + 0, B0, 1));
+        }
+
+        for (int i = 1; i < F.size(0) - 0; ++i)
+        for (int j = 0; j < F.size(1) - 0; ++j)
+        for (int k = 1; k < F.size(2) - 1; ++k)
+        {
+            G (i, j, k, B2, 0) = 0.125 * (
+                + 2 * F(i + 0, j + 0, k + 0, B2, 0) // Fx(Bz)
+                + 1 * F(i + 0, j + 0, k + 1, B2, 0)
+                + 1 * F(i + 0, j + 0, k - 1, B2, 0)
+                - 1 * F(i + 0, j + 0, k + 1, B0, 2) // Fz(Bx)
+                - 1 * F(i - 1, j + 0, k + 1, B0, 2)
+                - 1 * F(i + 0, j + 0, k + 0, B0, 2)
+                - 1 * F(i - 1, j + 0, k + 0, B0, 2));
+        }
     }
 
     // ------------------------------------------------------------------------
     if (F.size(1) >= 3)
-    for (int i = 0; i < F.size(0) - 0; ++i)
-    for (int j = 1; j < F.size(1) - 0; ++j)
-    for (int k = 1; k < F.size(2) - 1; ++k)
     {
-        G (i, j, k, B2, 1) = 0.125 * (
-            + 2 * F(i + 0, j + 0, k + 0, B2, 1) // Fy(Bz)
-            + 1 * F(i + 0, j + 0, k + 1, B2, 1)
-            + 1 * F(i + 0, j + 0, k - 1, B2, 1)
-            - 1 * F(i + 0, j + 0, k + 1, B1, 2) // Fz(By)
-            - 1 * F(i + 0, j - 1, k + 1, B1, 2)
-            - 1 * F(i + 0, j + 0, k + 0, B1, 2)
-            - 1 * F(i + 0, j - 1, k + 0, B1, 2));
-    }
+        for (int i = 0; i < F.size(0) - 0; ++i)
+        for (int j = 1; j < F.size(1) - 0; ++j)
+        for (int k = 1; k < F.size(2) - 1; ++k)
+        {
+            G (i, j, k, B2, 1) = 0.125 * (
+                + 2 * F(i + 0, j + 0, k + 0, B2, 1) // Fy(Bz)
+                + 1 * F(i + 0, j + 0, k + 1, B2, 1)
+                + 1 * F(i + 0, j + 0, k - 1, B2, 1)
+                - 1 * F(i + 0, j + 0, k + 1, B1, 2) // Fz(By)
+                - 1 * F(i + 0, j - 1, k + 1, B1, 2)
+                - 1 * F(i + 0, j + 0, k + 0, B1, 2)
+                - 1 * F(i + 0, j - 1, k + 0, B1, 2));
+        }
 
-    if (F.size(1) >= 3)
-    for (int i = 1; i < F.size(0) - 1; ++i)
-    for (int j = 1; j < F.size(1) - 0; ++j)
-    for (int k = 0; k < F.size(2) - 0; ++k)
-    {
-        G (i, j, k, B0, 1) = 0.125 * (
-            + 2 * F(i + 0, j + 0, k + 0, B0, 1) // Fy(Bx)
-            + 1 * F(i + 1, j + 0, k + 0, B0, 1)
-            + 1 * F(i - 1, j + 0, k + 0, B0, 1)
-            - 1 * F(i + 1, j + 0, k + 0, B1, 0) // Fx(By)
-            - 1 * F(i + 1, j - 1, k + 0, B1, 0)
-            - 1 * F(i + 0, j + 0, k + 0, B1, 0)
-            - 1 * F(i + 0, j - 1, k + 0, B1, 0));
+        for (int i = 1; i < F.size(0) - 1; ++i)
+        for (int j = 1; j < F.size(1) - 0; ++j)
+        for (int k = 0; k < F.size(2) - 0; ++k)
+        {
+            G (i, j, k, B0, 1) = 0.125 * (
+                + 2 * F(i + 0, j + 0, k + 0, B0, 1) // Fy(Bx)
+                + 1 * F(i + 1, j + 0, k + 0, B0, 1)
+                + 1 * F(i - 1, j + 0, k + 0, B0, 1)
+                - 1 * F(i + 1, j + 0, k + 0, B1, 0) // Fx(By)
+                - 1 * F(i + 1, j - 1, k + 0, B1, 0)
+                - 1 * F(i + 0, j + 0, k + 0, B1, 0)
+                - 1 * F(i + 0, j - 1, k + 0, B1, 0));
+        }
     }
 
     // ------------------------------------------------------------------------
     if (F.size(2) >= 3)
-    for (int i = 1; i < F.size(0) - 1; ++i)
-    for (int j = 0; j < F.size(1) - 0; ++j)
-    for (int k = 1; k < F.size(2) - 0; ++k)
     {
-        G (i, j, k, B0, 2) = 0.125 * (
-            + 2 * F(i + 0, j + 0, k + 0, B0, 2) // Fz(Bx)
-            + 1 * F(i + 1, j + 0, k + 0, B0, 2)
-            + 1 * F(i - 1, j + 0, k + 0, B0, 2)
-            - 1 * F(i + 1, j + 0, k + 0, B2, 0) // Fx(Bz)
-            - 1 * F(i + 1, j + 0, k - 1, B2, 0)
-            - 1 * F(i + 0, j + 0, k + 0, B2, 0)
-            - 1 * F(i + 0, j + 0, k - 1, B2, 0));
-    }
+        for (int i = 1; i < F.size(0) - 1; ++i)
+        for (int j = 0; j < F.size(1) - 0; ++j)
+        for (int k = 1; k < F.size(2) - 0; ++k)
+        {
+            G (i, j, k, B0, 2) = 0.125 * (
+                + 2 * F(i + 0, j + 0, k + 0, B0, 2) // Fz(Bx)
+                + 1 * F(i + 1, j + 0, k + 0, B0, 2)
+                + 1 * F(i - 1, j + 0, k + 0, B0, 2)
+                - 1 * F(i + 1, j + 0, k + 0, B2, 0) // Fx(Bz)
+                - 1 * F(i + 1, j + 0, k - 1, B2, 0)
+                - 1 * F(i + 0, j + 0, k + 0, B2, 0)
+                - 1 * F(i + 0, j + 0, k - 1, B2, 0));
+        }
 
-    if (F.size(2) >= 3)
-    for (int i = 0; i < F.size(0) - 0; ++i)
-    for (int j = 1; j < F.size(1) - 1; ++j)
-    for (int k = 1; k < F.size(2) - 0; ++k)
-    {
-        G (i, j, k, B1, 2) = 0.125 * (
-            + 2 * F(i + 0, j + 0, k + 0, B1, 2) // Fz(By)
-            + 1 * F(i + 0, j + 1, k + 0, B1, 2)
-            + 1 * F(i + 0, j - 1, k + 0, B1, 2)
-            - 1 * F(i + 0, j + 1, k + 0, B2, 1) // Fy(Bz)
-            - 1 * F(i + 0, j + 1, k - 1, B2, 1)
-            - 1 * F(i + 0, j + 0, k + 0, B2, 1)
-            - 1 * F(i + 0, j + 0, k - 1, B2, 1));
+        for (int i = 0; i < F.size(0) - 0; ++i)
+        for (int j = 1; j < F.size(1) - 1; ++j)
+        for (int k = 1; k < F.size(2) - 0; ++k)
+        {
+            G (i, j, k, B1, 2) = 0.125 * (
+                + 2 * F(i + 0, j + 0, k + 0, B1, 2) // Fz(By)
+                + 1 * F(i + 0, j + 1, k + 0, B1, 2)
+                + 1 * F(i + 0, j - 1, k + 0, B1, 2)
+                - 1 * F(i + 0, j + 1, k + 0, B2, 1) // Fy(Bz)
+                - 1 * F(i + 0, j + 1, k - 1, B2, 1)
+                - 1 * F(i + 0, j + 0, k + 0, B2, 1)
+                - 1 * F(i + 0, j + 0, k - 1, B2, 1));
+        }
     }
 
     // Overwrite old fluxes with the new.

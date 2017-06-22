@@ -14,32 +14,6 @@ using namespace Cow;
 
 
 
-static void makeFootprint (const MeshData& solution, const IntercellFluxScheme& fs, Shape3D& footprint, Index& startIndex)
-{
-    int ng = fs.getStencilSize();
-
-    for (int axis = 0; axis < 3; ++axis)
-    {
-        if (solution.P.size (axis) > 1)
-        {
-            footprint[axis] = 2 * ng;
-            startIndex[axis] = -ng;
-        }
-        else
-        {
-            footprint[axis] = 0;
-            startIndex[axis] = 0;
-        }
-    }
-
-    if (! solution.getBoundaryShape().contains (footprint / 2))
-    {
-        throw std::logic_error ("Boundary region of mesh data is smaller than the scheme's stencil");
-    }
-}
-
-
-
 // ============================================================================
 MethodOfLinesTVD::MethodOfLinesTVD()
 {
@@ -149,3 +123,32 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         solution.applyBoundaryCondition (*boundaryCondition);
     }
 }
+
+void MethodOfLinesTVD::makeFootprint (
+    const MeshData& solution,
+    const IntercellFluxScheme& fs,
+    Shape3D& footprint,
+    Index& startIndex) const
+{
+    int ng = fs.getStencilSize();
+
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        if (solution.P.size (axis) > 1)
+        {
+            footprint[axis] = 2 * ng;
+            startIndex[axis] = -ng;
+        }
+        else
+        {
+            footprint[axis] = 0;
+            startIndex[axis] = 0;
+        }
+    }
+
+    if (! solution.getBoundaryShape().contains (footprint / 2))
+    {
+        throw std::logic_error ("Boundary region of mesh data is smaller than the scheme's stencil");
+    }
+}
+
