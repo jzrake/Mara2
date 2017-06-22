@@ -2,6 +2,7 @@
 #include <cmath>
 #include "BoundaryConditions.hpp"
 #include "CartesianMeshGeometry.hpp"
+#include "CellCenteredFieldCT.hpp"
 #include "Checkpoint.hpp"
 #include "ConservationLaws.hpp"
 #include "FieldOperator.hpp"
@@ -382,6 +383,189 @@ void Hydro2DTestProgram::run (const Problem& problem, const Scheme& scheme)
     status.totalCellsInMesh = mg->totalCellsInMesh();
 
     md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
+    md->applyBoundaryCondition (*bc);
+
+    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   
+}
+
+
+
+
+// ============================================================================
+struct NewtonianMHD2DTestProgram::Problem
+{
+    std::string name;
+    double finalTime;
+    std::shared_ptr<BoundaryCondition> bc;
+    InitialDataFunction idf;
+    InitialDataFunction ivp; // vector potential function
+    static std::vector<Problem> get();
+};
+
+std::vector<NewtonianMHD2DTestProgram::Problem> NewtonianMHD2DTestProgram::Problem::get()
+{
+    auto CylindricalBlast = [&] (double x, double y, double)
+    {
+        x -= 0.5;
+        y -= 0.5;
+
+        const double R = std::sqrt (x * x + y * y);
+        auto S1 = std::vector<double> {1.000, 0., 0., 0., 1.000, 1.33, 1.33, 0.};
+        auto S2 = std::vector<double> {0.125, 0., 0., 0., 0.100, 1.33, 1.33, 0.};
+        return R < 0.125 ? S1 : S2;
+    };
+    auto FieldLoopP = [&] (double x, double y, double)
+    {
+        x -= 0.5;
+        y -= 0.5;
+        const double B = 1e-5;
+        const double k = 10.0;
+        const double R = std::sqrt (x * x + y * y);
+        const double bf = B * 3 * k * std::pow (k * R, 2) * std::exp (-std::pow (k * R, 3)); // B-phi
+        auto P = std::vector<double>(8);
+        P[0] = 1.0;
+        P[1] = 1.0;
+        P[2] = 1.0;
+        P[3] = 0.0;
+        P[4] = 1.0;
+        P[5] = bf * (-y / R);
+        P[6] = bf * ( x / R);
+        P[7] = 0.0;
+        return P;
+    };
+    auto FieldLoopA = [&] (double x, double y, double)
+    {
+        x -= 0.5;
+        y -= 0.5;
+        const double B = 1e-5;
+        const double k = 10.0;
+        const double R = std::sqrt (x * x + y * y);
+        const double A = B * std::exp (-std::pow (k * R, 3));
+        return std::vector<double>  {0.0, 0.0, A };
+    };
+
+    auto periodic = std::make_shared<PeriodicBoundaryCondition>();
+    auto outflow  = std::make_shared<OutflowBoundaryCondition>();
+    auto problems = std::vector<NewtonianMHD2DTestProgram::Problem>();
+    problems.push_back ({ "CylindricalBlast", 0.100, periodic, CylindricalBlast, nullptr });
+    problems.push_back ({ "FieldLoop", 1.0, periodic, FieldLoopP, FieldLoopA });
+    return problems;
+}
+
+
+
+
+// ============================================================================
+struct NewtonianMHD2DTestProgram::Scheme
+{
+    std::string name;
+    std::shared_ptr<SolutionScheme> ss;
+    static std::vector<Scheme> get();
+};
+
+std::vector<NewtonianMHD2DTestProgram::Scheme> NewtonianMHD2DTestProgram::Scheme::get()
+{
+    auto schemes = std::vector<Scheme>();
+    auto plm2 = std::make_shared<MethodOfLinesTVD>();
+
+    plm2->setIntercellFluxScheme (std::make_shared<MethodOfLinesPlm>());
+    plm2->setDisableFieldCT (false);
+    plm2->setRungeKuttaOrder(2);
+    schemes.push_back ({ "plm2", plm2 });
+
+    return schemes;
+}
+
+
+
+
+// ============================================================================
+int NewtonianMHD2DTestProgram::run (int argc, const char* argv[])
+{
+    for (const auto& problem : Problem::get())
+    {
+        for (const auto& scheme : Scheme::get())
+        {
+            run (problem, scheme);
+        }
+    }
+    return 0;
+}
+
+void NewtonianMHD2DTestProgram::run (const Problem& problem, const Scheme& scheme)
+{
+    auto cs = Shape {{ 64, 64, 1 }}; // cells shape
+    auto bs = Shape {{  2,  2, 0 }};
+    auto ss = scheme.ss;
+    auto bc = problem.bc;
+    auto mg = std::make_shared<CartesianMeshGeometry>();
+    auto mo = std::make_shared<MeshOperator>();
+    auto cl = std::make_shared<NewtonianMHD>();
+    auto fo = std::make_shared<FieldOperator>();
+    auto md = std::make_shared<MeshData> (cs, bs, 8);
+    auto ct = std::make_shared<CellCenteredFieldCT>();
+
+    mg->setCellsShape (cs);
+    fo->setConservationLaw (cl);
+    mo->setMeshGeometry (mg);
+    ss->setFieldOperator (fo);
+    ss->setMeshOperator (mo);
+    ss->setBoundaryCondition (bc);
+    md->setMagneticIndex (cl->getIndexFor (ConservationLaw::VariableType::magnetic));
+
+
+    auto status = SimulationStatus();
+    auto cflParameter = 0.5;
+    auto L = mo->linearCellDimension();
+    auto P = md->getPrimitive();
+
+    auto timestep  = [&] ()
+    {
+        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+        const double dt2 = problem.finalTime - status.simulationTime;
+        return dt1 < dt2 ? dt1 : dt2;
+    };
+    auto condition = [&] () { return status.simulationTime < problem.finalTime; };
+    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+    auto scheduler = std::make_shared<TaskScheduler>();
+    auto logger    = std::make_shared<Logger>();
+    auto writer    = std::make_shared<CheckpointWriter>();
+
+    writer->setFilenamePrefix (problem.name + "-" + scheme.name);
+    writer->setMeshDecomposition (nullptr);
+    writer->setTimeSeriesManager (nullptr);
+
+    scheduler->schedule ([&] (SimulationStatus, int rep)
+    {
+        auto Bcell = md->getMagneticField (MeshLocation::cell, MeshData::includeGuard);
+        auto Mcell = ct->monopole (Bcell, MeshLocation::cell);
+
+        md->allocateDiagnostics ({ "monopole" });
+        md->assignDiagnostic (Mcell, 0, MeshData::includeGuard);
+
+        writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+    }, TaskScheduler::Recurrence (problem.finalTime));
+
+    status = SimulationStatus();
+    status.totalCellsInMesh = mg->totalCellsInMesh();
+
+    md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
+
+    if (problem.ivp)
+    {
+        // Note: This piece of code generates divergenceless initial data for
+        // cell-centered magnetic fields, But, it's not general in that it
+        // leaves the boundary data unspecified; the mesh operator generates
+        // data with no guard zones, while the field-CT averaging and
+        // divergence chew up a layer two cells wide. There's no consequence
+        // when the field is zero near the boundary. We should give the mesh
+        // operator's generate function an option to add a guard zone region.
+        auto A = mo->generate (problem.ivp, MeshLocation::face);
+        auto F = ct->vectorPotentialToFluxes (A);
+        auto G = ct->generateGodunovFluxes (F, 0);
+        auto Bcell = mo->divergence (G);
+        md->assignMagneticField (Bcell, MeshLocation::cell);
+    }
     md->applyBoundaryCondition (*bc);
 
     maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   

@@ -626,6 +626,11 @@ int main (int argc, const char* argv[])
         auto hydro2d = Hydro2DTestProgram();
         return hydro2d.run (argc - 1, argv + 1);
     }
+    if (command == "regress-mhd")
+    {
+        auto mhd2d = NewtonianMHD2DTestProgram();
+        return mhd2d.run (argc - 1, argv + 1);
+    }
     if (command == "run")
     {
         if (argc < 3)

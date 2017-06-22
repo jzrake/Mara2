@@ -48,17 +48,29 @@ void MeshData::assignMagneticField (Array newB, MeshLocation location)
     }
 }
 
-Array::Reference MeshData::getPrimitive (int i)
+void MeshData::allocateDiagnostics (std::vector<std::string> diagnosticFieldNamesToUse)
 {
-    return P[i == -1 ? interior : interior.withRange (3, i, i + 1)];
+    diagnosticFieldNames = diagnosticFieldNamesToUse;
+    D = Array (P.shape3D().withComponents (diagnosticFieldNames.size()));
 }
 
-Array::Reference MeshData::getPrimitiveVector (int i)
+void MeshData::assignDiagnostic (Array newD, int index, int flags)
 {
-    return P[interior.withRange (3, i, i + 3)];
+    D[getRegion (flags).withRange (3, index, index + 1)] = newD;
 }
 
-Array::Reference MeshData::getMagneticField (MeshLocation location)
+Array::Reference MeshData::getPrimitive (int i, int flags)
+{
+    auto R = getRegion (flags);
+    return P[i == -1 ? R : R.withRange (3, i, i + 1)];
+}
+
+Array::Reference MeshData::getPrimitiveVector (int i, int flags)
+{
+    return P[getRegion (flags).withRange (3, i, i + 3)];
+}
+
+Array::Reference MeshData::getMagneticField (MeshLocation location, int flags)
 {
     if (magneticIndex == -1)
     {
@@ -67,15 +79,30 @@ Array::Reference MeshData::getMagneticField (MeshLocation location)
 
     switch (location)
     {
-        case MeshLocation::cell: return getPrimitiveVector (magneticIndex);
-        case MeshLocation::face: return B[interior];
+        case MeshLocation::cell: return getPrimitiveVector (magneticIndex, flags);
+        case MeshLocation::face: return B[getRegion (flags)];
         default: throw std::logic_error ("Bad mesh location for magnetic field data");
     }
 }
 
-Array::Reference MeshData::getZoneHealth()
+Array::Reference MeshData::getZoneHealth (int flags)
 {
     return Z;
+}
+
+Array::Reference MeshData::getDiagnostic (int index, int flags)
+{
+    return D[getRegion (flags).withRange (3, index, index + 1)];
+}
+
+int MeshData::getNumDiagnostics() const
+{
+    return diagnosticFieldNames.size();
+}
+
+std::string MeshData::getDiagnosticName (int index) const
+{
+    return diagnosticFieldNames[index];
 }
 
 Shape3D MeshData::getBoundaryShape() const
@@ -85,12 +112,10 @@ Shape3D MeshData::getBoundaryShape() const
 
 void MeshData::applyBoundaryCondition (BoundaryCondition& bc)
 {
-    for (int axis = 0; axis < 3; ++axis)
-    {
-        if (boundaryShape[axis] > 0)
-        {
-            bc.apply (P, MeshLocation::cell, MeshBoundary::left , axis, boundaryShape[axis]);
-            bc.apply (P, MeshLocation::cell, MeshBoundary::right, axis, boundaryShape[axis]);
-        }
-    }
+    bc.applySimple (P, boundaryShape);
+}
+
+Region MeshData::getRegion (int flags) const
+{
+    return flags & includeGuard ? Region() : interior;
 }

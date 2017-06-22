@@ -23,6 +23,8 @@ public:
     using Shape3D = Cow::Shape3D;
     using Region = Cow::Region;
 
+    enum { includeGuard = 1 };
+
 	MeshData (Shape baseShape, Shape boundaryShape, int numComponents);
 
     /**
@@ -49,28 +51,53 @@ public:
     void assignMagneticField (Array newB, MeshLocation location);
 
     /**
+    Allocate storage for diagnostic fields with given names.
+    */
+    void allocateDiagnostics (std::vector<std::string> diagnosticFields);
+
+    /**
+    Assign the given array to the diagnostic field at the given index.
+    */
+    void assignDiagnostic (Array newD, int index, int flags=0);
+
+    /**
     Return a reference to the updateable region in the primitive variable
     array. All fields are returned, but if fieldIndex is non-negative then
     only that component of the primitive data is returned.
     */
-    Array::Reference getPrimitive (int fieldIndex=-1);
+    Array::Reference getPrimitive (int fieldIndex=-1, int flags=0);
 
     /**
     Return three contiguous components of the primitive data, starting at the
     given index.
     */
-    Array::Reference getPrimitiveVector (int fieldIndex);
+    Array::Reference getPrimitiveVector (int fieldIndex, int flags=0);
 
     /**
     Get the magnetic field at the given location (either cell or face).
     */
-    Array::Reference getMagneticField (MeshLocation location);
+    Array::Reference getMagneticField (MeshLocation location, int flags=0);
 
     /**
     Return an array indicating the health of zones. 0 means no errors occured
     there.
     */
-    Array::Reference getZoneHealth();
+    Array::Reference getZoneHealth(int flags=0);
+
+    /**
+    Return the diagnostic field with the given index.
+    */
+    Array::Reference getDiagnostic (int index, int flags=0);
+
+    /**
+    Return the number of diagnostic fields.
+    */
+    int getNumDiagnostics() const;
+
+    /**
+    Return the name of one of the diagnostic fields.
+    */
+    std::string getDiagnosticName (int index) const;
 
     /**
     Return the shape of the boundary zones. This is the number of cells, along
@@ -85,12 +112,15 @@ public:
     Array P; /**< Primitive variable array */
     Array B; /**< Face-centered magnetic field */
     Array Z; /**< Zone health array */
+    Array D; /**< Diagnostics array (not allocated by default) */
 
 private:
+    Region getRegion (int flags) const;
     int velocityIndex;
     int magneticIndex;
     Region interior;
     Shape boundaryShape;
+    std::vector<std::string> diagnosticFieldNames;
 };
 
 #endif

@@ -30,6 +30,7 @@ public:
     using Array = Cow::Array;
     using Shape = Cow::Shape;
     using Index = Cow::Index;
+    using FluxCorrection = std::function<void (Array&)>;
     enum class VectorMode { scalars, fluxish, emflike };
 
     MeshOperator (std::shared_ptr<MeshGeometry> geometry=nullptr);
@@ -86,20 +87,24 @@ public:
 
     /**
     Return an array of fluxes on cell faces from a dimensionally split Godunov
-    operator, Fhat. The footprint argument determines the stencil size, and the
-    stencil shape is like a plus sign. Footprint must be an even number, 
+    operator, Fhat. The footprint argument determines the stencil size, and
+    the stencil shape is like a plus sign. Footprint must be an even number,
     as it corresponds to the total number of cells surrounding the face.
     Different axes may have different footprint sizes, but Fhat is used to
     compute the Godunov flux on each axis. The start parameter indicates the
-    lower index of the input data, relative to the index origin of the geometry
-    instance.
+    lower index of the input data, relative to the index origin of the
+    geometry instance. If the callback function fluxFunction is provided, that
+    function will be called on the flux array before returning it. This can be
+    useful, for example in field CT methods which average fluxes of magnetic
+    field to keep cell-centered div.B = 0.
     */
     Array godunov (
         GodunovStencil::IntercellFluxFunction Fhat,
         const Array& cellData,
         const Array& faceData,
         Shape footprint,
-        Index start={}) const;
+        Index start={},
+        FluxCorrection fluxCorrection=nullptr) const;
 
 private:
     std::shared_ptr<MeshGeometry> geometry;

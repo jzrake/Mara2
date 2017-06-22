@@ -134,6 +134,22 @@ void CellCenteredFieldCT::correctGodunovFluxes (Array& F, int magneticIndex) con
     F = G;
 }
 
+Array CellCenteredFieldCT::vectorPotentialToFluxes (Array A) const
+{
+    auto F = Array (A.shape3D().withComponents(3).withRank(3));
+
+    F.shape3D().deploy ([&] (int i, int j, int k)
+    {
+        F (i, j, k, 1, 0) = -A(i, j, k, 2, 0);
+        F (i, j, k, 2, 0) = +A(i, j, k, 1, 0);
+        F (i, j, k, 2, 1) = -A(i, j, k, 0, 1);
+        F (i, j, k, 0, 1) = +A(i, j, k, 2, 1);
+        F (i, j, k, 0, 2) = -A(i, j, k, 1, 2);
+        F (i, j, k, 1, 2) = +A(i, j, k, 0, 2);
+    });
+    return F;
+}
+
 Array CellCenteredFieldCT::generateGodunovFluxes (const Array& F, int magneticIndex) const
 {
     auto G = F;
@@ -141,7 +157,7 @@ Array CellCenteredFieldCT::generateGodunovFluxes (const Array& F, int magneticIn
     return G;
 }
 
-Array CellCenteredFieldCT::monopole (Array& B, MeshLocation location) const
+Array CellCenteredFieldCT::monopole (Array B, MeshLocation location) const
 {
     auto M = Array (B.shape3D().increased(1).withComponents(1));
 

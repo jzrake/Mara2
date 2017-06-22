@@ -365,7 +365,8 @@ Array MeshOperator::godunov (
     const Array& cellData,
     const Array& faceData,
     Shape footprint,
-    Index start) const
+    Index start,
+    FluxCorrection fluxCorrection) const
 {
     const int nq = cellData.size(3);
     const int np = faceData.size(3);
@@ -434,6 +435,11 @@ Array MeshOperator::godunov (
                 }
             }
         });
+    }
+
+    if (fluxCorrection)
+    {
+        fluxCorrection (result);
     }
     return result;
 }

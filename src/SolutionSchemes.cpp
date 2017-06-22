@@ -17,10 +17,14 @@ using namespace Cow;
 // ============================================================================
 MethodOfLinesTVD::MethodOfLinesTVD()
 {
-    auto fs = std::make_shared<MethodOfLines>();
-    setIntercellFluxScheme (fs);
-
+    fluxScheme = std::make_shared<MethodOfLines>();
     rungeKuttaOrder = 1;
+    disableFieldCT = false;
+}
+
+void MethodOfLinesTVD::setDisableFieldCT (bool shouldDisableFieldCT)
+{
+    disableFieldCT = shouldDisableFieldCT;
 }
 
 int MethodOfLinesTVD::getStencilSize() const
@@ -55,7 +59,8 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
     // ------------------------------------------------------------------------
     auto footprint = Shape3D();
     auto startIndex = Index();
-    makeFootprint (solution, *fluxScheme, footprint, startIndex);
+    auto interior = Region();
+    makeFootprint (solution, *fluxScheme, footprint, startIndex, interior);
 
 
     // Setup callback to compute Godunov fluxes
@@ -79,6 +84,17 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         }
     };
 
+    auto fieldCT = [&] (Array& fluxes)
+    {
+        auto ib = cl->getIndexFor (ConservationLaw::VariableType::magnetic);
+
+        if (ib != -1 && ! disableFieldCT)
+        {
+            auto ct = CellCenteredFieldCT();
+            ct.correctGodunovFluxes (fluxes, ib);
+        }
+    };
+
 
     // RK parameters
     // ------------------------------------------------------------------------
@@ -94,7 +110,6 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         case 3: b = b3; break;
     }
 
-    // auto ct = std::make_shared<CellCenteredFieldCT>();
 
     // RK updates
     // ------------------------------------------------------------------------
@@ -103,13 +118,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
 
     for (int rk = 0; rk < rungeKuttaOrder; ++rk)
     {
-        auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex);
-
-        // if (ct)
-        // {
-        //     ct->correctGodunovFluxes (F, cl->getIndexFor (ConservationLaw::VariableType::magnetic));
-        // }
-
+        auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fieldCT);
         auto L = meshOperator->divergence (F);
 
         for (int n = 0; n < L.size(); ++n)
@@ -119,7 +128,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
             U[n] = uold * (1 - b[rk]) + unew * b[rk];
         }
 
-        solution.P = fieldOperator->recoverPrimitive (U);
+        solution.Z = fieldOperator->recoverPrimitive (U[interior], solution.P[interior]);
         solution.applyBoundaryCondition (*boundaryCondition);
     }
 }
@@ -128,7 +137,8 @@ void MethodOfLinesTVD::makeFootprint (
     const MeshData& solution,
     const IntercellFluxScheme& fs,
     Shape3D& footprint,
-    Index& startIndex) const
+    Index& startIndex,
+    Region& interior) const
 {
     int ng = fs.getStencilSize();
 
@@ -138,11 +148,15 @@ void MethodOfLinesTVD::makeFootprint (
         {
             footprint[axis] = 2 * ng;
             startIndex[axis] = -ng;
+            interior.lower[axis] =  ng;
+            interior.upper[axis] = -ng;
         }
         else
         {
             footprint[axis] = 0;
             startIndex[axis] = 0;
+            interior.lower[axis] = 0;
+            interior.upper[axis] = 0;
         }
     }
 
@@ -151,4 +165,3 @@ void MethodOfLinesTVD::makeFootprint (
         throw std::logic_error ("Boundary region of mesh data is smaller than the scheme's stencil");
     }
 }
-

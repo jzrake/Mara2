@@ -97,7 +97,11 @@ void CheckpointWriter::writeCheckpoint (
             primitiveGroup.createDataSet (field, globalShape, dtype, plist);
         }
 
-
+        for (int q = 0; q < meshData.getNumDiagnostics(); ++q)
+        {
+            auto field = meshData.getDiagnosticName(q);
+            diagnosticGroup.createDataSet (field, globalShape, dtype, plist);
+        }
 
         // Write the simulation status data into the checkpoint
         // --------------------------------------------------------------------
@@ -148,12 +152,12 @@ void CheckpointWriter::writeCheckpoint (
             dset[targetRegion] = meshData.getPrimitive(q);
         }
 
-        // if (conservationLaw.getIndexFor (VT::magnetic) != -1)
-        // {
-        //     auto dset = diagnosticGroup.getDataSet ("monopole");
-        //     auto M = setup.constrainedTransport->computeMonopole (ML::cell);
-        //     dset[targetRegion] = M;
-        // }
+        for (int q = 0; q < meshData.getNumDiagnostics(); ++q)
+        {
+            auto field = meshData.getDiagnosticName(q);
+            auto dset = diagnosticGroup.getDataSet (field);
+            dset[targetRegion] = meshData.getDiagnostic(q);
+        }
     };
 
 

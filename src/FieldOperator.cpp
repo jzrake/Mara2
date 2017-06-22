@@ -41,8 +41,8 @@ Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P) c
 {
     int numConserved = law->getNumConserved();
     auto request = ConservationLaw::Request();
-    auto shape = P.shape();
-    auto zoneHealth = Array (shape[0], shape[1], shape[2]);
+    // auto shape = P.shape();
+    auto zoneHealth = Array (U.getArray().shape3D());
     auto inversionFailure = InversionFailure();
 
     auto Treg = P.getRegion().withStride (3, law->getNumConserved());
@@ -61,7 +61,7 @@ Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P) c
             {
                 pit[q] = S.P[q];
             }
-            const auto index = uit.relativeIndex();
+            const auto index = uit.index();
             zoneHealth (index[0], index[1], index[2]) = S.healthFlag;
         }
         catch (ConservationLaw::StateFailure& stateFailure)
