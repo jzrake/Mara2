@@ -2,9 +2,10 @@
 #include "BlockDecomposition.hpp"
 #include "Checkpoint.hpp"
 #include "CartesianMeshGeometry.hpp"
+#include "FileSystem.hpp"
 #include "MeshData.hpp"
 #include "TimeSeriesManager.hpp"
-#include "FileSystem.hpp"
+#include "TaskScheduler.hpp"
 
 using namespace Cow;
 
@@ -41,6 +42,16 @@ void CheckpointWriter::setTimeSeriesManager (std::shared_ptr<TimeSeriesManager> 
     timeSeriesManager = timeSeriesManagerToUse;
 }
 
+void CheckpointWriter::setTaskScheduler (std::shared_ptr<TaskScheduler> taskSchedulerToUse)
+{
+    taskScheduler = taskSchedulerToUse;
+}
+
+void CheckpointWriter::setUserParameters (Variant::NamedValues userParametersToUse)
+{
+    userParameters = userParametersToUse;
+}
+
 void CheckpointWriter::writeCheckpoint (
 	int checkpointNumber,
     SimulationStatus& status,
@@ -65,10 +76,12 @@ void CheckpointWriter::writeCheckpoint (
         FileSystem::ensureDirectoryExists (outputDirectory);
         auto file            = H5::File (filename, "w");
         auto statusGroup     = file.createGroup ("status");
+        auto schedulerGroup  = file.createGroup ("scheduler");
+        auto userGroup       = file.createGroup ("user");
         auto primitiveGroup  = file.createGroup ("primitive");
         auto diagnosticGroup = file.createGroup ("diagnostic");
         auto meshGroup       = file.createGroup ("mesh");
-        auto tseriesGroup    = file.createGroup ("time_series");
+        auto timeSeriesGroup = file.createGroup ("time_series");
 
 
         // Write misc data like date and run script
@@ -78,10 +91,8 @@ void CheckpointWriter::writeCheckpoint (
         auto oss = std::ostringstream();
         oss << std::put_time (&tm, "%m-%d-%Y %H:%M:%S");
 
-        // file.writeString ("run_name", setup.runName);
+        file.writeString ("run_name", "Mara");
         file.writeString ("date", oss.str());
-        // file.writeString ("lua_script", setup.luaScript);
-        // file.writeString ("lua_command_line", setup.luaCommandLine);
 
 
         // Create data sets for the primitive and diagnostic data
@@ -103,11 +114,20 @@ void CheckpointWriter::writeCheckpoint (
             diagnosticGroup.createDataSet (field, globalShape, dtype, plist);
         }
 
+
         // Write the simulation status data into the checkpoint
         // --------------------------------------------------------------------
         for (auto member : status.pack())
         {
             statusGroup.writeVariant (member.first, member.second);
+        }
+
+
+        // Write the user parameters
+        // --------------------------------------------------------------------
+        for (auto member : userParameters)
+        {
+            userGroup.writeVariant (member.first, member.second);
         }
 
 
@@ -123,11 +143,15 @@ void CheckpointWriter::writeCheckpoint (
         pointGroup.writeArray ("z", geometry->getPointCoordinates (2));
 
 
-        // Write the time series data
+        // Write the time series data and scheduler state
         // --------------------------------------------------------------------
         if (timeSeriesManager)
         {
-            timeSeriesManager->write (tseriesGroup);
+            timeSeriesManager->write (timeSeriesGroup);
+        }
+        if (taskScheduler)
+        {
+            taskScheduler->write (schedulerGroup);
         }
     };
 

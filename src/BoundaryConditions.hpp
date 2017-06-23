@@ -19,7 +19,6 @@ public:
         MeshBoundary boundary,
         int axis,
         int numGuard) const override;
-
     bool isAxisPeriodic (int axis) override { return true; }
 };
 
@@ -38,7 +37,6 @@ public:
         MeshBoundary boundary,
         int axis,
         int numGuard) const override;
-
     bool isAxisPeriodic (int axis) override { return false; }
 };
 
@@ -58,9 +56,7 @@ public:
         MeshBoundary boundary,
         int axis,
         int numGuard) const override;
-
     void setConservationLaw (std::shared_ptr<ConservationLaw> law) override;
-
     bool isAxisPeriodic (int axis) override { return false; }
 
 private:

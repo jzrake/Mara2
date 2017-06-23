@@ -595,25 +595,56 @@ void NewtonianMHD2DTestProgram::run (const Problem& problem, const Scheme& schem
 
 
 // ============================================================================
+#include "BlockDecomposition.hpp"
+
 int MagneticBraidingProgram::run (int argc, const char* argv[])
 {
-    auto cs = Shape {{ 64, 64, 64 }}; // cells shape
-    auto bs = Shape {{  2,  2,  2 }};
-    auto ss = std::make_shared<MethodOfLinesTVD>();
-    auto bc = std::make_shared<DrivenMHDBoundary>();
-    auto mg = std::make_shared<CartesianMeshGeometry>();
-    auto mo = std::make_shared<MeshOperator>();
-    auto cl = std::make_shared<NewtonianMHD>();
-    auto fo = std::make_shared<FieldOperator>();
-    auto md = std::make_shared<MeshData> (cs, bs, 8);
-    auto ct = std::make_shared<CellCenteredFieldCT>();
+    auto user = Variant::NamedValues();
+
+    user["outdir"] = "data";
+    user["tfinal"] = 16.0;
+    user["cpi"]    = 0.25;
+    user["tsi"]    = 0.1;
+    user["cfl"]    = 0.3;
+    user["N"]      = 16;
+    user["aspect"] = 1;
+    user["serial"] = false;
+
+    Variant::updateFromCommandLine (user, argc, argv);
+
+    auto logger    = std::make_shared<Logger>();
+    auto writer    = std::make_shared<CheckpointWriter>();
+    auto tseries   = std::make_shared<TimeSeriesManager>();
+    auto scheduler = std::make_shared<TaskScheduler>();
+
+    auto bd = std::shared_ptr<BlockDecomposition>();
+    auto bc = std::shared_ptr<BoundaryCondition> (new DrivenMHDBoundary);
+    auto cs = Shape {{ int (user["N"]), int (user["N"]), int (user["N"]) * int (user["aspect"]) }};
+    auto bs = Shape {{ 2, 2, 2 }};
+    auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
 
     mg->setCellsShape (cs);
     mg->setLowerUpper ({{-0.5, -0.5, -0.5}}, {{0.5, 0.5, 0.5}});
+
+    if (! user["serial"])
+    {
+        logger->setLogToNullUnless (MpiCommunicator::world().isThisMaster());
+        bd = std::make_shared<BlockDecomposition> (mg, *logger);
+        mg = bd->decompose();
+        bc = bd->createBoundaryCondition (bc);
+    }
+
+    auto ss = std::make_shared<MethodOfLinesTVD>();
+    auto mo = std::make_shared<MeshOperator>();
+    auto cl = std::make_shared<NewtonianMHD>();
+    auto fo = std::make_shared<FieldOperator>();
+    auto ct = std::make_shared<CellCenteredFieldCT>();
+    auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, 8);
+
     fo->setConservationLaw (cl);
     mo->setMeshGeometry (mg);
-    ss->setFieldOperator (fo);
     ss->setMeshOperator (mo);
+    ss->setFieldOperator (fo);
     ss->setBoundaryCondition (bc);
     ss->setRungeKuttaOrder (2);
     ss->setDisableFieldCT (false);
@@ -621,30 +652,20 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     bc->setMeshGeometry (mg);
     bc->setConservationLaw (cl);
 
-    double finalTime = 0.0;
-    double checkpointInterval = 1.0;
-
-    auto status = SimulationStatus();
-    auto cflParameter = 0.5;
-    auto L = mo->linearCellDimension();
-    auto P = md->getPrimitive();
-
+    auto status    = SimulationStatus();
+    auto L         = mo->linearCellDimension();
+    auto V         = mo->measure (MeshLocation::cell);
+    auto P         = md->getPrimitive();
+    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+    auto condition = [&] () { return status.simulationTime < int (user["tfinal"]); };
     auto timestep  = [&] ()
     {
-        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
-        const double dt2 = finalTime - status.simulationTime;
+        const double dt1 = double (user["cfl"]) * fo->getCourantTimestep (P, L);
+        const double dt2 = double (user["tfinal"]) - status.simulationTime;
         return dt1 < dt2 ? dt1 : dt2;
     };
-    auto condition = [&] () { return status.simulationTime < finalTime; };
-    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
-    auto scheduler = std::make_shared<TaskScheduler>();
-    auto logger    = std::make_shared<Logger>();
-    auto writer    = std::make_shared<CheckpointWriter>();
 
-    writer->setMeshDecomposition (nullptr);
-    writer->setTimeSeriesManager (nullptr);
-
-    scheduler->schedule ([&] (SimulationStatus, int rep)
+    auto taskCheckpoint = [&] (SimulationStatus, int rep)
     {
         auto Bcell = md->getMagneticField (MeshLocation::cell, MeshData::includeGuard);
         auto Mcell = ct->monopole (Bcell, MeshLocation::cell);
@@ -653,7 +674,43 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
         md->assignDiagnostic (Mcell, 0, MeshData::includeGuard);
 
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
-    }, TaskScheduler::Recurrence (checkpointInterval));
+    };
+
+    auto taskTimeSeries = [&] (SimulationStatus, int rep)
+    {
+        auto volumeAverageOverPatches = [&] (std::vector<double> vals)
+        {
+            if (bd)
+            {
+                return bd->volumeAverageOverPatches (vals);
+            }
+
+            for (auto& val : vals)
+                val /= mg->meshVolume();
+
+            return vals;
+        };
+
+        auto volumeIntegrated = fo->volumeIntegratedDiagnostics (P, V);
+        auto volumeAveraged = volumeAverageOverPatches (volumeIntegrated);
+        auto fieldNames = cl->getDiagnosticNames();
+        auto entry = Variant::NamedValues();
+
+        for (unsigned int n = 0; n < fieldNames.size(); ++n)
+        {
+            entry[fieldNames[n]] = volumeAveraged[n];
+        }
+        tseries->append (status, entry);
+    };
+
+    scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time_series");
+    scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]), "checkpoint");
+
+    writer->setMeshDecomposition (bd);
+    writer->setTimeSeriesManager (tseries);
+    writer->setTaskScheduler     (scheduler);
+    writer->setOutputDirectory   (user["outdir"]);
+    writer->setUserParameters    (user);
 
     status = SimulationStatus();
     status.totalCellsInMesh = mg->totalCellsInMesh();
@@ -664,6 +721,8 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     };
     md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
     md->applyBoundaryCondition (*bc);
+
+    logger->log ("User") << std::endl << user;
 
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  
 }

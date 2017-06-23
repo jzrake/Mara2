@@ -56,24 +56,50 @@ private:
 
 
 // ============================================================================
-void TaskScheduler::schedule (std::shared_ptr<Task> task, Recurrence recurrence)
+void TaskScheduler::schedule (std::shared_ptr<Task> task, Recurrence recurrence, std::string name)
 {
-	tasks.push_back (std::make_pair (recurrence, task));
+	tasks.push_back (std::make_tuple (task, recurrence, name));
 }
 
-void TaskScheduler::schedule (TaskFunction task, Recurrence recurrence)
+void TaskScheduler::schedule (TaskFunction task, Recurrence recurrence, std::string name)
 {
-	schedule (std::make_shared<LambdaTask>(task), recurrence);
+	schedule (std::make_shared<LambdaTask>(task), recurrence, name);
 }
 
 void TaskScheduler::dispatch (SimulationStatus status)
 {
-	for (auto& task : tasks)
+	for (auto& taskDescription : tasks)
 	{
-		if (char reason = task.first.isDue (status, timer))
+        auto& task = std::get<0> (taskDescription);
+        auto& recr = std::get<1> (taskDescription);
+
+		if (char reason = recr.isDue (status, timer))
 		{
-			task.second->run (status, task.first.repetition);
-			task.first.update (reason);
+			task->run (status, recr.repetition);
+			recr.update (reason);
 		}
 	}
+}
+
+void TaskScheduler::load (Cow::H5::Location& location)
+{
+
+}
+
+void TaskScheduler::write (Cow::H5::Location& location) const
+{
+    for (auto& taskDescription : tasks)
+    {
+        auto& recr = std::get<1> (taskDescription);
+        auto& name = std::get<2> (taskDescription);
+
+        if (! name.empty())
+        {
+            auto group = location.createGroup (name);
+            group.writeDouble ("nextPhysTime", recr.nextPhysTime);
+            group.writeDouble ("nextWallTime", recr.nextWallTime);
+            group.writeInt ("nextIteration", recr.nextIteration);
+            group.writeInt ("repetition", recr.repetition);
+        }
+    }
 }

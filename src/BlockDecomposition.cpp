@@ -22,7 +22,7 @@ public:
         MeshLocation location,
         MeshBoundary boundary,
         int axis,
-        int numGuard) const
+        int numGuard) const override
     {
         auto send = Region(); // region to send (valid region)
         auto recv = Region(); // region to receive (guard region)
@@ -65,7 +65,6 @@ public:
         // We apply physical boundary conditions if we are at the edge of the
         // block-decomposed domain, and the current axis is not periodic.
         // --------------------------------------------------------------------
-
         if (! physicalBC->isAxisPeriodic (axis))
         {
             auto C = block.communicator;
@@ -79,7 +78,10 @@ public:
             }
         }
     }
-
+    void setBoundaryValueFunction (InitialDataFunction bf) override { physicalBC->setBoundaryValueFunction (bf); }
+    void setConservationLaw (std::shared_ptr<ConservationLaw> cl) override { physicalBC->setConservationLaw (cl); };
+    void setMeshGeometry (std::shared_ptr<MeshGeometry> mg) override { physicalBC->setMeshGeometry (mg); }
+    
 private:
     const BlockDecomposition& block;
     std::shared_ptr<BoundaryCondition> physicalBC;
@@ -93,7 +95,10 @@ BlockDecomposition::BlockDecomposition (const std::shared_ptr<MeshGeometry> glob
 globalGeometry (globalGeometry)
 {
     // The geometry instance needs to be cartesian.
-    assert (dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get()));
+    if (! dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get()))
+    {
+        throw std::logic_error ("Geometry instance for BlockDecomposition not cartesian");
+    }
 
     auto world = MpiCommunicator::world();
     communicator = world.createCartesian (3, globalGeometry->fleshedOutAxes());

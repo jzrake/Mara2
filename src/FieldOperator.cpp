@@ -121,6 +121,13 @@ double FieldOperator::getCourantTimestep (
     Array::Reference P,
     Array::Reference L) const
 {
+    if (P.size(0) != L.size(0)
+     || P.size(1) != L.size(1)
+     || P.size(2) != L.size(2))
+    {
+        throw std::logic_error ("Primitive and linear cell dimension arrays have different sizes");
+    }
+
     auto request0 = ConservationLaw::Request().oriented (UnitVector::xhat);
     auto request1 = ConservationLaw::Request().oriented (UnitVector::yhat);
     auto request2 = ConservationLaw::Request().oriented (UnitVector::zhat);
@@ -162,6 +169,13 @@ std::vector<double> FieldOperator::volumeIntegratedDiagnostics (
 {
     auto request = ConservationLaw::Request();
     auto diagnostics = std::vector<double> (law->getDiagnosticNames().size());
+
+    if (P.size(0) != V.size(0)
+     || P.size(1) != V.size(1)
+     || P.size(2) != V.size(2))
+    {
+        throw std::logic_error ("Primitive and cell volume arrays have different sizes");
+    }
 
     // This ensures that we are stepping over the axis (3) with the field
     // components.
