@@ -585,6 +585,7 @@ int main (int argc, const char* argv[])
     using namespace Cow;
     MpiSession mpiSession;
 
+
     std::set_terminate (Cow::terminateWithBacktrace);
     //std::set_terminate (Cow::terminateWithPrintException);
 
@@ -630,6 +631,11 @@ int main (int argc, const char* argv[])
     {
         auto mhd2d = NewtonianMHD2DTestProgram();
         return mhd2d.run (argc - 1, argv + 1);
+    }
+    if (command == "braid")
+    {
+        auto prog = MagneticBraidingProgram();
+        return prog.run (argc - 1, argv + 1);
     }
     if (command == "run")
     {

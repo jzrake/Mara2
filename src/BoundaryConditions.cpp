@@ -205,6 +205,9 @@ void DrivenMHDBoundary::apply (
     int axis,
     int numGuard) const
 {
+    if (! meshGeometry)    throw std::logic_error ("DrivenMHDBoundary has no mesh geometry");
+    if (! conservationLaw) throw std::logic_error ("DrivenMHDBoundary has no conservation law");
+
     if (axis == 0 || axis == 1)
     {
         auto periodic = PeriodicBoundaryCondition();

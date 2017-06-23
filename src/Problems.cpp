@@ -23,7 +23,7 @@ using namespace Cow;
 
 
 // ============================================================================
-static void maraMainLoop (
+static int maraMainLoop (
     SimulationStatus& status,
     std::function<double ()> timestep,
     std::function<bool ()> condition,
@@ -32,8 +32,8 @@ static void maraMainLoop (
     Logger& logger)
 {
     auto simulationTimer = Timer();
-    auto totKzps = 0.0;
-    auto totIter = 0;
+    auto sessionKzps = 0.0;
+    auto sessionIter = 0;
 
     logger.log ("Mara") << "Beginning main loop" << std::endl;
 
@@ -55,13 +55,18 @@ static void maraMainLoop (
         logger.log() << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
         logger.log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
 
-        totKzps += kzps;
-        totIter +=1;
+        sessionKzps += kzps;
+        sessionIter +=1;
     }
 
     scheduler.dispatch (status);
-    logger.log ("Mara") << "Completed main loop" << std::endl;
-    logger.log ("Mara") << "Mean kzps was " << totKzps / totIter << std::endl;
+
+    if (sessionIter)
+    {
+        logger.log ("Mara") << "Completed main loop" << std::endl;
+        logger.log ("Mara") << "Mean kzps was " << sessionKzps / sessionIter << std::endl;
+    }
+    return 0;
 }
 
 
@@ -511,6 +516,10 @@ int NewtonianMHD2DTestProgram::run (int argc, const char* argv[])
     return 0;
 }
 
+
+
+
+// ============================================================================
 void NewtonianMHD2DTestProgram::run (const Problem& problem, const Scheme& scheme)
 {
     auto cs = Shape {{ 64, 64, 1 }}; // cells shape
@@ -531,7 +540,6 @@ void NewtonianMHD2DTestProgram::run (const Problem& problem, const Scheme& schem
     ss->setMeshOperator (mo);
     ss->setBoundaryCondition (bc);
     md->setMagneticIndex (cl->getIndexFor (ConservationLaw::VariableType::magnetic));
-
 
     auto status = SimulationStatus();
     auto cflParameter = 0.5;
@@ -581,4 +589,81 @@ void NewtonianMHD2DTestProgram::run (const Problem& problem, const Scheme& schem
     md->applyBoundaryCondition (*bc);
 
     maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   
+}
+
+
+
+
+// ============================================================================
+int MagneticBraidingProgram::run (int argc, const char* argv[])
+{
+    auto cs = Shape {{ 64, 64, 64 }}; // cells shape
+    auto bs = Shape {{  2,  2,  2 }};
+    auto ss = std::make_shared<MethodOfLinesTVD>();
+    auto bc = std::make_shared<DrivenMHDBoundary>();
+    auto mg = std::make_shared<CartesianMeshGeometry>();
+    auto mo = std::make_shared<MeshOperator>();
+    auto cl = std::make_shared<NewtonianMHD>();
+    auto fo = std::make_shared<FieldOperator>();
+    auto md = std::make_shared<MeshData> (cs, bs, 8);
+    auto ct = std::make_shared<CellCenteredFieldCT>();
+
+    mg->setCellsShape (cs);
+    mg->setLowerUpper ({{-0.5, -0.5, -0.5}}, {{0.5, 0.5, 0.5}});
+    fo->setConservationLaw (cl);
+    mo->setMeshGeometry (mg);
+    ss->setFieldOperator (fo);
+    ss->setMeshOperator (mo);
+    ss->setBoundaryCondition (bc);
+    ss->setRungeKuttaOrder (2);
+    ss->setDisableFieldCT (false);
+    md->setMagneticIndex (cl->getIndexFor (ConservationLaw::VariableType::magnetic));
+    bc->setMeshGeometry (mg);
+    bc->setConservationLaw (cl);
+
+    double finalTime = 0.0;
+    double checkpointInterval = 1.0;
+
+    auto status = SimulationStatus();
+    auto cflParameter = 0.5;
+    auto L = mo->linearCellDimension();
+    auto P = md->getPrimitive();
+
+    auto timestep  = [&] ()
+    {
+        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+        const double dt2 = finalTime - status.simulationTime;
+        return dt1 < dt2 ? dt1 : dt2;
+    };
+    auto condition = [&] () { return status.simulationTime < finalTime; };
+    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+    auto scheduler = std::make_shared<TaskScheduler>();
+    auto logger    = std::make_shared<Logger>();
+    auto writer    = std::make_shared<CheckpointWriter>();
+
+    writer->setMeshDecomposition (nullptr);
+    writer->setTimeSeriesManager (nullptr);
+
+    scheduler->schedule ([&] (SimulationStatus, int rep)
+    {
+        auto Bcell = md->getMagneticField (MeshLocation::cell, MeshData::includeGuard);
+        auto Mcell = ct->monopole (Bcell, MeshLocation::cell);
+
+        md->allocateDiagnostics ({ "monopole" });
+        md->assignDiagnostic (Mcell, 0, MeshData::includeGuard);
+
+        writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+    }, TaskScheduler::Recurrence (checkpointInterval));
+
+    status = SimulationStatus();
+    status.totalCellsInMesh = mg->totalCellsInMesh();
+
+    auto initialData = [&] (double, double, double) -> std::vector<double>
+    {
+        return {1, 0, 0, 0, 1, 0, 0, 1};
+    };
+    md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
+    md->applyBoundaryCondition (*bc);
+
+    return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  
 }

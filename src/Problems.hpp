@@ -38,4 +38,13 @@ public:
     void run (const Problem& problem, const Scheme& scheme);
 };
 
+
+
+class MagneticBraidingProgram
+{
+public:
+    int run (int argc, const char* argv[]);
+};
+
+
 #endif
