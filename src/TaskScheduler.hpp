@@ -10,7 +10,7 @@ namespace Cow { namespace H5 { class Location; } }
 
 
 
-class TaskScheduler
+class TaskScheduler : public MayUseLogger
 {
 public:
 	class Recurrence
@@ -28,6 +28,7 @@ public:
 		double nextWallTime;
 		int nextIteration;
 		int repetition;
+        bool skip;
 	};
 
 	class Task
@@ -49,6 +50,12 @@ public:
     recurrence rule.
     */
 	void schedule (TaskFunction task, Recurrence recurrence, std::string name="");
+
+    /**
+    The next time a task with the given name is due, it will be rescheduled
+    without actually being run.
+    */
+    void skipNext (std::string name);
 
     /**
     Loop over scheduled jobs and run any that are overdue. Jobs are called in

@@ -14,6 +14,7 @@ iterationInterval (iterationInterval)
 	nextWallTime = 0.0;
 	nextIteration = 0;
 	repetition = 0;
+    skip = false;
 }
 
 char TaskScheduler::Recurrence::isDue (SimulationStatus status, const Cow::Timer& timer) const
@@ -27,6 +28,7 @@ char TaskScheduler::Recurrence::isDue (SimulationStatus status, const Cow::Timer
 void TaskScheduler::Recurrence::update (char reason)
 {
 	repetition += 1;
+    skip = false;
 
 	switch (reason)
 	{
@@ -66,6 +68,17 @@ void TaskScheduler::schedule (TaskFunction task, Recurrence recurrence, std::str
 	schedule (std::make_shared<LambdaTask>(task), recurrence, name);
 }
 
+void TaskScheduler::skipNext (std::string name)
+{
+    for (auto& taskDescription : tasks)
+    {
+        if (std::get<2> (taskDescription) == name)
+        {
+            std::get<1> (taskDescription).skip = true;
+        }
+    }
+}
+
 void TaskScheduler::dispatch (SimulationStatus status)
 {
 	for (auto& taskDescription : tasks)
@@ -75,15 +88,36 @@ void TaskScheduler::dispatch (SimulationStatus status)
 
 		if (char reason = recr.isDue (status, timer))
 		{
-			task->run (status, recr.repetition);
-			recr.update (reason);
+			if (! recr.skip) task->run (status, recr.repetition);
+            recr.update (reason);
 		}
 	}
 }
 
 void TaskScheduler::load (Cow::H5::Location& location)
 {
+    for (auto& taskDescription : tasks)
+    {
+        auto& recr = std::get<1> (taskDescription);
+        auto& name = std::get<2> (taskDescription);
 
+        if (! name.empty())
+        {
+            auto group = location.getGroup (name);
+            recr.nextPhysTime = group.readDouble ("nextPhysTime");
+            recr.nextWallTime = group.readDouble ("nextWallTime");
+            recr.nextIteration = group.readInt ("nextIteration");
+            recr.repetition = group.readInt ("repetition");
+
+            logger->log ("TaskScheduler")
+            << name
+            << " [rep "
+            << recr.repetition
+            << ", due next @ "
+            << recr.nextPhysTime
+            << "]" << std::endl;
+        }
+    }
 }
 
 void TaskScheduler::write (Cow::H5::Location& location) const

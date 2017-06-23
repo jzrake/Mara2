@@ -28,6 +28,13 @@ public:
 	    MeshGeometry& meshGeometry,
 	    Logger& logger) const;
 
+    void readCheckpoint (
+        std::string filename,
+        SimulationStatus& status,
+        ConservationLaw& conservationLaw,
+        MeshData& meshData,
+        Logger& logger) const;
+
 private:
     Variant::NamedValues userParameters;
 	std::string filenamePrefix;
@@ -38,23 +45,5 @@ private:
     std::shared_ptr<TaskScheduler>     taskScheduler;
 };
 
-
-
-
-
-class BlockDecomposition; // here temporarily
-
-class CheckpointReader
-{
-public:
-	void readCheckpoint (
-		std::string filename,
-	    SimulationStatus& status,
-        ConservationLaw& conservationLaw,
-	    MeshData& meshData,
-	    BlockDecomposition& block,
-	    TimeSeriesManager& tseries,
-	    Logger& logger) const;
-};
 
 #endif

@@ -62,7 +62,7 @@ void CheckpointWriter::writeCheckpoint (
 {
     auto timer = Timer();
     auto filename = FileSystem::makeFilename (outputDirectory, filenamePrefix, ".h5", checkpointNumber);
-    auto block = dynamic_cast<const BlockDecomposition*>(meshDecomposition.get());
+    auto block = dynamic_cast<const BlockDecomposition*> (meshDecomposition.get());
 
     if (meshDecomposition != nullptr && block == nullptr)
     {
@@ -135,8 +135,7 @@ void CheckpointWriter::writeCheckpoint (
         // --------------------------------------------------------------------
         meshGroup.writeString ("type", "cartesian");
 
-        auto geometry = dynamic_cast<const CartesianMeshGeometry*> (
-        	block ? block->getGlobalGeometry().get() : &meshGeometry);
+        auto geometry = dynamic_cast<const CartesianMeshGeometry*> (block ? block->getGlobalGeometry().get() : &meshGeometry);
         auto pointGroup = meshGroup.createGroup ("points");
         pointGroup.writeArray ("x", geometry->getPointCoordinates (0));
         pointGroup.writeArray ("y", geometry->getPointCoordinates (1));
@@ -145,14 +144,8 @@ void CheckpointWriter::writeCheckpoint (
 
         // Write the time series data and scheduler state
         // --------------------------------------------------------------------
-        if (timeSeriesManager)
-        {
-            timeSeriesManager->write (timeSeriesGroup);
-        }
-        if (taskScheduler)
-        {
-            taskScheduler->write (schedulerGroup);
-        }
+        if (timeSeriesManager) timeSeriesManager->write (timeSeriesGroup);
+        if (taskScheduler) taskScheduler->write (schedulerGroup);
     };
 
 
@@ -203,41 +196,34 @@ void CheckpointWriter::writeCheckpoint (
     logger.log ("Checkpoint") << "required " << timer.ageInSeconds() << std::endl;
 }
 
-
-
-
-
-// ============================================================================
-void CheckpointReader::readCheckpoint (
+void CheckpointWriter::readCheckpoint (
 	std::string filename,
     SimulationStatus& status,
     ConservationLaw& conservationLaw,
     MeshData& meshData,
-    BlockDecomposition& block,
-    TimeSeriesManager& tseries,
     Logger& logger) const
 {
     logger.log ("Checkpoint") << "reading checkpoint file " << filename << std::endl;
 
+    auto block = dynamic_cast<const BlockDecomposition*> (meshDecomposition.get());
+
+    if (meshDecomposition != nullptr && block == nullptr)
+    {
+        throw std::runtime_error ("A MeshDecomposition object was given, but was not a BlockDecomposition");
+    }
+
     auto file            = H5::File (filename, "r");
     auto statusGroup     = file.getGroup ("status");
+    auto schedulerGroup  = file.getGroup ("scheduler");
     auto primitiveGroup  = file.getGroup ("primitive");
-    auto tseriesGroup    = file.getGroup ("time_series");
+    auto timeSeriesGroup = file.getGroup ("time_series");
 
-    meshData.assignPrimitive (primitiveGroup.readArrays (
-        conservationLaw.getPrimitiveNames(), 3, block.getPatchRegion()));
+    auto sourceRegion = block ? block->getPatchRegion() : Region();
+    auto primitive = primitiveGroup.readArrays (conservationLaw.getPrimitiveNames(), 3, sourceRegion);
 
-    std::cout << "WARNING! read checkpoint needs a way to assign boundary conditions, or need to do that on input to SolutionScheme\n";
-
-    auto packedStatus = status.pack();
-
-    for (auto& member : packedStatus)
-    {
-        member.second = statusGroup.readVariant (member.first);
-    }
-    status.update (packedStatus);
-    // status.update (statusGroup.readNamedValues()); <-- add Cow feature
-
-    status.print (logger.log ("Checkpoint"));
-    tseries.load (tseriesGroup);
+    meshData.assignPrimitive (primitive);
+    status.update (statusGroup.readNamedValues());
+    
+    if (timeSeriesManager) timeSeriesManager->load (timeSeriesGroup);
+    if (taskScheduler) taskScheduler->load (schedulerGroup);
 }

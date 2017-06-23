@@ -600,17 +600,26 @@ void NewtonianMHD2DTestProgram::run (const Problem& problem, const Scheme& schem
 int MagneticBraidingProgram::run (int argc, const char* argv[])
 {
     auto user = Variant::NamedValues();
+    user["outdir"]  = "data";
+    user["restart"] = "";
+    user["tfinal"]  = 16.0;
+    user["cpi"]     = 0.25;
+    user["tsi"]     = 0.1;
+    user["cfl"]     = 0.3;
+    user["N"]       = 16;
+    user["aspect"]  = 1;
+    user["serial"]  = false;
 
-    user["outdir"] = "data";
-    user["tfinal"] = 16.0;
-    user["cpi"]    = 0.25;
-    user["tsi"]    = 0.1;
-    user["cfl"]    = 0.3;
-    user["N"]      = 16;
-    user["aspect"] = 1;
-    user["serial"] = false;
+    auto clineUser = Variant::fromCommandLine (argc, argv);
+    auto chkptUser = Variant::NamedValues();
 
-    Variant::updateFromCommandLine (user, argc, argv);
+    if (clineUser.find ("restart") != clineUser.end())
+    {
+        chkptUser = H5::File (clineUser["restart"], "r").getGroup ("user").readNamedValues();
+    }
+
+    Variant::update (user, chkptUser);
+    Variant::update (user, clineUser);
 
     auto logger    = std::make_shared<Logger>();
     auto writer    = std::make_shared<CheckpointWriter>();
@@ -633,6 +642,9 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
         mg = bd->decompose();
         bc = bd->createBoundaryCondition (bc);
     }
+
+    tseries->setLogger (logger);
+    scheduler->setLogger (logger);
 
     auto ss = std::make_shared<MethodOfLinesTVD>();
     auto mo = std::make_shared<MeshOperator>();
@@ -715,14 +727,22 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     status = SimulationStatus();
     status.totalCellsInMesh = mg->totalCellsInMesh();
 
-    auto initialData = [&] (double, double, double) -> std::vector<double>
+
+    if (user["restart"].empty())
     {
-        return {1, 0, 0, 0, 1, 0, 0, 1};
-    };
-    md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
+        auto initialData = [&] (double, double, double) -> std::vector<double>
+        {
+            return {1, 0, 0, 0, 1, 0, 0, 1};
+        };
+        md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
+    }
+    else
+    {
+        writer->readCheckpoint (user["restart"], status, *cl, *md, *logger);
+        scheduler->skipNext ("checkpoint");
+    }
     md->applyBoundaryCondition (*bc);
 
-    logger->log ("User") << std::endl << user;
-
+    logger->log() << std::endl << user << std::endl;
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  
 }
