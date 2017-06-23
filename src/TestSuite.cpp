@@ -7,12 +7,6 @@ using namespace Cow;
 
 
 
-// NOTE: TestSuite class implementation is in Mara.cpp to speed compilation
-// time.
-
-
-
-
 // ============================================================================
 #include "Array.hpp"
 

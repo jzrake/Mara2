@@ -5,6 +5,22 @@
 
 
 // ============================================================================
+void BoundaryCondition::applySimple (Cow::Array& A, Cow::Shape boundaryShape) const
+{
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        if (boundaryShape[axis] > 0)
+        {
+            apply (A, MeshLocation::cell, MeshBoundary::left , axis, boundaryShape[axis]);
+            apply (A, MeshLocation::cell, MeshBoundary::right, axis, boundaryShape[axis]);
+        }
+    }
+}
+
+
+
+
+// ============================================================================
 void PeriodicBoundaryCondition::apply (
     Cow::Array& A,
     MeshLocation location,

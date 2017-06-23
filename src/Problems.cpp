@@ -50,9 +50,9 @@ static int maraMainLoop (
         status.wallMinutes = simulationTimer.minutes();
 
         double kzps = 1e-3 * status.totalCellsInMesh / stepTimer.age();
-        logger.log() << "[" << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
-        logger.log() << "t=" << std::setprecision (4) << std::fixed << status.simulationTime << " ";
-        logger.log() << "dt=" << std::setprecision (4) << std::scientific << dt << " ";
+        logger.log() << "["     << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
+        logger.log() << "t="    << std::setprecision (4) << std::fixed << status.simulationTime << " ";
+        logger.log() << "dt="   << std::setprecision (4) << std::scientific << dt << " ";
         logger.log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
 
         sessionKzps += kzps;
@@ -61,7 +61,7 @@ static int maraMainLoop (
 
     scheduler.dispatch (status);
 
-    if (sessionIter)
+    if (sessionIter > 0)
     {
         logger.log ("Mara") << "Completed main loop" << std::endl;
         logger.log ("Mara") << "Mean kzps was " << sessionKzps / sessionIter << std::endl;
@@ -194,14 +194,13 @@ int Hydro1DTestProgram::run (int argc, const char* argv[])
     {
         for (const auto& scheme : Scheme::get())
         {
-            // if (problem.name == "DensityWave")
-            run (problem, scheme);
+            runProblem (problem, scheme);
         }
     }
     return 0;
 }
 
-void Hydro1DTestProgram::run (const Problem& problem, const Scheme& scheme)
+void Hydro1DTestProgram::runProblem (const Problem& problem, const Scheme& scheme)
 {
     auto cs = Shape {{128, 1, 1 }}; // cells shape
     auto bs = Shape {{  2, 0, 0 }};
@@ -333,13 +332,13 @@ int Hydro2DTestProgram::run (int argc, const char* argv[])
     {
         for (const auto& scheme : Scheme::get())
         {
-            run (problem, scheme);
+            runProblem (problem, scheme);
         }
     }
     return 0;
 }
 
-void Hydro2DTestProgram::run (const Problem& problem, const Scheme& scheme)
+void Hydro2DTestProgram::runProblem (const Problem& problem, const Scheme& scheme)
 {
     auto cs = Shape {{128, 128, 1 }}; // cells shape
     auto bs = Shape {{  2,   2, 0 }};
@@ -510,7 +509,7 @@ int NewtonianMHD2DTestProgram::run (int argc, const char* argv[])
     {
         for (const auto& scheme : Scheme::get())
         {
-            run (problem, scheme);
+            runProblem (problem, scheme);
         }
     }
     return 0;
@@ -520,7 +519,7 @@ int NewtonianMHD2DTestProgram::run (int argc, const char* argv[])
 
 
 // ============================================================================
-void NewtonianMHD2DTestProgram::run (const Problem& problem, const Scheme& scheme)
+void NewtonianMHD2DTestProgram::runProblem (const Problem& problem, const Scheme& scheme)
 {
     auto cs = Shape {{ 64, 64, 1 }}; // cells shape
     auto bs = Shape {{  2,  2, 0 }};
@@ -625,6 +624,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     auto writer    = std::make_shared<CheckpointWriter>();
     auto tseries   = std::make_shared<TimeSeriesManager>();
     auto scheduler = std::make_shared<TaskScheduler>();
+    double timestepSize = 0.0;
 
     auto bd = std::shared_ptr<BlockDecomposition>();
     auto bc = std::shared_ptr<BoundaryCondition> (new DrivenMHDBoundary);
@@ -669,12 +669,13 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     auto V         = mo->measure (MeshLocation::cell);
     auto P         = md->getPrimitive();
     auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
-    auto condition = [&] () { return status.simulationTime < int (user["tfinal"]); };
-    auto timestep  = [&] ()
+    auto condition = [&] () { return status.simulationTime < double (user["tfinal"]); };
+    auto timestep  = [&] () { return timestepSize; };
+
+    auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
-        const double dt1 = double (user["cfl"]) * fo->getCourantTimestep (P, L);
-        const double dt2 = double (user["tfinal"]) - status.simulationTime;
-        return dt1 < dt2 ? dt1 : dt2;
+        logger->log ("Mara") << "recompute dt\n";
+        timestepSize = double (user["cfl"]) * fo->getCourantTimestep (P, L);
     };
 
     auto taskCheckpoint = [&] (SimulationStatus, int rep)
@@ -715,8 +716,10 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
         tseries->append (status, entry);
     };
 
+
     scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time_series");
     scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]), "checkpoint");
+    scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 16), "compute_dt");
 
     writer->setMeshDecomposition (bd);
     writer->setTimeSeriesManager (tseries);
@@ -742,6 +745,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
         scheduler->skipNext ("checkpoint");
     }
     md->applyBoundaryCondition (*bc);
+    taskRecomputeDt (status, 0);
 
     logger->log() << std::endl << user << std::endl;
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  

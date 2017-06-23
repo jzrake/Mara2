@@ -7,11 +7,11 @@
 #include <string>
 #include <functional>
 #include "Array.hpp"
-#include "Matrix.hpp"
 #include "Logger.hpp"
-#include "Variant.hpp" // For SimulationStatus
-
+#include "Matrix.hpp"
 #include "UnitVector.hpp"
+#include "Variant.hpp"
+
 
 
 
@@ -28,19 +28,12 @@ class MeshGeometry;
 class MeshOperator;
 class RiemannSolver;
 class SolutionScheme;
-
+class SubProgram;
 
 
 
 /**
-These classes are here to support dependency injection. Each algorithm class
-base is allowed to depend upon a subset of the other algorithms. For example,
-if it were determined that a derived class of BoundaryCondition required use
-of a MeshGeometry instance, then the MeshGeometry base class must inherit
-MayUseMeshGeometry. This does not affect other BoundaryCondition sub-classes,
-but the one which uses a MeshGeometry must override the setMeshGeometry method.
-Algorithms (services, or dependencies) are distributed in the code's
-initialization stage.
+These classes are here to support dependency injection.
 */
 class MayUseBoundaryCondition    { public: virtual void setBoundaryCondition    (std::shared_ptr<BoundaryCondition>)    {} };
 class MayUseConservationLaw      { public: virtual void setConservationLaw      (std::shared_ptr<ConservationLaw>)      {} };
@@ -90,6 +83,15 @@ class MaraSession : public MayUseLogger
 public:
     MaraSession();
     SimulationStatus launch (SimulationSetup& setup);
+};
+
+
+
+
+class SubProgram
+{
+public:
+    virtual int run (int argc, const char* argv[]) = 0;
 };
 
 
@@ -173,7 +175,7 @@ public:
 /**
 This class represents a decomposition of a global mesh into patches. There may
 be one patch per MPI process, or the decomposition may be more general.
-Currently there is only one implementation, which is a block decomposition.
+Currently there is only one implementation, which is called BlockDecomposition.
 */
 class MeshDecomposition
 {

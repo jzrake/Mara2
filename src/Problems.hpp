@@ -6,44 +6,47 @@
 
 
 
-class Hydro1DTestProgram
+class Hydro1DTestProgram : public SubProgram
 {
 public:
 	struct Problem;
 	struct Scheme;
-	int run (int argc, const char* argv[]);
-	void run (const Problem& problem, const Scheme& scheme);
+	int run (int argc, const char* argv[]) override;
+private:
+	void runProblem (const Problem& problem, const Scheme& scheme);
 };
 
 
 
 
-class Hydro2DTestProgram
+class Hydro2DTestProgram : public SubProgram
 {
 public:
     struct Problem;
     struct Scheme;
-    int run (int argc, const char* argv[]);
-    void run (const Problem& problem, const Scheme& scheme);
+    int run (int argc, const char* argv[]) override;
+private:
+    void runProblem (const Problem& problem, const Scheme& scheme);
 };
 
 
 
-class NewtonianMHD2DTestProgram
+class NewtonianMHD2DTestProgram : public SubProgram
 {
 public:
     struct Problem;
     struct Scheme;
-    int run (int argc, const char* argv[]);
-    void run (const Problem& problem, const Scheme& scheme);
+    int run (int argc, const char* argv[]) override;
+private:
+    void runProblem (const Problem& problem, const Scheme& scheme);
 };
 
 
 
-class MagneticBraidingProgram
+class MagneticBraidingProgram : public SubProgram
 {
 public:
-    int run (int argc, const char* argv[]);
+    int run (int argc, const char* argv[]) override;
 };
 
 
