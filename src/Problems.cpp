@@ -603,6 +603,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     user["restart"] = "";
     user["tfinal"]  = 16.0;
     user["cpi"]     = 0.25;
+    user["cpf"]     = "single"; // or multiple
     user["tsi"]     = 0.1;
     user["cfl"]     = 0.3;
     user["N"]       = 16;
@@ -725,7 +726,9 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     writer->setTimeSeriesManager (tseries);
     writer->setTaskScheduler     (scheduler);
     writer->setOutputDirectory   (user["outdir"]);
+    writer->setFormat            (user["cpf"]);
     writer->setUserParameters    (user);
+    writer->setFilenamePrefix    ("chkpt");
 
     status = SimulationStatus();
     status.totalCellsInMesh = mg->totalCellsInMesh();

@@ -4,17 +4,21 @@
 #include "Mara.hpp"
 
 class TaskScheduler;
-
+class BlockDecomposition;
 
 
 
 class CheckpointWriter
 {
 public:
+    enum class Format { single, multiple };
+
 	CheckpointWriter();
 
-	void setOutputDirectory   (std::string outputDirectoryToUse);
-	void setFilenamePrefix    (std::string filenamePrefixToUse);
+    void setFormat            (Format formatToUse);
+    void setFormat            (std::string formatString);
+    void setFilenamePrefix    (std::string filenamePrefixToUse);
+    void setOutputDirectory   (std::string outputDirectoryToUse);
 	void setMeshDecomposition (std::shared_ptr<MeshDecomposition> meshDecompositionToUse);
 	void setTimeSeriesManager (std::shared_ptr<TimeSeriesManager> timeSeriesManagerToUse);
     void setTaskScheduler     (std::shared_ptr<TaskScheduler> taskSchedulerToUse);
@@ -36,8 +40,9 @@ public:
         Logger& logger) const;
 
 private:
+    Format format;
     Variant::NamedValues userParameters;
-	std::string filenamePrefix;
+    std::string filenamePrefix;
 	std::string outputDirectory;
 	std::shared_ptr<MeshDecomposition> meshDecomposition;
 	std::shared_ptr<MeshGeometry>      meshGeometry;
@@ -45,5 +50,12 @@ private:
     std::shared_ptr<TaskScheduler>     taskScheduler;
 };
 
+
+
+class CheckpointStitcherProgram : public SubProgram
+{
+public:
+    int run (int argc, const char* argv[]) override;
+};
 
 #endif

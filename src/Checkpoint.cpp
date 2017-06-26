@@ -20,16 +20,37 @@ CheckpointWriter::CheckpointWriter()
 {
 	outputDirectory = "data";
     filenamePrefix = "chkpt";
+    format = Format::single;
 }
 
-void CheckpointWriter::setOutputDirectory (std::string outputDirectoryToUse)
+void CheckpointWriter::setFormat (Format formatToUse)
 {
-	outputDirectory = outputDirectoryToUse;
+    format = formatToUse;
+}
+
+void CheckpointWriter::setFormat (std::string formatString)
+{
+    if (formatString == "single")
+    {
+        format = Format::single;
+        return;
+    }
+    if (formatString == "multiple")
+    {
+        format = Format::multiple;
+        return;
+    }
+    throw std::runtime_error ("Checkpoint format string not single or multiple");
 }
 
 void CheckpointWriter::setFilenamePrefix (std::string filenamePrefixToUse)
 {
     filenamePrefix = filenamePrefixToUse;
+}
+
+void CheckpointWriter::setOutputDirectory (std::string outputDirectoryToUse)
+{
+    outputDirectory = outputDirectoryToUse;
 }
 
 void CheckpointWriter::setMeshDecomposition (std::shared_ptr<MeshDecomposition> meshDecompositionToUse)
@@ -61,12 +82,15 @@ void CheckpointWriter::writeCheckpoint (
     Logger& logger) const
 {
     auto timer = Timer();
-    auto filename = FileSystem::makeFilename (outputDirectory, filenamePrefix, ".h5", checkpointNumber);
     auto block = dynamic_cast<const BlockDecomposition*> (meshDecomposition.get());
+    auto rank = block && (format == Format::multiple) ? block->getCommunicator().rank() : -1;
+    auto filename = FileSystem::makeFilename (outputDirectory,
+        filenamePrefix, ".h5", checkpointNumber, rank);
 
     if (meshDecomposition != nullptr && block == nullptr)
     {
-    	throw std::runtime_error ("A MeshDecomposition object was given, but was not a BlockDecomposition");
+    	throw std::runtime_error ("A MeshDecomposition object was given, "
+            "but was not a BlockDecomposition");
     }
 
     auto writeHeaderPart = [&] ()
@@ -135,12 +159,22 @@ void CheckpointWriter::writeCheckpoint (
         // --------------------------------------------------------------------
         meshGroup.writeString ("type", "cartesian");
 
-        auto geometry = dynamic_cast<const CartesianMeshGeometry*> (block ? block->getGlobalGeometry().get() : &meshGeometry);
         auto pointGroup = meshGroup.createGroup ("points");
+        auto geometry = dynamic_cast<const CartesianMeshGeometry*>
+        (block ? block->getGlobalGeometry().get() : &meshGeometry);
+
         pointGroup.writeArray ("x", geometry->getPointCoordinates (0));
         pointGroup.writeArray ("y", geometry->getPointCoordinates (1));
         pointGroup.writeArray ("z", geometry->getPointCoordinates (2));
 
+        if (block && format == Format::multiple)
+        {
+            auto S = block->getPatchRegion().lower;
+            auto T = block->getGlobalShape();
+
+            meshGroup.writeVectorInt ("patch_lower", std::vector<int> (S.begin(), S.end()));
+            meshGroup.writeVectorInt ("global_shape", std::vector<int> (T.begin(), T.end()));
+        }
 
         // Write the time series data and scheduler state
         // --------------------------------------------------------------------
@@ -181,7 +215,7 @@ void CheckpointWriter::writeCheckpoint (
 
 	logger.log ("Checkpoint") << "writing " << filename << std::endl;
 
-    if (block)
+    if (block && format == Format::single)
     {
     	auto comm = block->getCommunicator();
 	    comm.onMasterOnly (writeHeaderPart);
@@ -192,7 +226,6 @@ void CheckpointWriter::writeCheckpoint (
 		writeHeaderPart();
 		writeDataPart(0);
 	}
-
     logger.log ("Checkpoint") << "required " << timer.ageInSeconds() << std::endl;
 }
 
@@ -209,7 +242,8 @@ void CheckpointWriter::readCheckpoint (
 
     if (meshDecomposition != nullptr && block == nullptr)
     {
-        throw std::runtime_error ("A MeshDecomposition object was given, but was not a BlockDecomposition");
+        throw std::runtime_error ("A MeshDecomposition object was given, "
+            "but was not a BlockDecomposition");
     }
 
     auto file            = H5::File (filename, "r");
@@ -227,3 +261,22 @@ void CheckpointWriter::readCheckpoint (
     if (timeSeriesManager) timeSeriesManager->load (timeSeriesGroup);
     if (taskScheduler) taskScheduler->load (schedulerGroup);
 }
+
+
+
+
+// ============================================================================
+int CheckpointStitcherProgram::run (int argc, const char* argv[])
+{
+    std::cout << "checkpoint stitch program not implemented yet\n";
+    return 0;
+    
+    auto chkpt = H5::File ("chkpt.0000.h5", "w"); // output file name
+
+    for (int n = 1; n < argc; ++n)
+    {
+        auto sub = H5::File (argv[n], "r");
+    }
+    return 0;
+}
+

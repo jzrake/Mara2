@@ -2,6 +2,7 @@
 #include "Mara.hpp"
 #include "Problems.hpp"
 #include "BackwardsCompat.hpp"
+#include "Checkpoint.hpp"
 
 // Cow includes
 #include "MPI.hpp"
@@ -125,6 +126,7 @@ int main (int argc, const char* argv[])
     programs["regress-2d"]  .reset (new Hydro2DTestProgram);
     programs["regress-mhd"] .reset (new NewtonianMHD2DTestProgram);
     programs["braid"]       .reset (new MagneticBraidingProgram);
+    programs["stitch"]      .reset (new CheckpointStitcherProgram);
 
     if (argc == 1)
     {

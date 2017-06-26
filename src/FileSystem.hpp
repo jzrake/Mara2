@@ -14,7 +14,12 @@ public:
     static std::string getParentDirectory (std::string pathName);
     static void ensureDirectoryExists (std::string pathName);
     static void ensureParentDirectoryExists (std::string dirName);
-    static std::string makeFilename (std::string directory, std::string base, std::string extension, int number);
+    static std::string makeFilename (
+        std::string directory,
+        std::string base,
+        std::string extension,
+        int number,
+        int rank=-1);
 };
 
 #endif

@@ -162,3 +162,13 @@ Cow::Array CartesianMeshGeometry::getPointCoordinates (int axis) const
     }
     return coords;
 }
+
+Cow::Index CartesianMeshGeometry::getStartIndex() const
+{
+    return startIndex;
+}
+
+void CartesianMeshGeometry::assignStartIndex (Index index)
+{
+    startIndex = index;
+}

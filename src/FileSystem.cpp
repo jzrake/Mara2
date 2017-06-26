@@ -57,7 +57,12 @@ void FileSystem::ensureParentDirectoryExists (std::string pathName)
     mkdir (parentDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 }
 
-std::string FileSystem::makeFilename (std::string directory, std::string base, std::string extension, int number)
+std::string FileSystem::makeFilename (
+    std::string directory,
+    std::string base,
+    std::string extension,
+    int number,
+    int rank)
 {
     auto filenameStream = std::ostringstream();
     filenameStream << directory << "/" << base;
@@ -66,6 +71,11 @@ std::string FileSystem::makeFilename (std::string directory, std::string base, s
     {
         filenameStream << "." << std::setfill ('0') << std::setw (4) << number;
     }
+    if (rank != -1)
+    {
+        filenameStream << "." << std::setfill ('0') << std::setw (4) << rank;
+    }
+
     filenameStream << extension;
     return filenameStream.str();
 }

@@ -147,6 +147,7 @@ std::shared_ptr<MeshGeometry> BlockDecomposition::decompose() const
     auto localGeom = std::make_shared<CartesianMeshGeometry>();
     auto localRegion = getPatchRegion();
 
+    localGeom->assignStartIndex (localRegion.lower);
     localGeom->assignPatchIndex (getPatchIndex());
     localGeom->setCellsShape (localRegion.shape());
     localGeom->setLowerUpper (
