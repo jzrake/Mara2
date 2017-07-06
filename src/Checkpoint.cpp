@@ -101,11 +101,11 @@ void CheckpointWriter::writeCheckpoint (
         auto file            = H5::File (filename, "w");
         auto statusGroup     = file.createGroup ("status");
         auto schedulerGroup  = file.createGroup ("scheduler");
+        auto timeSeriesGroup = file.createGroup ("time_series");
         auto userGroup       = file.createGroup ("user");
         auto primitiveGroup  = file.createGroup ("primitive");
         auto diagnosticGroup = file.createGroup ("diagnostic");
         auto meshGroup       = file.createGroup ("mesh");
-        auto timeSeriesGroup = file.createGroup ("time_series");
 
 
         // Write misc data like date and run script
@@ -121,10 +121,11 @@ void CheckpointWriter::writeCheckpoint (
 
         // Create data sets for the primitive and diagnostic data
         // --------------------------------------------------------------------
-        auto globalShape = Array::vectorFromShape (block ? block->getGlobalShape() : meshGeometry.cellsShape());
+        auto globalShape = Array::vectorFromShape (block && format == Format::single ? block->getGlobalShape() : meshGeometry.cellsShape());
         auto localsShape = Array::vectorFromShape (meshGeometry.cellsShape());
         auto dtype = H5::DataType::nativeDouble();
         auto plist = H5::PropertyList::DataSetCreate().setChunk (localsShape);
+
 
         for (int q = 0; q < conservationLaw.getNumConserved(); ++q)
         {
@@ -169,11 +170,11 @@ void CheckpointWriter::writeCheckpoint (
 
         if (block && format == Format::multiple)
         {
-            auto S = block->getPatchRegion().lower;
-            auto T = block->getGlobalShape();
+            auto S = Array::vectorFromShape (block->getPatchRegion().lower);
+            auto T = Array::vectorFromShape (block->getGlobalShape());
 
-            meshGroup.writeVectorInt ("patch_lower", std::vector<int> (S.begin(), S.end()));
-            meshGroup.writeVectorInt ("global_shape", std::vector<int> (T.begin(), T.end()));
+            meshGroup.writeVectorInt ("patch_lower", S);
+            meshGroup.writeVectorInt ("global_shape", T);
         }
 
         // Write the time series data and scheduler state
@@ -194,7 +195,7 @@ void CheckpointWriter::writeCheckpoint (
 
         // Create data sets for the primitive and diagnostic data
         // --------------------------------------------------------------------
-        auto targetRegion = block ? block->getPatchRegion() : Region();
+        auto targetRegion = block && format == Format::single ? block->getPatchRegion() : Region();
 
         for (int q = 0; q < conservationLaw.getNumConserved(); ++q)
         {
@@ -268,15 +269,93 @@ void CheckpointWriter::readCheckpoint (
 // ============================================================================
 int CheckpointStitcherProgram::run (int argc, const char* argv[])
 {
-    std::cout << "checkpoint stitch program not implemented yet\n";
-    return 0;
-    
-    auto chkpt = H5::File ("chkpt.0000.h5", "w"); // output file name
+    auto user = Variant::NamedValues();
+    user["outfile"]  = "chkpt.h5";
+    Variant::updateFromCommandLine (user, argc, argv);
+
+    auto targetCheckpointName = user["outfile"];
+    auto chkpt           = H5::File (targetCheckpointName, "w"); // output file name
+    auto chunk           = H5::File (argv[1], "r"); // representative chunk file
+    auto primitiveGroup  = chkpt.createGroup ("primitive");
+    auto diagnosticGroup = chkpt.createGroup ("diagnostic");
+    auto meshGroup       = chkpt.createGroup ("mesh");
+    auto globalShape     = chunk.getGroup ("mesh").readVectorInt ("global_shape");
+    auto dtype           = H5::DataType::nativeDouble();
+
+
+
+    chunk.iterate ([&] (std::string name)
+    {
+        if (name != "primitive" && name != "diagnostic" && name != "mesh")
+        {
+            chunk.copy (name, chkpt);
+        }
+    });
+
+    chunk.getGroup ("mesh").iterate ([&] (std::string name)
+    {
+        // These data sets are specific to checkpoint files that are only
+        // chunks.
+        if (name != "global_shape" && name != "patch_lower")
+        {
+            chunk.getGroup("mesh").copy (name, meshGroup);
+        }
+    });
+
+    chunk.getGroup ("primitive").iterate ([&] (std::string field)
+    {
+        primitiveGroup.createDataSet (field, globalShape, H5::DataType::nativeDouble());
+    });
+
+    chunk.getGroup ("diagnostic").iterate ([&] (std::string field)
+    {
+        diagnosticGroup.createDataSet (field, globalShape, H5::DataType::nativeDouble());
+    });
 
     for (int n = 1; n < argc; ++n)
     {
-        auto sub = H5::File (argv[n], "r");
+        if (std::string (argv[n]).find ("=") != std::string::npos)
+        {
+            continue;
+        }
+
+        std::cout << "copying " << argv[n] << " -> " << targetCheckpointName << std::endl;
+
+        auto chunk = H5::File (argv[n], "r");
+        auto sourcePrim = chunk.getGroup ("primitive");
+        auto targetPrim = chkpt.getGroup ("primitive");
+        auto sourceDiag = chunk.getGroup ("diagnostic");
+        auto targetDiag = chkpt.getGroup ("diagnostic");
+
+        sourcePrim.iterate ([&] (std::string field)
+        {
+            auto lower = Array::shapeFromVector (chunk.getGroup ("mesh").readVectorInt ("patch_lower"));
+            auto shape = Array::shapeFromVector (sourcePrim.getDataSet (field).getSpace().getShape());
+            auto targetRegion = Region();
+
+            for (int n = 0; n < lower.size(); ++n)
+            {
+                targetRegion.lower[n] = lower[n];
+                targetRegion.upper[n] = lower[n] + shape[n];
+            }
+            targetPrim.getDataSet (field)[targetRegion] = sourcePrim.readArray (field);
+        });
+
+        sourceDiag.iterate ([&] (std::string field)
+        {
+            auto lower = Array::shapeFromVector (chunk.getGroup ("mesh").readVectorInt ("patch_lower"));
+            auto shape = Array::shapeFromVector (sourceDiag.getDataSet (field).getSpace().getShape());
+            auto targetRegion = Region();
+
+            for (int n = 0; n < lower.size(); ++n)
+            {
+                targetRegion.lower[n] = lower[n];
+                targetRegion.upper[n] = lower[n] + shape[n];
+            }
+            targetDiag.getDataSet (field)[targetRegion] = sourceDiag.readArray (field);
+        });
     }
+
     return 0;
 }
 
