@@ -595,6 +595,7 @@ void NewtonianMHD2DTestProgram::runProblem (const Problem& problem, const Scheme
 
 // ============================================================================
 #include "BlockDecomposition.hpp"
+#define SIGN(x) x < 0 ? -1 : 1;
 
 int MagneticBraidingProgram::run (int argc, const char* argv[])
 {
@@ -602,13 +603,14 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     user["outdir"]  = "data";
     user["restart"] = "";
     user["tfinal"]  = 16.0;
+    user["serial"]  = false;
     user["cpi"]     = 0.25;
     user["cpf"]     = "single"; // or multiple
     user["tsi"]     = 0.1;
     user["cfl"]     = 0.3;
     user["N"]       = 16;
     user["aspect"]  = 1;
-    user["serial"]  = false;
+    user["drive"]   = "orth_shear";
 
     auto clineUser = Variant::fromCommandLine (argc, argv);
     auto chkptUser = Variant::NamedValues();
@@ -621,6 +623,58 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     Variant::update (user, chkptUser);
     Variant::update (user, clineUser);
 
+
+    auto createBoundaryCondition = [&] ()
+    {
+        double vDrive = 0.2;
+
+        auto abc_flceil = [=] (double x, double y, double z)
+        {
+            const double vx = vDrive * std::sin (4 * M_PI * y) * SIGN(z);
+            const double vy = vDrive * std::cos (4 * M_PI * x) * SIGN(z);
+            return std::vector<double> {{vx, vy}};
+        };
+        auto abc_noceil = [=] (double x, double y, double z)
+        {
+            const double vx = (z < 0.0) * vDrive * std::sin (4 * M_PI * y);
+            const double vy = (z < 0.0) * vDrive * std::cos (4 * M_PI * x);
+            return std::vector<double> {{vx, vy}};
+        };
+        auto orth_shear = [=] (double x, double y, double z)
+        {
+            const double a = z > 0.0 ? 1.0 : 0.0;
+            const double b = z > 0.0 ? 0.0 : 1.0;
+            const double vx = vDrive * std::sin (2 * M_PI * y) * a;
+            const double vy = vDrive * std::cos (2 * M_PI * x) * b;
+            return std::vector<double> {{vx, vy}};
+        };
+        auto single_ft = [=] (double x, double y, double z)
+        {
+            const double sgnz = SIGN(z);
+            const double R = std::sqrt (x * x + y * y);
+            const double k = 10.;
+            const double v = vDrive / k;
+            const double vf = v * 3 * k * std::pow (k * R, 2) * std::exp (-std::pow (k * R, 3)); // v-phi;
+            const double vx = vf * (-y / R) * sgnz;
+            const double vy = vf * ( x / R) * sgnz;
+            return std::vector<double> {{vx, vy}};
+        };
+
+        auto newBC = new DrivenMHDBoundary;
+
+        if (false) {}
+        else if (std::string (user["drive"]) == "abc_flceil") newBC->setBoundaryValueFunction (abc_flceil);
+        else if (std::string (user["drive"]) == "abc_noceil") newBC->setBoundaryValueFunction (abc_noceil);
+        else if (std::string (user["drive"]) == "orth_shear") newBC->setBoundaryValueFunction (orth_shear);
+        else if (std::string (user["drive"]) == "single_ft" ) newBC->setBoundaryValueFunction (single_ft );
+        else
+        {
+            throw std::runtime_error ("unrecognized option for drive");
+        }
+
+        return newBC;
+    };
+
     auto logger    = std::make_shared<Logger>();
     auto writer    = std::make_shared<CheckpointWriter>();
     auto tseries   = std::make_shared<TimeSeriesManager>();
@@ -628,13 +682,13 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     double timestepSize = 0.0;
 
     auto bd = std::shared_ptr<BlockDecomposition>();
-    auto bc = std::shared_ptr<BoundaryCondition> (new DrivenMHDBoundary);
+    auto bc = std::shared_ptr<BoundaryCondition> (createBoundaryCondition());
     auto cs = Shape {{ int (user["N"]), int (user["N"]), int (user["N"]) * int (user["aspect"]) }};
     auto bs = Shape {{ 2, 2, 2 }};
     auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
 
     mg->setCellsShape (cs);
-    mg->setLowerUpper ({{-0.5, -0.5, -0.5}}, {{0.5, 0.5, 0.5}});
+    mg->setLowerUpper ({{-0.5, -0.5, -0.5 * int (user["aspect"])}}, {{0.5, 0.5, 0.5 * int (user["aspect"])}});
 
     if (! user["serial"])
     {

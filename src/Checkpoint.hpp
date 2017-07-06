@@ -58,4 +58,14 @@ public:
     int run (int argc, const char* argv[]) override;
 };
 
+
+class CheckpointToVtkProgram : public SubProgram
+{
+public:
+    int run (int argc, const char* argv[]) override;
+private:
+    void doFile (std::string filename) const;
+};
+
+
 #endif

@@ -127,6 +127,7 @@ int main (int argc, const char* argv[])
     programs["regress-mhd"] .reset (new NewtonianMHD2DTestProgram);
     programs["braid"]       .reset (new MagneticBraidingProgram);
     programs["stitch"]      .reset (new CheckpointStitcherProgram);
+    programs["tovtk"]       .reset (new CheckpointToVtkProgram);
 
     if (argc == 1)
     {

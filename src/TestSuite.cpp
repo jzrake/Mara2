@@ -1,3 +1,4 @@
+#include <iostream>
 #define CATCH_CONFIG_FAST_COMPILE
 #include "Catch.hpp"
 #include "Array.hpp"
@@ -16,14 +17,39 @@ SCENARIO ("Heap allocations can be move-constructed and move-assigned", "[HeapAl
     {
         auto H = HeapAllocation(10);
         auto I = HeapAllocation();
+        auto J = HeapAllocation(100);
+
+        WHEN ("H is copy-assigned to I and J")
+        {
+            I = H;
+            J = H;
+            THEN ("H, I, and J all have size 10")
+            {
+                CHECK (H.size() == 10);
+                CHECK (I.size() == 10);
+                CHECK (J.size() == 10);
+            }
+        }
 
         WHEN ("H is std::move'd to I")
         {
             I = std::move(H);
+
             THEN ("H has zero size and I has size 10")
             {
                 CHECK (H.size() == 0);
                 CHECK (I.size() == 10);
+            }
+        }
+
+        WHEN ("H is std::move'd to J")
+        {
+            J = std::move(H);
+
+            THEN ("H has zero size and J has size 10")
+            {
+                CHECK (H.size() == 0);
+                CHECK (J.size() == 10);
             }
         }
 
@@ -282,7 +308,6 @@ SCENARIO ("Arrays can be move-constructed and move-assigned", "[Array]")
     }
 }
 
-
 SCENARIO ("Shape3D objects should work correctly", "[Shape3D]")
 {
     GIVEN ("Three shapes A, B, C where A contains B but not C")
@@ -308,6 +333,33 @@ SCENARIO ("Shape3D objects should work correctly", "[Shape3D]")
             {
                 CHECK (A.contains(C));
             }
+        }
+    }
+}
+
+
+
+
+// ============================================================================
+#include "Variant.hpp"
+
+SCENARIO ("Variant works as expected", "[Variant]")
+{
+    GIVEN ("A Variant::NamedValues instance and some mock command line arguments")
+    {
+        auto user = Variant::NamedValues();
+        user["thing1"] = 1;
+        user["thing2"] = "2";
+
+        const char* argv[] = {"thing1=2", "thing2=3"};
+        Variant::updateFromCommandLine (user, 2, argv);
+
+        THEN ("User parameters have the correct values")
+        {
+            REQUIRE (user["thing1"].getType() == 'i');
+            REQUIRE (int (user["thing1"]) == 2);
+            REQUIRE (user["thing2"].getType() == 's');
+            REQUIRE (std::string (user["thing2"]) == "3");
         }
     }
 }

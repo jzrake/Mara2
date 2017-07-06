@@ -218,7 +218,23 @@ Array CellCenteredFieldCT::monopole (Array B, MeshLocation location) const
         }
         default:
         {
-            throw std::logic_error("Mesh location is not cell or vert");
+            throw std::logic_error ("Mesh location is not cell or vert");
         }
     }
+}
+
+Array CellCenteredFieldCT::current (Array B, MeshLocation location) const
+{
+    auto M = Array (B.shape());
+
+    // To deal with flat axes, use variables r, s, t
+    // ------------------------------------------------------------------------
+    const int r = B.size(0) > 1 ? 1 : 0;
+    const int s = B.size(1) > 1 ? 1 : 0;
+    const int t = B.size(2) > 1 ? 1 : 0;
+
+    auto S = Shape3D (B.size(0) - r, B.size(1) - s, B.size(2) - t);
+
+    auto J = Array(S);
+    return J;
 }
