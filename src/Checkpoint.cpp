@@ -392,6 +392,7 @@ void CheckpointToVtkProgram::doFile (std::string filename) const
     auto Z = points.readArray ("z");
     auto cellsShape = Shape {{X.size() - 1, Y.size() - 1, Z.size() - 1, 1, 1}};
     auto primitive = file.getGroup ("primitive");
+    auto diagnostic = file.getGroup ("diagnostic");
 
     auto vtkStream = std::ofstream (vtkFilename);
     auto vtkMesh = VTK::RectilinearGrid (cellsShape);
@@ -403,6 +404,7 @@ void CheckpointToVtkProgram::doFile (std::string filename) const
 
     auto velocityNames = std::vector<std::string> {"velocity1", "velocity2", "velocity3"};
     auto magneticNames = std::vector<std::string> {"magnetic1", "magnetic2", "magnetic3"};
+    auto currentJNames = std::vector<std::string> {"current1", "current2", "current3"};
 
     if (primitive.hasDataSet ("density"))
     {
@@ -419,6 +421,10 @@ void CheckpointToVtkProgram::doFile (std::string filename) const
     if (primitive.hasDataSets (magneticNames))
     {
         vtkMesh.addVectorField ("magnetic", primitive.readArrays (magneticNames, 3));
+    }
+    if (diagnostic.hasDataSets (currentJNames))
+    {
+        vtkMesh.addVectorField ("current", diagnostic.readArrays (currentJNames, 3));
     }
 
     vtkMesh.write (vtkStream);

@@ -225,16 +225,28 @@ Array CellCenteredFieldCT::monopole (Array B, MeshLocation location) const
 
 Array CellCenteredFieldCT::current (Array B, MeshLocation location) const
 {
-    auto M = Array (B.shape());
-
     // To deal with flat axes, use variables r, s, t
     // ------------------------------------------------------------------------
     const int r = B.size(0) > 1 ? 1 : 0;
     const int s = B.size(1) > 1 ? 1 : 0;
     const int t = B.size(2) > 1 ? 1 : 0;
 
-    auto S = Shape3D (B.size(0) - r, B.size(1) - s, B.size(2) - t);
+    auto S = Shape3D (B.size(0) - 2 * r, B.size(1) - 2 * s, B.size(2) - 2 * t);
+    auto J = Array (B.shape());
 
-    auto J = Array(S);
+    S.deploy ([&] (int i, int j, int k)
+    {
+        const double d0B1 = B (i + r, j, k, 1) - B (i - r, j, k, 1);
+        const double d0B2 = B (i + r, j, k, 2) - B (i - r, j, k, 2);
+        const double d1B2 = B (i, j + s, k, 2) - B (i, j - s, k, 2);
+        const double d1B0 = B (i, j + s, k, 0) - B (i, j - s, k, 0);
+        const double d2B0 = B (i, j, k + t, 0) - B (i, j, k - t, 0);
+        const double d2B1 = B (i, j, k + t, 1) - B (i, j, k - t, 1);
+
+        J (i + r, j + s, k + t, 0) = d1B2 - d2B1;
+        J (i + r, j + s, k + t, 1) = d2B0 - d0B2;
+        J (i + r, j + s, k + t, 2) = d0B1 - d1B0;
+    });
+
     return J;
 }

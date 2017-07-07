@@ -729,7 +729,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
 
     auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
-        logger->log ("Mara") << "recompute dt\n";
+        // logger->log ("Mara") << "recompute dt\n";
         timestepSize = double (user["cfl"]) * fo->getCourantTimestep (P, L);
     };
 
@@ -737,9 +737,13 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     {
         auto Bcell = md->getMagneticField (MeshLocation::cell, MeshData::includeGuard);
         auto Mcell = ct->monopole (Bcell, MeshLocation::cell);
+        auto Jcell = ct->current (Bcell, MeshLocation::cell);
 
-        md->allocateDiagnostics ({ "monopole" });
+        md->allocateDiagnostics ({ "monopole", "current1", "current2", "current3" });
         md->assignDiagnostic (Mcell, 0, MeshData::includeGuard);
+        md->assignDiagnostic (Jcell[Region().withRange (3, 0, 1)], 1, MeshData::includeGuard);
+        md->assignDiagnostic (Jcell[Region().withRange (3, 1, 2)], 2, MeshData::includeGuard);
+        md->assignDiagnostic (Jcell[Region().withRange (3, 2, 3)], 3, MeshData::includeGuard);
 
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     };
