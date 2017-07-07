@@ -333,7 +333,7 @@ int CheckpointStitcherProgram::run (int argc, const char* argv[])
             auto shape = Array::shapeFromVector (sourcePrim.getDataSet (field).getSpace().getShape());
             auto targetRegion = Region();
 
-            for (int n = 0; n < lower.size(); ++n)
+            for (unsigned int n = 0; n < lower.size(); ++n)
             {
                 targetRegion.lower[n] = lower[n];
                 targetRegion.upper[n] = lower[n] + shape[n];
@@ -347,7 +347,7 @@ int CheckpointStitcherProgram::run (int argc, const char* argv[])
             auto shape = Array::shapeFromVector (sourceDiag.getDataSet (field).getSpace().getShape());
             auto targetRegion = Region();
 
-            for (int n = 0; n < lower.size(); ++n)
+            for (unsigned int n = 0; n < lower.size(); ++n)
             {
                 targetRegion.lower[n] = lower[n];
                 targetRegion.upper[n] = lower[n] + shape[n];

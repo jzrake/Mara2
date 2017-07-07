@@ -1,4 +1,6 @@
 #include <cmath>
+#include <cassert>
+#include <algorithm>
 #include "MeshOperator.hpp"
 
 #define ENSURE_GEOMETRY_IS_VALID do {\
@@ -171,7 +173,7 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
                 auto coord = geometry->coordinateAtIndex (ic, jc, kc);
                 auto P0 = F (coord[0], coord[1], coord[2]);
 
-                for (unsigned int q = 0; q < nq; ++q)
+                for (int q = 0; q < nq; ++q)
                 {
                     it[q] = P0[q];
                 }
@@ -228,6 +230,7 @@ Array MeshOperator::measure (MeshLocation location) const
             return volumes;
         }
     }
+    assert (false);
 }
 
 Array MeshOperator::linearCellDimension() const

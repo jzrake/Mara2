@@ -1,3 +1,5 @@
+#include <limits>
+#include <algorithm>
 #include "FieldOperator.hpp"
 #define MIN2(a, b) ((a) < (b) ? a : b)
 
@@ -57,7 +59,7 @@ Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P) c
         {
             auto S = law->fromConserved (request, uit);
 
-            for (unsigned int q = 0; q < numConserved; ++q)
+            for (int q = 0; q < numConserved; ++q)
             {
                 pit[q] = S.P[q];
             }
@@ -103,7 +105,7 @@ void FieldOperator::generateConserved (Array::Reference P, Array::Reference U) c
     {
         auto S = law->fromPrimitive (request, pit);
 
-        for (unsigned int q = 0; q < numConserved; ++q)
+        for (int q = 0; q < numConserved; ++q)
         {
             uit[q] = S.U[q];
         }
