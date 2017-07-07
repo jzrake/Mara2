@@ -608,6 +608,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     user["cpf"]     = "single"; // or multiple
     user["tsi"]     = 0.1;
     user["cfl"]     = 0.3;
+    user["plm"]     = 1.5;
     user["N"]       = 16;
     user["aspect"]  = 1;
     user["drive"]   = "orth_shear";
@@ -683,6 +684,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
 
     auto bd = std::shared_ptr<BlockDecomposition>();
     auto bc = std::shared_ptr<BoundaryCondition> (createBoundaryCondition());
+    auto fs = std::make_shared<MethodOfLinesPlm>();
     auto cs = Shape {{ int (user["N"]), int (user["N"]), int (user["N"]) * int (user["aspect"]) }};
     auto bs = Shape {{ 2, 2, 2 }};
     auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
@@ -708,6 +710,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     auto ct = std::make_shared<CellCenteredFieldCT>();
     auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, 8);
 
+    fs->setPlmTheta (double (user["plm"]));
     fo->setConservationLaw (cl);
     mo->setMeshGeometry (mg);
     ss->setMeshOperator (mo);
@@ -715,6 +718,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     ss->setBoundaryCondition (bc);
     ss->setRungeKuttaOrder (2);
     ss->setDisableFieldCT (false);
+    ss->setIntercellFluxScheme (fs);
     md->setMagneticIndex (cl->getIndexFor (ConservationLaw::VariableType::magnetic));
     bc->setMeshGeometry (mg);
     bc->setConservationLaw (cl);

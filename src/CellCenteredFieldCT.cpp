@@ -248,9 +248,9 @@ Array CellCenteredFieldCT::current (Array B, MeshLocation location) const
         const double d2B0 = B (i, j, k + t, 0) - B (i, j, k - t, 0);
         const double d2B1 = B (i, j, k + t, 1) - B (i, j, k - t, 1);
 
-        J (i + r, j + s, k + t, 0) = (d1B2 - d2B1) / meshSpacing;
-        J (i + r, j + s, k + t, 1) = (d2B0 - d0B2) / meshSpacing;
-        J (i + r, j + s, k + t, 2) = (d0B1 - d1B0) / meshSpacing;
+        J (i + r, j + s, k + t, 0) = (d1B2 - d2B1) / meshSpacing / 2;
+        J (i + r, j + s, k + t, 1) = (d2B0 - d0B2) / meshSpacing / 2;
+        J (i + r, j + s, k + t, 2) = (d0B1 - d1B0) / meshSpacing / 2;
     });
 
     return J;
