@@ -1236,6 +1236,7 @@ SCENARIO ("Cell-centered field CT should behave reasonalby", "[CellCenteredField
             CHECK (Mg (8, 8, 0) == Approx (0.0));
         }
     }
+
     GIVEN ("An instance of CellCenteredFieldCT and random 3D Godunov flux (EMF)")
     {
         auto cs = Shape {{ 16, 16, 16 }};

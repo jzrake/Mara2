@@ -11,12 +11,19 @@
 A class to encapsulate a limited set of algorithms for manipulating cell-
 centered magnetic field operationrs. These operations do not account for any
 mesh geometry; the array data provided is assumed to be logically cartesian
-and uniformly spaced with lattice spacing equal to 1 on each axis.
+and uniformly spaced with lattice spacing equal to meshSpacing on each axis,
+which by default is set to 1.0.
 */
 class CellCenteredFieldCT
 {
 public:
     using Array = Cow::Array;
+
+    /** Constructor */
+    CellCenteredFieldCT();
+
+    /** Use the given mesh spacing for finite difference operations. */
+    void setMeshSpacing (double uniformMeshSpacing) { meshSpacing = uniformMeshSpacing; }
 
     /**
     Change the input array of face-centered (Godunov) fluxes to yield
@@ -59,6 +66,9 @@ public:
     the returned array has the same shape as B.
     */
     Array current (Array B, MeshLocation location) const;
+
+private:
+    double meshSpacing;
 };
 
 #endif

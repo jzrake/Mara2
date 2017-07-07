@@ -718,6 +718,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     md->setMagneticIndex (cl->getIndexFor (ConservationLaw::VariableType::magnetic));
     bc->setMeshGeometry (mg);
     bc->setConservationLaw (cl);
+    ct->setMeshSpacing (1.0 / int (user["N"]));
 
     auto status    = SimulationStatus();
     auto L         = mo->linearCellDimension();
@@ -729,8 +730,8 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
 
     auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
-        // logger->log ("Mara") << "recompute dt\n";
-        timestepSize = double (user["cfl"]) * fo->getCourantTimestep (P, L);
+        double localDt = double (user["cfl"]) * fo->getCourantTimestep (P, L);
+        timestepSize = MpiCommunicator::world().minimum (localDt);
     };
 
     auto taskCheckpoint = [&] (SimulationStatus, int rep)

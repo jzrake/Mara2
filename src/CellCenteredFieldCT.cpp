@@ -6,6 +6,11 @@ using namespace Cow;
 
 
 // ============================================================================
+CellCenteredFieldCT::CellCenteredFieldCT()
+{
+    meshSpacing = 1.0;
+}
+
 void CellCenteredFieldCT::correctGodunovFluxes (Array& F, int magneticIndex) const
 {
     // This function implements the stencil shown in Fig. 3 of Toth (2000), and
@@ -197,7 +202,7 @@ Array CellCenteredFieldCT::monopole (Array B, MeshLocation location) const
         const double Bz0 = B0z00 + B0z01 + B0z10 + B0z11;
         const double Bz1 = B1z00 + B1z01 + B1z10 + B1z11;
 
-        M (i + 1, j + 1, k + 1) = 0.25 * ((Bx1 - Bx0) + (By1 - By0) + (Bz1 - Bz0));
+        M (i + 1, j + 1, k + 1) = 0.25 * ((Bx1 - Bx0) + (By1 - By0) + (Bz1 - Bz0)) / meshSpacing;
     });
 
     switch (location)
@@ -243,9 +248,9 @@ Array CellCenteredFieldCT::current (Array B, MeshLocation location) const
         const double d2B0 = B (i, j, k + t, 0) - B (i, j, k - t, 0);
         const double d2B1 = B (i, j, k + t, 1) - B (i, j, k - t, 1);
 
-        J (i + r, j + s, k + t, 0) = d1B2 - d2B1;
-        J (i + r, j + s, k + t, 1) = d2B0 - d0B2;
-        J (i + r, j + s, k + t, 2) = d0B1 - d1B0;
+        J (i + r, j + s, k + t, 0) = (d1B2 - d2B1) / meshSpacing;
+        J (i + r, j + s, k + t, 1) = (d2B0 - d0B2) / meshSpacing;
+        J (i + r, j + s, k + t, 2) = (d0B1 - d1B0) / meshSpacing;
     });
 
     return J;
