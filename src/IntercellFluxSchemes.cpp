@@ -1,3 +1,4 @@
+#include <cassert>
 #include "IntercellFluxSchemes.hpp"
 #include "RiemannSolvers.hpp"
 
@@ -89,8 +90,10 @@ ConservationLaw::State MethodOfLinesPlm::intercellFlux (const FaceData& faceData
     const double* P3 = &faceData.stencilData(3);
     const int nq = faceData.conservationLaw->getNumConserved();
 
-    std::vector<double> PL(nq);
-    std::vector<double> PR(nq);
+    assert (nq <= 8);
+
+    std::array<double, 8> PL;
+    std::array<double, 8> PR;
 
     for (int q = 0; q < nq; ++q)
     {

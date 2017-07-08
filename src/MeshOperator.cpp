@@ -402,13 +402,11 @@ Array MeshOperator::godunov (
         auto shape = cellData.shape3D().reduced (sweep, fp[sweep] - 1);
         auto gs = GodunovStencil (fp[sweep], nq, np);
 
-        Array::deploy (shape, [&] (int i, int j, int k)
+        shape.deploy ([&] (int i, int j, int k)
         {
             const int ic = i + start[0]; // Indexes for querying geometry
             const int jc = j + start[1];
             const int kc = k + start[2];
-
-            // auto gs = GodunovStencil (fp[sweep], nq, np);
 
             for (int n = 0; n < fp[sweep]; ++n)
             {
@@ -432,9 +430,9 @@ Array MeshOperator::godunov (
             {
                 switch (sweep)
                 {
-                    case 0: gs.faceData (p) = faceData (i + fp[0] / 2, j, k, p); break;
-                    case 1: gs.faceData (p) = faceData (i, j + fp[1] / 2, k, p); break;
-                    case 2: gs.faceData (p) = faceData (i, j, k + fp[2] / 2, p); break;
+                    case 0: gs.faceData(p) = faceData (i + fp[0] / 2, j, k, p); break;
+                    case 1: gs.faceData(p) = faceData (i, j + fp[1] / 2, k, p); break;
+                    case 2: gs.faceData(p) = faceData (i, j, k + fp[2] / 2, p); break;
                 }
             }
 

@@ -128,7 +128,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
             U[n] = uold * (1 - b[rk]) + unew * b[rk];
         }
 
-        solution.Z = fieldOperator->recoverPrimitive (U[interior], solution.P[interior]);
+        fieldOperator->recoverPrimitive (U[interior], solution.P[interior]);
         solution.applyBoundaryCondition (*boundaryCondition);
     }
 }

@@ -54,8 +54,12 @@ public:
     void assignStartIndex (Index index);
 
 private:
+    void cacheSpacing();
     Coordinate lower;
     Coordinate upper;
     Shape shape;
     Index startIndex;
+    double dx[3];
+    double dA[3];
+    double dV;
 };

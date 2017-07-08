@@ -43,20 +43,23 @@ CartesianMeshGeometry::CartesianMeshGeometry()
     shape = {{128, 1, 1, 1, 1}};
     lower = {{0.0, 0.0, 0.0}};
     upper = {{1.0, 1.0, 1.0}};
+    cacheSpacing();
 }
 
 CartesianMeshGeometry::CartesianMeshGeometry(Cow::Shape S)
 {
     shape = {{S[0], S[1], S[2], 1, 1}};
     lower = {{0.0, 0.0, 0.0}};
-    upper = {{1.0, 1.0, 1.0}};    
+    upper = {{1.0, 1.0, 1.0}};
+    cacheSpacing();
 }
 
 CartesianMeshGeometry::CartesianMeshGeometry (int ni, int nj, int nk)
 {
     shape = {{ni, nj, nk, 1, 1}};
     lower = {{0.0, 0.0, 0.0}};
-    upper = {{1.0, 1.0, 1.0}};    
+    upper = {{1.0, 1.0, 1.0}};
+    cacheSpacing();
 }
 
 void CartesianMeshGeometry::setCellsShape (Cow::Shape S)
@@ -64,14 +67,15 @@ void CartesianMeshGeometry::setCellsShape (Cow::Shape S)
     shape[0] = S[0];
     shape[1] = S[1];
     shape[2] = S[2];
+    cacheSpacing();
 }
 
 void CartesianMeshGeometry::setLowerUpper (Coordinate L, Coordinate U)
 {
     lower = L;
     upper = U;
+    cacheSpacing();
 }
-
 
 Cow::Shape CartesianMeshGeometry::cellsShape() const
 {
@@ -86,22 +90,19 @@ unsigned long CartesianMeshGeometry::totalCellsInMesh() const
 Coordinate CartesianMeshGeometry::coordinateAtIndex (double i, double j, double k) const
 {
     return Coordinate ({{
-        lower[0] + (upper[0] - lower[0]) * (i + 0.5) / shape[0],
-        lower[1] + (upper[1] - lower[1]) * (j + 0.5) / shape[1],
-        lower[2] + (upper[2] - lower[2]) * (k + 0.5) / shape[2]}});
+        lower[0] + dx[0] * (i + 0.5),
+        lower[1] + dx[1] * (j + 0.5),
+        lower[2] + dx[2] * (k + 0.5)}});
 }
 
 double CartesianMeshGeometry::cellLength (int i, int j, int k, int axis) const
 {
-    return (upper[axis] - lower[axis]) / shape[axis];
+    return dx[axis];
 }
 
 double CartesianMeshGeometry::cellVolume (int i, int j, int k) const
 {
-    const double dx = cellLength (i, j, k, 0);
-    const double dy = cellLength (i, j, k, 1);
-    const double dz = cellLength (i, j, k, 2);
-    return dx * dy * dz;
+    return dV;
 }
 
 double CartesianMeshGeometry::meshVolume() const
@@ -111,17 +112,7 @@ double CartesianMeshGeometry::meshVolume() const
 
 double CartesianMeshGeometry::faceArea (int i, int j, int k, int axis) const
 {
-    const double dx = cellLength (i, j, k, 0);
-    const double dy = cellLength (i, j, k, 1);
-    const double dz = cellLength (i, j, k, 2);
-
-    switch (axis)
-    {
-        case 0: return dy * dz;
-        case 1: return dz * dx;
-        case 2: return dx * dy;
-        default: assert (false);
-    }
+    return dA[axis];
 }
 
 UnitVector CartesianMeshGeometry::faceNormal (int i, int j, int k, int axis) const
@@ -171,4 +162,18 @@ Cow::Index CartesianMeshGeometry::getStartIndex() const
 void CartesianMeshGeometry::assignStartIndex (Index index)
 {
     startIndex = index;
+}
+
+void CartesianMeshGeometry::cacheSpacing()
+{
+    for (int n = 0; n < 3; ++n)
+    {
+        dx[n] = (upper[n] - lower[n]) / shape[n];
+    }
+
+    dA[0] = dx[1] * dx[2];
+    dA[1] = dx[2] * dx[0];
+    dA[2] = dx[0] * dx[1];
+
+    dV = dx[0] * dx[1] * dx[2];
 }

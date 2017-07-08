@@ -241,12 +241,12 @@ Array CellCenteredFieldCT::current (Array B, MeshLocation location) const
 
     S.deploy ([&] (int i, int j, int k)
     {
-        const double d0B1 = B (i + r, j, k, 1) - B (i - r, j, k, 1);
-        const double d0B2 = B (i + r, j, k, 2) - B (i - r, j, k, 2);
-        const double d1B2 = B (i, j + s, k, 2) - B (i, j - s, k, 2);
-        const double d1B0 = B (i, j + s, k, 0) - B (i, j - s, k, 0);
-        const double d2B0 = B (i, j, k + t, 0) - B (i, j, k - t, 0);
-        const double d2B1 = B (i, j, k + t, 1) - B (i, j, k - t, 1);
+        const double d0B1 = B (i + 2 * r, j, k, 1) - B (i, j, k, 1);
+        const double d0B2 = B (i + 2 * r, j, k, 2) - B (i, j, k, 2);
+        const double d1B2 = B (i, j + 2 * s, k, 2) - B (i, j, k, 2);
+        const double d1B0 = B (i, j + 2 * s, k, 0) - B (i, j, k, 0);
+        const double d2B0 = B (i, j, k + 2 * t, 0) - B (i, j, k, 0);
+        const double d2B1 = B (i, j, k + 2 * t, 1) - B (i, j, k, 1);
 
         J (i + r, j + s, k + t, 0) = (d1B2 - d2B1) / meshSpacing / 2;
         J (i + r, j + s, k + t, 1) = (d2B0 - d0B2) / meshSpacing / 2;
