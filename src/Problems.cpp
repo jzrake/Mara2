@@ -612,6 +612,8 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     user["N"]       = 16;
     user["aspect"]  = 1;
     user["drive"]   = "orth_shear";
+    user["cool"]    = -1.0;
+    user["noise"]   = -1.0;
 
     auto clineUser = Variant::fromCommandLine (argc, argv);
     auto chkptUser = Variant::NamedValues();
@@ -705,10 +707,10 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
 
     auto ss = std::make_shared<MethodOfLinesTVD>();
     auto mo = std::make_shared<MeshOperator>();
-    auto cl = std::make_shared<NewtonianMHD>();
+    auto cl = std::make_shared<NewtonianMHD> (double (user["cool"]));
     auto fo = std::make_shared<FieldOperator>();
     auto ct = std::make_shared<CellCenteredFieldCT>();
-    auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, 8);
+    auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());
 
     fs->setPlmTheta (double (user["plm"]));
     fo->setConservationLaw (cl);
@@ -801,7 +803,18 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     {
         auto initialData = [&] (double, double, double) -> std::vector<double>
         {
-            return {1, 0, 0, 0, 1, 0, 0, 1};
+            auto withoutAux = std::vector<double> {1, 0, 0, 0, 1, 0, 0, 1};
+
+            for (int n = 8; n < cl->getNumConserved(); ++n)
+            {
+                withoutAux.push_back (0.0);
+            }
+
+            if (double (user["noise"]) > 0.0)
+            {
+                withoutAux[0] += double (user["noise"]) * rand() / RAND_MAX;
+            }
+            return withoutAux;
         };
         md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
     }
@@ -812,6 +825,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     }
     md->applyBoundaryCondition (*bc);
     taskRecomputeDt (status, 0);
+
 
     logger->log() << std::endl << user << std::endl;
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  

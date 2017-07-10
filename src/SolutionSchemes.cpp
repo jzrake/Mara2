@@ -119,13 +119,14 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
     for (int rk = 0; rk < rungeKuttaOrder; ++rk)
     {
         auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fieldCT);
-        auto L = meshOperator->divergence (F);
+        auto L = meshOperator->divergence (F, -1.0);
+        auto K = Array();
+
+        cl->addSourceTerms (solution.P, L);
 
         for (int n = 0; n < L.size(); ++n)
         {
-            const double uold = U0[n];
-            const double unew = U[n] - dt * L[n];
-            U[n] = uold * (1 - b[rk]) + unew * b[rk];
+            U[n] = U0[n] * (1 - b[rk]) + (U[n] + dt * L[n]) * b[rk];
         }
 
         fieldOperator->recoverPrimitive (U[interior], solution.P[interior]);

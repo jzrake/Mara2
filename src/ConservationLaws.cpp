@@ -339,9 +339,16 @@ std::vector<std::string> NewtonianHydro::getDiagnosticNames() const
 
 
 // ============================================================================
-NewtonianMHD::NewtonianMHD() : gammaLawIndex (5./3), pressureFloor (-1.0)
+NewtonianMHD::NewtonianMHD (double coolingRate) : gammaLawIndex (5./3), pressureFloor (-1.0), coolingRate (coolingRate)
 {
-
+    if (coolingRate > 0.0)
+    {
+        numAuxiliary = 1;
+    }
+    else
+    {
+        numAuxiliary = 0;
+    }
 }
 
 ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, const double* U) const
@@ -349,7 +356,7 @@ ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, cons
     const double gm1 = gammaLawIndex - 1.0;
     const double pp = U[S11] * U[S11] + U[S22] * U[S22] + U[S33] * U[S33];
     const double BB = U[H11] * U[H11] + U[H22] * U[H22] + U[H33] * U[H33];
-    double P[8];
+    double P[MARA_NUM_FIELDS];
 
     P[RHO] =  U[DDD];
     P[PRE] = (U[NRG] - 0.5 * pp / U[DDD] - 0.5 * BB) * gm1;
@@ -359,6 +366,11 @@ ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, cons
     P[B11] =  U[H11];
     P[B22] =  U[H22];
     P[B33] =  U[H33];
+
+    for (int n = 0; n < numAuxiliary; ++n)
+    {
+        P[8 + n] = U[8 + n];
+    }
 
     // ------------------------------------------------------------------------
     // Bad state detection
@@ -426,15 +438,6 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     S.F[H22] = vn * S.U[H22] - Bn * P[V22];
     S.F[H33] = vn * S.U[H33] - Bn * P[V33];
 
-    // S.F[DDD] = vn * S.U[DDD];
-    // S.F[S11] = vn * S.U[S11] - Bn * P[B11] + ps * dAA[0];
-    // S.F[S22] = vn * S.U[S22] - Bn * P[B22] + ps * dAA[1];
-    // S.F[S33] = vn * S.U[S33] - Bn * P[B33] + ps * dAA[2];
-    // S.F[NRG] = vn * S.U[NRG] + vn * ps; // NOTE: MISSING TERM
-    // S.F[H11] = vn * S.U[H11] - Bn * P[V11];
-    // S.F[H22] = vn * S.U[H22] - Bn * P[V22];
-    // S.F[H33] = vn * S.U[H33] - Bn * P[V33];
-
     // ------------------------------------------------------------------------
     // See Antony Jameson's notes at
     // http://aero-comlab.stanford.edu/Papers/jameson.mhd.pdf
@@ -455,12 +458,34 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     S.A[6] = vn + std::sqrt (cn2);
     S.A[7] = vn + std::sqrt (cF2);
 
+    for (int n = 0; n < numAuxiliary; ++n)
+    {
+        S.P[8 + n] = P[8 + n];
+        S.U[8 + n] = P[8 + n];
+        S.F[8 + n] = 0.0;
+        S.A[8 + n] = 0.0;
+    }
+
     return S;
+}
+
+void NewtonianMHD::addSourceTerms (const Cow::Array& P, Cow::Array& L) const
+{
+    if (coolingRate < 0.0) return;
+
+    const double gm1 = gammaLawIndex - 1.0;
+
+    P.shape3D().deploy ([&] (int i, int j, int k)
+    {
+        const double p = P (i, j, k, PRE);
+        L (i, j, k, NRG) -= p / gm1 * coolingRate;
+        L (i, j, k, 8  ) += p / gm1 * coolingRate;
+    });
 }
 
 int NewtonianMHD::getNumConserved() const
 {
-    return 8;
+    return 8 + numAuxiliary;
 }
 
 int NewtonianMHD::getIndexFor (VariableType type) const
@@ -487,7 +512,7 @@ std::string NewtonianMHD::getPrimitiveName (int fieldIndex) const
         case B11: return "magnetic1";
         case B22: return "magnetic2";
         case B33: return "magnetic3";
-        default: return "";
+        default: return "auxiliary" + std::to_string (fieldIndex - 7);
     }
 }
 
@@ -505,7 +530,7 @@ std::vector<double> NewtonianMHD::makeDiagnostics (const State& state) const
     const double Ms = std::sqrt (vv) / cs;
     const double Ma = std::sqrt (vv) / ca;
 
-    auto D = std::vector<double> (17);
+    auto D = std::vector<double> (17 + numAuxiliary);
     D[0 ] = state.U[RHO];
     D[1 ] = state.U[S11];
     D[2 ] = state.U[S22];
@@ -523,12 +548,18 @@ std::vector<double> NewtonianMHD::makeDiagnostics (const State& state) const
     D[14] = Ma;                        // Alfven Mach number
     D[15] = s0;                        // specific entropy
     D[16] = Bv;                        // cross helicity
+
+    for (int n = 0; n < numAuxiliary; ++n)
+    {
+        D[17 + n] = state.U[8 + n];
+    }
+
     return D;
 }
 
 std::vector<std::string> NewtonianMHD::getDiagnosticNames() const
 {
-    auto N = std::vector<std::string>(17);
+    auto N = std::vector<std::string>(17 + numAuxiliary);
     N[0 ] = "mass";
     N[1 ] = "momentum1";
     N[2 ] = "momentum2";
@@ -546,5 +577,11 @@ std::vector<std::string> NewtonianMHD::getDiagnosticNames() const
     N[14] = "alfven_mach_number";
     N[15] = "specific_entropy";
     N[16] = "cross_helicity";
+
+    for (int n = 0; n < numAuxiliary; ++n)
+    {
+        N[17 + n] = "auxiliary" + std::to_string (n + 1);
+    }
+
     return N;
 }

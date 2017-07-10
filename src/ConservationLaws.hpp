@@ -43,7 +43,7 @@ private:
 class NewtonianMHD : public ConservationLaw
 {
 public:
-    NewtonianMHD();
+    NewtonianMHD (double coolingRate=-1.0);
 
     /**
     When the pressure floor value is set to something positive, then
@@ -54,14 +54,17 @@ public:
     void setGammaLawIndex (double gm) override { gammaLawIndex = gm; }
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
+    void addSourceTerms (const Cow::Array& P, Cow::Array& L) const override;
     int getNumConserved() const override;
     int getIndexFor (VariableType type) const override;
     std::string getPrimitiveName (int fieldIndex) const override;
     std::vector<double> makeDiagnostics (const State& state) const override;
     std::vector<std::string> getDiagnosticNames() const override;
 private:
+    int numAuxiliary;
     double gammaLawIndex;
     double pressureFloor;
+    double coolingRate;
 };
 
 #endif

@@ -72,12 +72,13 @@ public:
     Compute the divergence of a two-form (magnetic flux densities or flow of
     conserved quantities) on mesh faces. The input array (flux) must have
     size=3 on its 4th axis, and may have any number of components on its 3rd
-    axis. One divergence is computed per flux component. The optional start
-    index indicates the left-most index of the input data with respect to the
-    left of the mesh geometry instance, and must be used if passing in data
-    that has guard zones.
+    axis. One divergence is computed per flux component. The resulting
+    divergence is multiplied by the optional factor parameter before being
+    returned. The optional start index indicates the left-most index of the
+    input data with respect to the left of the mesh geometry instance, and
+    must be used if passing in data that has guard zones.
     */
-    Array divergence (const Array& flux, Index start={}) const;
+    Array divergence (const Array& flux, double factor=1.0, Index start={}) const;
 
     /**
     Compute the curl of a one-form on mesh edges. The input array (potential)

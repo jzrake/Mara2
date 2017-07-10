@@ -264,7 +264,7 @@ Array MeshOperator::cellCentroidCoordinates() const
     return X;
 }
 
-Array MeshOperator::divergence (const Array& flux, Index start) const
+Array MeshOperator::divergence (const Array& flux, double factor, Index start) const
 {
     ENSURE_GEOMETRY_IS_VALID;
 
@@ -299,7 +299,7 @@ Array MeshOperator::divergence (const Array& flux, Index start) const
     {
         for (int q = 0; q < nq; ++q)
         {
-            D (0,0,0,q) = 1. / V (0,0,0) * (
+            D (0,0,0,q) = factor / V (0,0,0) * (
                 +F (1,0,0,q,0) * A (0,0,0,0)
                 -F (0,0,0,q,0) * A (1,0,0,0)
                 +F (0,1,0,q,1) * A (0,1,0,1)

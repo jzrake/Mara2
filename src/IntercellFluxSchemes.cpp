@@ -90,10 +90,10 @@ ConservationLaw::State MethodOfLinesPlm::intercellFlux (const FaceData& faceData
     const double* P3 = &faceData.stencilData(3);
     const int nq = faceData.conservationLaw->getNumConserved();
 
-    assert (nq <= 8);
+    assert (nq <= MARA_NUM_FIELDS);
 
-    std::array<double, 8> PL;
-    std::array<double, 8> PR;
+    std::array<double, MARA_NUM_FIELDS> PL;
+    std::array<double, MARA_NUM_FIELDS> PR;
 
     for (int q = 0; q < nq; ++q)
     {

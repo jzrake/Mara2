@@ -12,6 +12,8 @@
 #include "UnitVector.hpp"
 #include "Variant.hpp"
 
+#define MARA_NUM_FIELDS 10
+
 
 
 
@@ -29,6 +31,7 @@ class MeshOperator;
 class RiemannSolver;
 class SolutionScheme;
 class SubProgram;
+
 
 
 
@@ -384,10 +387,10 @@ public:
 
     struct State
     {
-        std::array<double, 8> P; // Primitive quantities
-        std::array<double, 8> U; // Conserved densities
-        std::array<double, 8> F; // Fluxes in given direction
-        std::array<double, 8> A; // Eigenvalues
+        std::array<double, MARA_NUM_FIELDS> P; // Primitive quantities
+        std::array<double, MARA_NUM_FIELDS> U; // Conserved densities
+        std::array<double, MARA_NUM_FIELDS> F; // Fluxes in given direction
+        std::array<double, MARA_NUM_FIELDS> A; // Eigenvalues
         Cow::Matrix L; // Left eigenvector matrix
         Cow::Matrix R; // Right eigenvector matrix
         int healthFlag;
@@ -454,6 +457,14 @@ public:
     with numConserved consecutive doubles.
     */
     virtual State fromPrimitive (const Request& request, const double* P) const = 0;
+
+    /**
+    This method may be called by the solution scheme, adjusting the time
+    derivative L to account for geometrical or other source terms. If
+    overridden, this method must *add* to (or subtract from) L, not replace
+    its values.
+    */
+    virtual void addSourceTerms (const Cow::Array& P, Cow::Array& L) const {}
 
     /**
     Get the number of primitive and conserved quantities for this conservation
