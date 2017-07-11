@@ -387,12 +387,14 @@ public:
 
     struct State
     {
+        State() : numFields(0) {}
         std::array<double, MARA_NUM_FIELDS> P; // Primitive quantities
         std::array<double, MARA_NUM_FIELDS> U; // Conserved densities
         std::array<double, MARA_NUM_FIELDS> F; // Fluxes in given direction
         std::array<double, MARA_NUM_FIELDS> A; // Eigenvalues
         Cow::Matrix L; // Left eigenvector matrix
         Cow::Matrix R; // Right eigenvector matrix
+        int numFields;
         int healthFlag;
     };
 

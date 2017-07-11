@@ -54,14 +54,14 @@ void ConservationLaw::StateFailure::updateWhatMessage()
     stream << "at zone index [" << zoneIndex[0] << " " << zoneIndex[1] << " " << zoneIndex[2] << "]\n";
     stream << "P = {";
 
-    for (unsigned int q = 0; q < failedState.P.size(); ++q)
+    for (int q = 0; q < failedState.numFields; ++q)
     {
         stream << failedState.P[q] << " ";
     }
     stream << "}\n";
     stream << "U = {";
 
-    for (unsigned int q = 0; q < failedState.U.size(); ++q)
+    for (int q = 0; q < failedState.numFields; ++q)
     {
         stream << failedState.U[q] << " ";
     }
@@ -181,6 +181,7 @@ ConservationLaw::State ScalarAdvection::fromConserved (const Request& request, c
     S.F = {{waveSpeed * u, waveSpeed * v}};
     S.L = Cow::Matrix (2, 2); // identity
     S.R = Cow::Matrix (2, 2);
+    S.numFields = 2;
     return S;
 }
 
@@ -195,6 +196,7 @@ ConservationLaw::State ScalarAdvection::fromPrimitive (const Request& request, c
     S.F = {{waveSpeed * u, waveSpeed * v}};
     S.L = Cow::Matrix (2, 2); // identity
     S.R = Cow::Matrix (2, 2);
+    S.numFields = 2;
     return S;
 }
 
@@ -256,6 +258,7 @@ ConservationLaw::State NewtonianHydro::fromPrimitive (const Request& request, co
     const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
 
     auto S = State();
+    S.numFields = 5;
 
     S.P[RHO] = P[RHO];
     S.P[V11] = P[V11];
@@ -410,6 +413,7 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
     const double ps = P[PRE] + 0.5 * BB; // total pressure
 
     auto S = State();
+    S.numFields = getNumConserved();
 
     S.P[RHO] = P[RHO];
     S.P[V11] = P[V11];

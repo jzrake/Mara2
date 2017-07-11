@@ -612,6 +612,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     user["N"]       = 16;
     user["aspect"]  = 1;
     user["drive"]   = "orth_shear";
+    user["veldr"]   = 0.2;
     user["cool"]    = -1.0;
     user["noise"]   = -1.0;
 
@@ -629,26 +630,26 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
 
     auto createBoundaryCondition = [&] ()
     {
-        double vDrive = 0.2;
+        double veldr = user["veldr"];
 
         auto abc_flceil = [=] (double x, double y, double z)
         {
-            const double vx = vDrive * std::sin (4 * M_PI * y) * SIGN(z);
-            const double vy = vDrive * std::cos (4 * M_PI * x) * SIGN(z);
+            const double vx = veldr * std::sin (4 * M_PI * y) * SIGN(z);
+            const double vy = veldr * std::cos (4 * M_PI * x) * SIGN(z);
             return std::vector<double> {{vx, vy}};
         };
         auto abc_noceil = [=] (double x, double y, double z)
         {
-            const double vx = (z < 0.0) * vDrive * std::sin (4 * M_PI * y);
-            const double vy = (z < 0.0) * vDrive * std::cos (4 * M_PI * x);
+            const double vx = (z < 0.0) * veldr * std::sin (4 * M_PI * y);
+            const double vy = (z < 0.0) * veldr * std::cos (4 * M_PI * x);
             return std::vector<double> {{vx, vy}};
         };
         auto orth_shear = [=] (double x, double y, double z)
         {
             const double a = z > 0.0 ? 1.0 : 0.0;
             const double b = z > 0.0 ? 0.0 : 1.0;
-            const double vx = vDrive * std::sin (2 * M_PI * y) * a;
-            const double vy = vDrive * std::cos (2 * M_PI * x) * b;
+            const double vx = veldr * std::sin (2 * M_PI * y) * a;
+            const double vy = veldr * std::cos (2 * M_PI * x) * b;
             return std::vector<double> {{vx, vy}};
         };
         auto single_ft = [=] (double x, double y, double z)
@@ -656,7 +657,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
             const double sgnz = SIGN(z);
             const double R = std::sqrt (x * x + y * y);
             const double k = 10.;
-            const double v = vDrive / k;
+            const double v = veldr / k;
             const double vf = v * 3 * k * std::pow (k * R, 2) * std::exp (-std::pow (k * R, 3)); // v-phi;
             const double vx = vf * (-y / R) * sgnz;
             const double vy = vf * ( x / R) * sgnz;
@@ -725,6 +726,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     bc->setMeshGeometry (mg);
     bc->setConservationLaw (cl);
     ct->setMeshSpacing (1.0 / int (user["N"]));
+    cl->setPressureFloor (1e-4);
 
     auto status    = SimulationStatus();
     auto L         = mo->linearCellDimension();
