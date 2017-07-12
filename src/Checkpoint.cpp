@@ -426,6 +426,10 @@ void CheckpointToVtkProgram::doFile (std::string filename) const
     {
         vtkMesh.addVectorField ("current", diagnostic.readArrays (currentJNames, 3));
     }
+    if (diagnostic.hasDataSet ("stream_function"))
+    {
+        vtkMesh.addScalarField ("stream_function", diagnostic.readArray ("stream_function"));
+    }
 
     vtkMesh.write (vtkStream);
 }

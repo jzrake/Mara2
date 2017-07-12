@@ -387,7 +387,8 @@ ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, cons
             S.healthFlag = 1;
             return S;
         }
-        State S;
+        auto S = State();
+        S.numFields = getNumConserved();
 
         for (int q = 0; q < getNumConserved(); ++q)
         {
@@ -469,7 +470,6 @@ ConservationLaw::State NewtonianMHD::fromPrimitive (const Request& request, cons
         S.F[8 + n] = 0.0;
         S.A[8 + n] = 0.0;
     }
-
     return S;
 }
 
@@ -557,7 +557,6 @@ std::vector<double> NewtonianMHD::makeDiagnostics (const State& state) const
     {
         D[17 + n] = state.U[8 + n];
     }
-
     return D;
 }
 
@@ -586,6 +585,5 @@ std::vector<std::string> NewtonianMHD::getDiagnosticNames() const
     {
         N[17 + n] = "auxiliary" + std::to_string (n + 1);
     }
-
     return N;
 }
