@@ -342,16 +342,27 @@ std::vector<std::string> NewtonianHydro::getDiagnosticNames() const
 
 
 // ============================================================================
-NewtonianMHD::NewtonianMHD (double coolingRate) : gammaLawIndex (5./3), pressureFloor (-1.0), coolingRate (coolingRate)
+NewtonianMHD::NewtonianMHD()
 {
-    if (coolingRate > 0.0)
-    {
-        numAuxiliary = 1;
-    }
-    else
-    {
-        numAuxiliary = 0;
-    }
+    setCoolingRate (-1.0);
+    setGammaLawIndex (5. / 3);
+    setPressureFloor (-1.0);
+}
+
+void NewtonianMHD::setCoolingRate (double cr)
+{
+    coolingRate = cr;
+    numAuxiliary = cr > 0.0 ? 1 : 0;
+}
+
+void NewtonianMHD::setGammaLawIndex (double gm)
+{
+    gammaLawIndex = gm;
+}
+
+void NewtonianMHD::setPressureFloor (double pf)
+{
+    pressureFloor = pf;
 }
 
 ConservationLaw::State NewtonianMHD::fromConserved (const Request& request, const double* U) const

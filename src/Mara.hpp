@@ -425,6 +425,7 @@ public:
 
     virtual void setPressureFloor (double) {}
     virtual void setGammaLawIndex (double) {}
+    virtual void setCoolingRate (double) {}
     virtual void setAdvectionSpeed (double, double, double) {}
 
     /**

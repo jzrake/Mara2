@@ -615,6 +615,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     user["veldr"]   = 0.2;
     user["cool"]    = -1.0;
     user["noise"]   = -1.0;
+    user["gamma"]   = 5. / 3;
 
     auto clineUser = Variant::fromCommandLine (argc, argv);
     auto chkptUser = Variant::NamedValues();
@@ -691,7 +692,11 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     auto cs = Shape {{ int (user["N"]), int (user["N"]), int (user["N"]) * int (user["aspect"]) }};
     auto bs = Shape {{ 2, 2, 2 }};
     auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
+    auto cl = std::make_shared<NewtonianMHD>();
 
+    cl->setPressureFloor (1e-4);
+    cl->setGammaLawIndex (double (user["gamma"]));
+    cl->setCoolingRate (double (user["cool"]));
     mg->setCellsShape (cs);
     mg->setLowerUpper ({{-0.5, -0.5, -0.5 * int (user["aspect"])}}, {{0.5, 0.5, 0.5 * int (user["aspect"])}});
 
@@ -702,13 +707,11 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
         mg = bd->decompose();
         bc = bd->createBoundaryCondition (bc);
     }
-
     tseries->setLogger (logger);
     scheduler->setLogger (logger);
 
     auto ss = std::make_shared<MethodOfLinesTVD>();
     auto mo = std::make_shared<MeshOperator>();
-    auto cl = std::make_shared<NewtonianMHD> (double (user["cool"]));
     auto fo = std::make_shared<FieldOperator>();
     auto ct = std::make_shared<CellCenteredFieldCT>();
     auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());
@@ -726,7 +729,6 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     bc->setMeshGeometry (mg);
     bc->setConservationLaw (cl);
     ct->setMeshSpacing (1.0 / int (user["N"]));
-    cl->setPressureFloor (1e-4);
 
     auto status    = SimulationStatus();
     auto L         = mo->linearCellDimension();

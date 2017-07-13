@@ -430,6 +430,9 @@ void CheckpointToVtkProgram::doFile (std::string filename) const
     {
         vtkMesh.addScalarField ("stream_function", diagnostic.readArray ("stream_function"));
     }
-
+    if (diagnostic.hasDataSet ("flux_function"))
+    {
+        vtkMesh.addScalarField ("flux_function", diagnostic.readArray ("flux_function"));
+    }
     vtkMesh.write (vtkStream);
 }

@@ -43,15 +43,18 @@ private:
 class NewtonianMHD : public ConservationLaw
 {
 public:
-    NewtonianMHD (double coolingRate=-1.0);
+    NewtonianMHD();
+
+    void setCoolingRate (double) override;
+    void setGammaLawIndex (double) override;
 
     /**
     When the pressure floor value is set to something positive, then
     negative pressures are dealt with by setting p = pressureFloor * density.
     By default no floor is used.
     */
-    void setPressureFloor (double floorValueToUse) override { pressureFloor = floorValueToUse; }
-    void setGammaLawIndex (double gm) override { gammaLawIndex = gm; }
+    void setPressureFloor (double) override;
+
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
     void addSourceTerms (const Cow::Array& P, Cow::Array& L) const override;
