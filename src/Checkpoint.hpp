@@ -8,6 +8,7 @@ class BlockDecomposition;
 
 
 
+
 class CheckpointWriter
 {
 public:
@@ -52,11 +53,14 @@ private:
 
 
 
+
 class CheckpointStitcherProgram : public SubProgram
 {
 public:
     int run (int argc, const char* argv[]) override;
 };
+
+
 
 
 class CheckpointToVtkProgram : public SubProgram

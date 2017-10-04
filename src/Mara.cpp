@@ -120,14 +120,15 @@ int main (int argc, const char* argv[])
 
     auto programs = std::map<std::string, std::unique_ptr<SubProgram>>();
 
-    programs["help"]        .reset (new HelpProgram);
-    programs["test"]        .reset (new UnitTestProgram);
-    programs["regress-1d"]  .reset (new Hydro1DTestProgram);
-    programs["regress-2d"]  .reset (new Hydro2DTestProgram);
-    programs["regress-mhd"] .reset (new NewtonianMHD2DTestProgram);
-    programs["braid"]       .reset (new MagneticBraidingProgram);
-    programs["stitch"]      .reset (new CheckpointStitcherProgram);
-    programs["tovtk"]       .reset (new CheckpointToVtkProgram);
+    programs["help"]        = std::make_unique<HelpProgram>();
+    programs["test"]        = std::make_unique<UnitTestProgram>();
+    programs["regress-1d"]  = std::make_unique<Hydro1DTestProgram>();
+    programs["regress-2d"]  = std::make_unique<Hydro2DTestProgram>();
+    programs["regress-mhd"] = std::make_unique<NewtonianMHD2DTestProgram>();
+    programs["braid"]       = std::make_unique<MagneticBraidingProgram>();
+    programs["pinch"]       = std::make_unique<UnstablePinchProgram>();
+    programs["stitch"]      = std::make_unique<CheckpointStitcherProgram>();
+    programs["tovtk"]       = std::make_unique<CheckpointToVtkProgram>();
 
     if (argc == 1)
     {

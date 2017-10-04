@@ -52,9 +52,9 @@ public:
         std::shared_ptr<BoundaryCondition> physicalBC) const;
 
     /**
-    Return a MeshGeometry::MeshGeometry object which corresponds to a patch in
-    the global mesh. The patch index is assumed to be the MPI rank of this
-    processes in the cartesian communicator.
+    Return a MeshGeometry object which corresponds to a patch in the global
+    mesh. The patch index is assumed to be the MPI rank of this processes in
+    the cartesian communicator.
     */
     std::shared_ptr<MeshGeometry> decompose() const;
 
