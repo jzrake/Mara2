@@ -79,6 +79,17 @@ public:
     Array::Reference getMagneticField (MeshLocation location, int flags=0);
 
     /**
+    Get the velocity field at the given location (must be cell).
+    */
+    Array::Reference getVelocityField (MeshLocation location, int flags=0);
+
+    /**
+    Get the electric field values at the given location (must be cell). The
+    velocity and magnetic field indexes must both be already set by the user.
+    */
+    Array getElectricField (MeshLocation location, int flags=0);
+
+    /**
     Return an array indicating the health of zones. 0 means no errors occured
     there.
     */

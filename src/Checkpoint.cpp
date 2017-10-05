@@ -404,6 +404,7 @@ void CheckpointToVtkProgram::doFile (std::string filename) const
 
     auto velocityNames = std::vector<std::string> {"velocity1", "velocity2", "velocity3"};
     auto magneticNames = std::vector<std::string> {"magnetic1", "magnetic2", "magnetic3"};
+    auto electricNames = std::vector<std::string> {"electric1", "electric2", "electric3"};
     auto currentJNames = std::vector<std::string> {"current1", "current2", "current3"};
 
     if (primitive.hasDataSet ("density"))
@@ -421,6 +422,10 @@ void CheckpointToVtkProgram::doFile (std::string filename) const
     if (primitive.hasDataSets (magneticNames))
     {
         vtkMesh.addVectorField ("magnetic", primitive.readArrays (magneticNames, 3));
+    }
+    if (diagnostic.hasDataSets (electricNames))
+    {
+        vtkMesh.addVectorField ("electric", diagnostic.readArrays (electricNames, 3));
     }
     if (diagnostic.hasDataSets (currentJNames))
     {

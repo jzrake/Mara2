@@ -85,6 +85,41 @@ Array::Reference MeshData::getMagneticField (MeshLocation location, int flags)
     }
 }
 
+Array::Reference MeshData::getVelocityField (MeshLocation location, int flags)
+{
+    if (velocityIndex == -1)
+    {
+        throw std::logic_error ("Attempt to retrieve non-existent velocity field data");
+    }
+
+    switch (location)
+    {
+        case MeshLocation::cell: return getPrimitiveVector (velocityIndex, flags);
+        default: throw std::logic_error ("Bad mesh location for velocity field data");
+    }
+}
+
+Array MeshData::getElectricField (MeshLocation location, int flags)
+{
+    Array V = getVelocityField (location, flags);
+    Array B = getMagneticField (location, flags);
+    Array E (V.shape());
+
+    E.shape3D().deploy ([&V, &B, &E] (int i, int j, int k)
+    {
+        const double vx = V(i, j, k, 0);
+        const double vy = V(i, j, k, 1);
+        const double vz = V(i, j, k, 2);
+        const double bx = B(i, j, k, 0);
+        const double by = B(i, j, k, 1);
+        const double bz = B(i, j, k, 2);
+        E(i, j, k, 0) = -(vy * bz - vz * by);
+        E(i, j, k, 1) = -(vz * bx - vx * bz);
+        E(i, j, k, 2) = -(vx * by - vy * bx);
+    });
+    return E;
+}
+
 Array::Reference MeshData::getZoneHealth (int flags)
 {
     return Z;

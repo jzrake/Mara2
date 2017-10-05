@@ -911,6 +911,7 @@ int UnstablePinchProgram::run (int argc, const char* argv[])
     ss->setDisableFieldCT (false);
     ss->setIntercellFluxScheme (fs);
     md->setMagneticIndex (cl->getIndexFor (ConservationLaw::VariableType::magnetic));
+    md->setVelocityIndex (cl->getIndexFor (ConservationLaw::VariableType::velocity));
     bc->setMeshGeometry (mg);
     bc->setConservationLaw (cl);
     ct->setMeshSpacing (1.0 / int (user["N"]));
@@ -932,15 +933,23 @@ int UnstablePinchProgram::run (int argc, const char* argv[])
     auto taskCheckpoint = [&] (SimulationStatus, int rep)
     {
         auto Bcell = md->getMagneticField (MeshLocation::cell, MeshData::includeGuard);
+        auto Ecell = md->getElectricField (MeshLocation::cell, MeshData::includeGuard);
         auto Mcell = ct->monopole (Bcell, MeshLocation::cell);
         auto Jcell = ct->current (Bcell, MeshLocation::cell);
 
-        md->allocateDiagnostics ({ "monopole", "current1", "current2", "current3" });
-        md->assignDiagnostic (Mcell, 0, MeshData::includeGuard);
-        md->assignDiagnostic (Jcell[Region().withRange (3, 0, 1)], 1, MeshData::includeGuard);
-        md->assignDiagnostic (Jcell[Region().withRange (3, 1, 2)], 2, MeshData::includeGuard);
-        md->assignDiagnostic (Jcell[Region().withRange (3, 2, 3)], 3, MeshData::includeGuard);
+        int n = 0;
+        md->allocateDiagnostics ({
+            "monopole",
+            //"current1", "current2", "current3",
+            "electric1", "electric2", "electric3" });
 
+        md->assignDiagnostic (Mcell, n++, MeshData::includeGuard);
+        // md->assignDiagnostic (Jcell[Region().withRange (3, 0, 1)], n++, MeshData::includeGuard);
+        // md->assignDiagnostic (Jcell[Region().withRange (3, 1, 2)], n++, MeshData::includeGuard);
+        // md->assignDiagnostic (Jcell[Region().withRange (3, 2, 3)], n++, MeshData::includeGuard);
+        md->assignDiagnostic (Ecell[Region().withRange (3, 0, 1)], n++, MeshData::includeGuard);
+        md->assignDiagnostic (Ecell[Region().withRange (3, 1, 2)], n++, MeshData::includeGuard);
+        md->assignDiagnostic (Ecell[Region().withRange (3, 2, 3)], n++, MeshData::includeGuard);
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     };
 
