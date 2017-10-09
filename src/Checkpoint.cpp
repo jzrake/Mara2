@@ -298,7 +298,7 @@ int CheckpointStitcherProgram::run (int argc, const char* argv[])
         // chunks.
         if (name != "global_shape" && name != "patch_lower")
         {
-            chunk.getGroup("mesh").copy (name, meshGroup);
+            chunk.getGroup ("mesh").copy (name, meshGroup);
         }
     });
 

@@ -375,9 +375,9 @@ SCENARIO ("Rotation matrices should behave appropriately with unit vectors", "[U
 {
     GIVEN ("The unit vector zhat")
     {
-        UnitVector xhat = UnitVector::fromCartesian (1, 0, 0);
-        UnitVector yhat = UnitVector::fromCartesian (0, 1, 0);
-        UnitVector zhat = UnitVector::fromCartesian (0, 0, 1);
+        UnitVector xhat = UnitVector::normalizeFrom (1, 0, 0);
+        UnitVector yhat = UnitVector::normalizeFrom (0, 1, 0);
+        UnitVector zhat = UnitVector::normalizeFrom (0, 0, 1);
 
         THEN ("Y (pi / 2) zhat = xhat")
         {
@@ -608,6 +608,74 @@ SCENARIO ("Mara session should launch if given minimal setup", "[Session]")
     session.getLogger()->setLogToNull();
     CHECK (session.launch (setup).simulationIter == 1);
 }
+
+
+
+
+// ============================================================================
+SCENARIO ("Relativistic MHD class produces reasonable results", "[ConservationLaws]")
+{
+    auto nrmhd = NewtonianMHD();
+    auto srmhd = RelativisticMHD();
+    ConservationLaw::Request R;
+
+    GIVEN ("A state with cs << c and B=0")
+    {
+        double P[8] = {1., 0., 0., 0., 1e-6, 0., 0., 0.};
+
+        WHEN ("The eigenvalues from Newtonian and relativistic MHD are compared")
+        {
+            THEN ("They are approximately equal")
+            {
+                for (int d = 0; d < 3; ++d)
+                {
+                    R.areaElement[0] = 0;
+                    R.areaElement[1] = 0;
+                    R.areaElement[2] = 0;
+                    R.areaElement[d] = 1;
+
+                    auto S1 = nrmhd.fromPrimitive (R, P);
+                    auto S2 = srmhd.fromPrimitive (R, P);
+
+                    for (int i = 0; i < 8; ++i)
+                    {
+                        CHECK (S1.A[i] == Approx (S2.A[i]));
+                    }
+                }
+            }
+        }
+    }
+    GIVEN ("A state with cs << c, v << c, and B << rho c^2")
+    {
+        double P[8] = {1., 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6};
+
+        WHEN ("The eigenvalues from Newtonian and relativistic MHD are compared")
+        {
+            auto S1 = nrmhd.fromPrimitive (R, P);
+            auto S2 = srmhd.fromPrimitive (R, P);
+
+            THEN ("They are approximately equal")
+            {
+                for (int d = 0; d < 3; ++d)
+                {
+                    R.areaElement[0] = 0;
+                    R.areaElement[1] = 0;
+                    R.areaElement[2] = 0;
+                    R.areaElement[d] = 1;
+
+                    auto S1 = nrmhd.fromPrimitive (R, P);
+                    auto S2 = srmhd.fromPrimitive (R, P);
+
+                    for (int i = 0; i < 8; ++i)
+                    {
+                        CHECK (S1.A[i] == Approx (S2.A[i]));
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 
 

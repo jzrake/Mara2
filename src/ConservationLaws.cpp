@@ -598,3 +598,222 @@ std::vector<std::string> NewtonianMHD::getDiagnosticNames() const
     }
     return N;
 }
+
+
+
+// ============================================================================
+#include "QuarticPolynomial.hpp"
+
+RelativisticMHD::RelativisticMHD()
+{
+    setGammaLawIndex (5. / 3);
+    setPressureFloor (-1.0);
+}
+
+void RelativisticMHD::setGammaLawIndex (double gm)
+{
+    gammaLawIndex = gm;
+}
+
+void RelativisticMHD::setPressureFloor (double pf)
+{
+    pressureFloor = pf;
+}
+
+ConservationLaw::State RelativisticMHD::fromConserved (const Request& request, const double* U) const
+{
+    const double gm1 = gammaLawIndex - 1.0;
+    const double pp = U[S11] * U[S11] + U[S22] * U[S22] + U[S33] * U[S33];
+    const double BB = U[H11] * U[H11] + U[H22] * U[H22] + U[H33] * U[H33];
+    double P[MARA_NUM_FIELDS];
+
+    P[RHO] =  U[DDD];
+    P[PRE] = (U[NRG] - 0.5 * pp / U[DDD] - 0.5 * BB) * gm1;
+    P[V11] =  U[S11] / U[DDD];
+    P[V22] =  U[S22] / U[DDD];
+    P[V33] =  U[S33] / U[DDD];
+    P[B11] =  U[H11];
+    P[B22] =  U[H22];
+    P[B33] =  U[H33];
+
+
+    // ------------------------------------------------------------------------
+    // Bad state detection
+    // ------------------------------------------------------------------------
+    if (P[PRE] < 0.0 || P[RHO] < 0.0 || U[DDD] < 0.0 || U[NRG] < 0.0)
+    {
+        if (P[PRE] < 0.0 && pressureFloor > 0.0)
+        {
+            P[PRE] = pressureFloor * P[RHO];
+            auto S = fromPrimitive (request, P);
+            S.healthFlag = 1;
+            return S;
+        }
+        auto S = State();
+        S.numFields = getNumConserved();
+
+        for (int q = 0; q < getNumConserved(); ++q)
+        {
+            S.U[q] = U[q];
+            S.P[q] = P[q];
+        }
+        throw ConservationLaw::StateFailure (S);
+    }
+    return fromPrimitive (request, P);
+}
+
+ConservationLaw::State RelativisticMHD::fromPrimitive (const Request& request, const double* P) const
+{
+    const auto dAA = request.areaElement;
+    const double gm0 = gammaLawIndex;
+    const double gm1 = gammaLawIndex - 1.0;
+    const double vv = P[V11] * P[V11] + P[V22] * P[V22] + P[V33] * P[V33];
+    const double BB = P[B11] * P[B11] + P[B22] * P[B22] + P[B33] * P[B33];
+    const double Bv = P[B11] * P[V11] + P[B22] * P[V22] + P[B33] * P[V33];
+    const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
+    const double Bn = P[B11] * dAA[0] + P[B22] * dAA[1] + P[B33] * dAA[2];
+    const double W2 = 1.0 / (1.0 - vv);
+    const double W0 = std::sqrt (W2);
+    const double b0 = W0 * Bv;
+    const double bb = (BB + b0 * b0) / W2;
+    const double b1 = (P[B11] + b0 * W0 * P[V11]) / W0;
+    const double b2 = (P[B22] + b0 * W0 * P[V22]) / W0;
+    const double b3 = (P[B33] + b0 * W0 * P[V33]) / W0;
+    const double bn = b1 * dAA[0] + b2 * dAA[1] + b3 * dAA[2];
+    const double e0 = (P[PRE] / P[RHO]) / gm1;
+    const double es = e0     + 0.5 * bb / P[RHO];
+    const double p0 = P[PRE];
+    const double ps = p0 + 0.5 * bb;
+    const double h0 = 1.0 + e0 + p0 / P[RHO];
+    const double hs = 1.0 + es + ps / P[RHO];
+
+    auto S = State();
+    S.numFields = getNumConserved();
+
+
+    /**
+    Primitive
+    ---------------------------------------------------------------------------
+    */
+    S.P[RHO] = P[RHO];
+    S.P[V11] = P[V11];
+    S.P[V22] = P[V22];
+    S.P[V33] = P[V33];
+    S.P[PRE] = P[PRE];
+    S.P[B11] = P[B11];
+    S.P[B22] = P[B22];
+    S.P[B33] = P[B33];
+
+
+    /**
+    Conserved
+    ---------------------------------------------------------------------------
+    */
+    S.U[DDD] = P[RHO] * W0;
+    S.U[NRG] = P[RHO] * hs * W2 - ps     - b0 * b0 - S.U[DDD];
+    S.U[S11] = P[RHO] * hs * W2 * P[V11] - b0 * b1;
+    S.U[S22] = P[RHO] * hs * W2 * P[V22] - b0 * b2;
+    S.U[S33] = P[RHO] * hs * W2 * P[V33] - b0 * b3;
+    S.U[H11] = P[B11];
+    S.U[H22] = P[B22];
+    S.U[H33] = P[B33];
+
+
+    /**
+    Fluxes
+    ---------------------------------------------------------------------------
+    */
+    S.F[DDD] = vn * S.U[DDD];
+    S.F[S11] = vn * S.U[S11] - Bn * b1 / W0 + ps * dAA[0];
+    S.F[S22] = vn * S.U[S22] - Bn * b2 / W0 + ps * dAA[1];
+    S.F[S33] = vn * S.U[S33] - Bn * b3 / W0 + ps * dAA[2];
+    S.F[NRG] = vn * S.U[NRG] - Bn * b0 / W0 + ps * vn;
+    S.F[H11] = vn * S.U[H11] - Bn * P[V11];
+    S.F[H22] = vn * S.U[H22] - Bn * P[V22];
+    S.F[H33] = vn * S.U[H33] - Bn * P[V33];
+
+
+    /**
+    Eigenvalues
+    ---------------------------------------------------------------------------
+    */
+    const double cs2 = gm0 * p0 / (P[RHO] * h0);
+    const double W4 = W2 * W2;
+    const double v2 = vn * vn;
+    const double v3 = vn * v2;
+    const double v4 = vn * v3;
+    const double K  =  W4 * (P[RHO] * h0 * (1. / cs2 - 1.));
+    const double L  = -W2 * (P[RHO] * h0 + bb / cs2);
+    const double A4 =      K      - L             -     b0 * b0;
+    const double A3 = -4 * K * vn + L * vn * 2    + 2 * b0 * bn;
+    const double A2 =  6 * K * v2 + L * (1. - v2) +     b0 * b0 - bn * bn;
+    const double A1 = -4 * K * v3 - L * vn * 2    - 2 * b0 * bn;
+    const double A0 =      K * v4 + L * v2        +     bn * bn;
+
+    QuarticPolynomial quartic (A4,A3,A2,A1,A0);
+    double roots[4];
+    int nr = quartic.solve (roots);
+    const double C = std::sqrt (h0 + bb); /* constant in Alfven wave expression */
+
+    if (nr == 4)
+    {
+        S.A[0] = roots[0];
+        S.A[1] = (bn - C * vn * W0) / (b0 - C * W0);
+        S.A[2] = roots[1];
+        S.A[3] = vn;
+        S.A[4] = vn;
+        S.A[5] = roots[2];
+        S.A[6] = (bn + C * vn * W0) / (b0 + C * W0);
+        S.A[7] = roots[3];
+    }
+    return S;
+}
+
+void RelativisticMHD::addSourceTerms (const Cow::Array& P, Cow::Array& L) const
+{
+}
+
+int RelativisticMHD::getNumConserved() const
+{
+    return 8;
+}
+
+int RelativisticMHD::getIndexFor (VariableType type) const
+{
+    switch (type)
+    {
+        case VariableType::density: return 0;
+        case VariableType::velocity: return 1;
+        case VariableType::pressure: return 4;
+        case VariableType::magnetic: return 5;
+        default: return -1;
+    }
+}
+
+std::string RelativisticMHD::getPrimitiveName (int fieldIndex) const
+{
+    switch (fieldIndex)
+    {
+        case RHO: return "density";
+        case V11: return "velocity1";
+        case V22: return "velocity2";
+        case V33: return "velocity3";
+        case PRE: return "pressure";
+        case B11: return "magnetic1";
+        case B22: return "magnetic2";
+        case B33: return "magnetic3";
+        default: throw std::logic_error ("Invalid field index");
+    }
+}
+
+std::vector<double> RelativisticMHD::makeDiagnostics (const State& state) const
+{
+    auto D = std::vector<double> ();
+    return D;
+}
+
+std::vector<std::string> RelativisticMHD::getDiagnosticNames() const
+{
+    auto N = std::vector<std::string>();
+    return N;
+}

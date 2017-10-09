@@ -10,7 +10,7 @@ UnitVector UnitVector::xhat (0, 0);
 UnitVector UnitVector::yhat (0, M_PI / 2);
 UnitVector UnitVector::zhat (1, 0);
 
-UnitVector UnitVector::fromCartesian (double vx, double vy, double vz, bool normalized)
+UnitVector UnitVector::normalizeFrom (double vx, double vy, double vz, bool normalized)
 {
     double cosTheta = vz / (normalized ? 1 : std::sqrt (vx * vx + vy * vy + vz * vz));
     double phi = std::atan2 (vy, vx);

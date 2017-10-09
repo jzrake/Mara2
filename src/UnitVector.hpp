@@ -21,7 +21,7 @@ public:
     coordinates. If normalized in true, then this function assumes that (vx,
     vy, vz) is on the unit sphere.
     */
-    static UnitVector fromCartesian (double vx, double vy, double vz, bool normalized=false);
+    static UnitVector normalizeFrom (double vx, double vy, double vz, bool normalized=false);
 
     /**
     Default constructor initializes as x-hat.

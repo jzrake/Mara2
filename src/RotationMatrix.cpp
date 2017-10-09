@@ -40,5 +40,5 @@ UnitVector RotationMatrix::operator* (const UnitVector& nhat)
 {
     double n[3]; nhat.getCartesianComponents (n[0], n[1], n[2]);
     double v[3] = { DOT (M[0], n), DOT (M[1], n), DOT (M[2], n) };
-    return UnitVector::fromCartesian (v[0], v[1], v[2], true);
+    return UnitVector::normalizeFrom (v[0], v[1], v[2], true);
 }

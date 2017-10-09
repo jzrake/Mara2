@@ -803,7 +803,12 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
     status.totalCellsInMesh = mg->totalCellsInMesh();
 
 
-    if (user["restart"].empty())
+    if (! user["restart"].empty())
+    {
+        writer->readCheckpoint (user["restart"], status, *cl, *md, *logger);
+        scheduler->skipNext ("checkpoint");
+    }
+    else
     {
         auto initialData = [&] (double, double, double) -> std::vector<double>
         {
@@ -821,11 +826,6 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
             return withoutAux;
         };
         md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
-    }
-    else
-    {
-        writer->readCheckpoint (user["restart"], status, *cl, *md, *logger);
-        scheduler->skipNext ("checkpoint");
     }
     md->applyBoundaryCondition (*bc);
     taskRecomputeDt (status, 0);
@@ -940,13 +940,9 @@ int UnstablePinchProgram::run (int argc, const char* argv[])
         int n = 0;
         md->allocateDiagnostics ({
             "monopole",
-            //"current1", "current2", "current3",
             "electric1", "electric2", "electric3" });
 
         md->assignDiagnostic (Mcell, n++, MeshData::includeGuard);
-        // md->assignDiagnostic (Jcell[Region().withRange (3, 0, 1)], n++, MeshData::includeGuard);
-        // md->assignDiagnostic (Jcell[Region().withRange (3, 1, 2)], n++, MeshData::includeGuard);
-        // md->assignDiagnostic (Jcell[Region().withRange (3, 2, 3)], n++, MeshData::includeGuard);
         md->assignDiagnostic (Ecell[Region().withRange (3, 0, 1)], n++, MeshData::includeGuard);
         md->assignDiagnostic (Ecell[Region().withRange (3, 1, 2)], n++, MeshData::includeGuard);
         md->assignDiagnostic (Ecell[Region().withRange (3, 2, 3)], n++, MeshData::includeGuard);
@@ -997,7 +993,12 @@ int UnstablePinchProgram::run (int argc, const char* argv[])
     status.totalCellsInMesh = mg->totalCellsInMesh();
 
 
-    if (user["restart"].empty())
+    if (! user["restart"].empty())
+    {
+        writer->readCheckpoint (user["restart"], status, *cl, *md, *logger);
+        scheduler->skipNext ("checkpoint");
+    }
+    else
     {
         auto initialData = [&] (double x, double y, double) -> std::vector<double>
         {
@@ -1016,14 +1017,8 @@ int UnstablePinchProgram::run (int argc, const char* argv[])
         };
         md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
     }
-    else
-    {
-        writer->readCheckpoint (user["restart"], status, *cl, *md, *logger);
-        scheduler->skipNext ("checkpoint");
-    }
     md->applyBoundaryCondition (*bc);
     taskRecomputeDt (status, 0);
-
 
     logger->log() << std::endl << user << std::endl;
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  
