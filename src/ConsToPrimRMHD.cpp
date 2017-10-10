@@ -48,7 +48,7 @@ ConsToPrimRMHD::ConsToPrimRMHD()
     smlW = 1.0;
     Iterations = 0;
     AppliedPressureFloor = 0;
-    AdiabaticGamma = 1.4;
+    AdiabaticGamma = 4. / 3;
     PressureFloor = -1.0;
 }
 
@@ -57,32 +57,24 @@ int ConsToPrimRMHD::did_use_pressure_floor()
     return AppliedPressureFloor;
 }
 
-// Set method for the adiabatic index (defaults to 1.4)
-// -----------------------------------------------------------------------------
-void ConsToPrimRMHD::set_gamma(double adiabatic_gamma)
+void ConsToPrimRMHD::set_gamma (double adiabatic_gamma)
 {
     AdiabaticGamma = adiabatic_gamma;
     gamf = (AdiabaticGamma - 1.0) / AdiabaticGamma;
 }
 
-// Get method for the iterations on the last execution
-// -----------------------------------------------------------------------------
 int ConsToPrimRMHD::get_iterations()
 {
     return Iterations;
 }
 
-int ConsToPrimRMHD::set_pressure_floor(double pf)
+int ConsToPrimRMHD::set_pressure_floor (double pf)
 {
     PressureFloor = pf;
     return pf < 0.0;
 }
 
-// Provide a new conserved state in memory. Before the solver is executed, the
-// user must provide a guess for the initial primitive state, by calling either
-// estimate_from_cons() or set_starting_prim(P).
-// -----------------------------------------------------------------------------
-void ConsToPrimRMHD::new_state(const double *U)
+void ConsToPrimRMHD::new_state (const double *U)
 {
     D    = U[ddd];
     Tau  = U[tau];
@@ -90,15 +82,13 @@ void ConsToPrimRMHD::new_state(const double *U)
     B2   = U[Bx]*U[Bx] + U[By]*U[By] + U[Bz]*U[Bz];
     BS   = U[Bx]*U[Sx] + U[By]*U[Sy] + U[Bz]*U[Sz];
     BS2  = BS * BS;
-    memcpy(Cons, U, 8*sizeof(double));
+    std::memcpy (Cons, U, 8*sizeof(double));
 }
 
-// This estimate becomes exact for no magnetic field in the NR limit.
-// -----------------------------------------------------------------------------
 void ConsToPrimRMHD::estimate_from_cons()
 {
-  Z_start = std::sqrt (S2 + D*D);
-  W_start = Z_start / D;
+    Z_start = std::sqrt (S2 + D*D);
+    W_start = Z_start / D;
 }
 
 void ConsToPrimRMHD::get_starting_prim (double *P)
@@ -106,21 +96,17 @@ void ConsToPrimRMHD::get_starting_prim (double *P)
     reconstruct_prim (Z_start, W_start, P);
 }
 
-// Explicitly provide a guess to be used at the initial iteration.
-// -----------------------------------------------------------------------------
 void ConsToPrimRMHD::set_starting_prim (const double *P)
 {
-  const double V2 = P[vx]*P[vx] + P[vy]*P[vy] + P[vz]*P[vz];
-  const double W2 = 1.0 / (1.0 - V2);
-  const double e = P[pre] / (P[rho] * (AdiabaticGamma - 1.0));
-  const double h = 1.0 + e + P[pre] / P[rho];
+    const double V2 = P[vx]*P[vx] + P[vy]*P[vy] + P[vz]*P[vz];
+    const double W2 = 1.0 / (1.0 - V2);
+    const double e = P[pre] / (P[rho] * (AdiabaticGamma - 1.0));
+    const double h = 1.0 + e + P[pre] / P[rho];
 
-  Z_start = P[rho] * h * W2;
-  W_start = std::sqrt (W2);
+    Z_start = P[rho] * h * W2;
+    W_start = std::sqrt (W2);
 }
 
-// Using Z=rho*h*W^2, and W, get the primitive variables.
-// -----------------------------------------------------------------------------
 int ConsToPrimRMHD::reconstruct_prim (double Z, double W, double *Pout)
 {
     double P[8]; // Place result into temporary prim state for now.
@@ -140,6 +126,10 @@ int ConsToPrimRMHD::reconstruct_prim (double Z, double W, double *Pout)
         P[pre] = PressureFloor;
         AppliedPressureFloor = 1;
     }
+    else
+    {
+        AppliedPressureFloor = 0;
+    }
     int error = check_prim(P);
 
     if (error)
@@ -150,13 +140,11 @@ int ConsToPrimRMHD::reconstruct_prim (double Z, double W, double *Pout)
     // Don't actually modify the user's prim state until we're sure the state
     // is good.
     // ------------------------------------------------------------------------
-    std::memcpy (Pout, P, 8*sizeof(double));
+    std::memcpy (Pout, P, 8 * sizeof (double));
     return SRMHD_C2P_SUCCESS;
 }
 
-// Routines to verify the health of conserved or primitive states
-// -----------------------------------------------------------------------------
-int ConsToPrimRMHD::check_cons(const double *U)
+int ConsToPrimRMHD::check_cons (const double *U)
 {
     int i;
 
@@ -173,7 +161,7 @@ int ConsToPrimRMHD::check_cons(const double *U)
     return SRMHD_C2P_SUCCESS;
 }
 
-int ConsToPrimRMHD::check_prim(const double *P)
+int ConsToPrimRMHD::check_prim (const double *P)
 {
     int i;
     const double v2 = P[vx]*P[vx] + P[vy]*P[vy] + P[vz]*P[vz];
@@ -192,11 +180,9 @@ int ConsToPrimRMHD::check_prim(const double *P)
   return SRMHD_C2P_SUCCESS;
 }
 
-// Solution based on Anton & Zanotti (2006), equations 84 and 85.
-// -----------------------------------------------------------------------------
-int ConsToPrimRMHD::solve_anton2dzw(double *P)
+int ConsToPrimRMHD::solve_anton2dzw (double *P)
 {
-    if (int bad_input = check_cons(Cons))
+    if (int bad_input = check_cons (Cons))
     {
         return bad_input;
     }
@@ -211,7 +197,6 @@ int ConsToPrimRMHD::solve_anton2dzw(double *P)
 
     while (error > Tolerance)
     {
-
         const double Z2 = Z*Z;
         const double Z3 = Z*Z2;
         const double W2 = W*W;
@@ -269,15 +254,9 @@ int ConsToPrimRMHD::solve_anton2dzw(double *P)
     return reconstruct_prim (Z, W, P);
 }
 
-
-// Solution based on Noble et. al. (2006), using Z = rho h W^2 as the single
-// unkown. Unfortunately, Noble uses 'W' for what I call Z. This function should
-// really be called '1dz', but I use this name to reflect the name of the
-// section in which it appears.
-// -----------------------------------------------------------------------------
-int ConsToPrimRMHD::solve_noble1dw(double *P)
+int ConsToPrimRMHD::solve_noble1dw (double *P)
 {
-    if (int bad_input = check_cons(Cons))
+    if (int bad_input = check_cons (Cons))
     {
         return bad_input;
     }
@@ -323,7 +302,7 @@ int ConsToPrimRMHD::solve_noble1dw(double *P)
 
         Z = Z_new;
 
-        error = std::fabs (dZ/Z);
+        error = std::fabs (dZ / Z);
         ++Iterations;
 
         if (Iterations == MaxIterations)
@@ -343,7 +322,7 @@ int ConsToPrimRMHD::solve_noble1dw(double *P)
     return reconstruct_prim (Z, W, P);
 }
 
-const char *ConsToPrimRMHD::get_error(int error)
+const char *ConsToPrimRMHD::get_error (int error)
 {
   switch (error) {
       case SRMHD_C2P_SUCCESS:

@@ -1,7 +1,6 @@
-#ifndef EulerEquation_hpp
-#define EulerEquation_hpp
-
+#pragma once
 #include "Mara.hpp"
+#include "ConsToPrimRMHD.hpp"
 
 
 
@@ -22,6 +21,7 @@ private:
 
 
 
+
 class NewtonianHydro : public ConservationLaw
 {
 public:
@@ -37,6 +37,7 @@ public:
 private:
     double gammaLawIndex;
 };
+
 
 
 
@@ -72,6 +73,7 @@ private:
 
 
 
+
 class RelativisticMHD : public ConservationLaw
 {
 public:
@@ -94,7 +96,8 @@ public:
     std::vector<double> makeDiagnostics (const State& state) const override;
     std::vector<std::string> getDiagnosticNames() const override;
 private:
+    mutable ConsToPrimRMHD solver;
     double gammaLawIndex;
     double pressureFloor;
 };
-#endif
+

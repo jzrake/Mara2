@@ -644,6 +644,17 @@ SCENARIO ("Relativistic MHD class produces reasonable results", "[ConservationLa
                 }
             }
         }
+
+        WHEN ("We try to convert from prim to cons and back again")
+        {
+            auto S1 = srmhd.fromPrimitive (R, P);
+            auto S2 = srmhd.fromConserved (R, S1.U.begin());
+
+            for (int i = 0; i < 8; ++i)
+            {
+               CHECK (P[i] == Approx (S2.P[i]));
+            }
+        }
     }
     GIVEN ("A state with cs << c, v << c, and B << rho c^2")
     {
@@ -673,9 +684,33 @@ SCENARIO ("Relativistic MHD class produces reasonable results", "[ConservationLa
                 }
             }
         }
+        WHEN ("We try to convert from prim to cons and back again")
+        {
+            auto S1 = srmhd.fromPrimitive (R, P);
+            auto S2 = srmhd.fromConserved (R, S1.U.begin());
+
+            for (int i = 0; i < 8; ++i)
+            {
+               CHECK (P[i] == Approx (S2.P[i]).epsilon (1e-12));
+            }
+        }
+    }
+    GIVEN ("An state with cs ~ c, v ~ c, and B ~ rho c^2")
+    {
+        double P[8] = {1., 0.5, 0.4, 0.3, 1, 1, 1, 1};
+
+        WHEN ("We try to convert from prim to cons and back again")
+        {
+            auto S1 = srmhd.fromPrimitive (R, P);
+            auto S2 = srmhd.fromConserved (R, S1.U.begin());
+
+            for (int i = 0; i < 8; ++i)
+            {
+               CHECK (P[i] == Approx (S2.P[i]).epsilon (1e-12));
+            }
+        }
     }
 }
-
 
 
 

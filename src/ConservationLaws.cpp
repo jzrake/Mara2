@@ -613,51 +613,24 @@ RelativisticMHD::RelativisticMHD()
 void RelativisticMHD::setGammaLawIndex (double gm)
 {
     gammaLawIndex = gm;
+    solver.set_gamma (gm);
 }
 
 void RelativisticMHD::setPressureFloor (double pf)
 {
     pressureFloor = pf;
+    solver.set_pressure_floor (pf);
 }
 
 ConservationLaw::State RelativisticMHD::fromConserved (const Request& request, const double* U) const
 {
-    const double gm1 = gammaLawIndex - 1.0;
-    const double pp = U[S11] * U[S11] + U[S22] * U[S22] + U[S33] * U[S33];
-    const double BB = U[H11] * U[H11] + U[H22] * U[H22] + U[H33] * U[H33];
     double P[MARA_NUM_FIELDS];
+    solver.new_state(U);
+    solver.estimate_from_cons();
 
-    P[RHO] =  U[DDD];
-    P[PRE] = (U[NRG] - 0.5 * pp / U[DDD] - 0.5 * BB) * gm1;
-    P[V11] =  U[S11] / U[DDD];
-    P[V22] =  U[S22] / U[DDD];
-    P[V33] =  U[S33] / U[DDD];
-    P[B11] =  U[H11];
-    P[B22] =  U[H22];
-    P[B33] =  U[H33];
-
-
-    // ------------------------------------------------------------------------
-    // Bad state detection
-    // ------------------------------------------------------------------------
-    if (P[PRE] < 0.0 || P[RHO] < 0.0 || U[DDD] < 0.0 || U[NRG] < 0.0)
+    if (int error = solver.solve_anton2dzw(P))
     {
-        if (P[PRE] < 0.0 && pressureFloor > 0.0)
-        {
-            P[PRE] = pressureFloor * P[RHO];
-            auto S = fromPrimitive (request, P);
-            S.healthFlag = 1;
-            return S;
-        }
-        auto S = State();
-        S.numFields = getNumConserved();
-
-        for (int q = 0; q < getNumConserved(); ++q)
-        {
-            S.U[q] = U[q];
-            S.P[q] = P[q];
-        }
-        throw ConservationLaw::StateFailure (S);
+        throw std::runtime_error (solver.get_error (error));
     }
     return fromPrimitive (request, P);
 }
