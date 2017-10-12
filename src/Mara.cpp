@@ -124,6 +124,7 @@ int main (int argc, const char* argv[])
     programs["test"]        = std::make_unique<UnitTestProgram>();
     programs["regress-1d"]  = std::make_unique<Hydro1DTestProgram>();
     programs["regress-2d"]  = std::make_unique<Hydro2DTestProgram>();
+    programs["regress-rel"] = std::make_unique<Relativistic1DTestProgram>();
     programs["regress-mhd"] = std::make_unique<NewtonianMHD2DTestProgram>();
     programs["braid"]       = std::make_unique<MagneticBraidingProgram>();
     programs["pinch"]       = std::make_unique<UnstablePinchProgram>();

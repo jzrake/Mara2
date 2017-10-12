@@ -258,6 +258,132 @@ void Hydro1DTestProgram::runProblem (const Problem& problem, const Scheme& schem
 
 
 // ============================================================================
+struct Relativistic1DTestProgram::Problem
+{
+    std::string name;
+    double finalTime;
+    std::shared_ptr<BoundaryCondition> bc;
+    InitialDataFunction idf;
+    static std::vector<Problem> get();
+};
+
+std::vector<Relativistic1DTestProgram::Problem> Relativistic1DTestProgram::Problem::get()
+{
+    auto Shocktube1 = [&] (double x, double, double)
+    {
+        auto S1 = std::vector<double> {1.000, 0.0, 0.0, 0.0, 1.0, 0, 0, 0};
+        auto S2 = std::vector<double> {0.125, 0.0, 0.0, 0.0, 0.1, 0, 0, 0};
+        return x < 0.5 ? S1 : S2;
+    };
+    auto periodic = std::make_shared<PeriodicBoundaryCondition>();
+    auto outflow  = std::make_shared<OutflowBoundaryCondition>();
+    auto problems = std::vector<Relativistic1DTestProgram::Problem>();
+    problems.push_back ({ "RelativisticShocktube1", 0.15, outflow, Shocktube1 });
+    return problems;
+}
+
+
+
+
+// ============================================================================
+struct Relativistic1DTestProgram::Scheme
+{
+    std::string name;
+    std::shared_ptr<SolutionScheme> ss;
+    static std::vector<Scheme> get();
+};
+
+std::vector<Relativistic1DTestProgram::Scheme> Relativistic1DTestProgram::Scheme::get()
+{
+    auto schemes = std::vector<Scheme>();
+    auto pcm2 = std::make_shared<MethodOfLinesTVD>();
+    auto plm2 = std::make_shared<MethodOfLinesTVD>();
+
+    pcm2->setIntercellFluxScheme (std::make_shared<MethodOfLines>());
+    plm2->setIntercellFluxScheme (std::make_shared<MethodOfLinesPlm>());
+    pcm2->setRungeKuttaOrder(2);
+    plm2->setRungeKuttaOrder(2);
+
+    schemes.push_back ({ "pcm2", pcm2 });
+    schemes.push_back ({ "plm2", plm2 });
+
+    return schemes;
+}
+
+
+
+
+// ============================================================================
+int Relativistic1DTestProgram::run (int argc, const char* argv[])
+{
+    for (const auto& problem : Problem::get())
+    {
+        for (const auto& scheme : Scheme::get())
+        {
+            runProblem (problem, scheme);
+        }
+    }
+    return 0;
+}
+
+void Relativistic1DTestProgram::runProblem (const Problem& problem, const Scheme& scheme)
+{
+    auto cs = Shape {{128, 1, 1 }}; // cells shape
+    auto bs = Shape {{  2, 0, 0 }};
+    auto ss = scheme.ss;
+    auto bc = problem.bc;
+    auto mg = std::make_shared<CartesianMeshGeometry>();
+    auto mo = std::make_shared<MeshOperator>();
+    auto cl = std::make_shared<RelativisticMHD>();
+    auto fo = std::make_shared<FieldOperator>();
+    auto md = std::make_shared<MeshData> (cs, bs, 8);
+
+    mg->setCellsShape (cs);
+    fo->setConservationLaw (cl);
+    mo->setMeshGeometry (mg);
+    ss->setFieldOperator (fo);
+    ss->setMeshOperator (mo);
+    ss->setBoundaryCondition (bc);
+
+    auto status = SimulationStatus();
+    auto cflParameter = 0.25;
+    auto L = mo->linearCellDimension();
+    auto P = md->getPrimitive();
+
+    auto timestep  = [&] ()
+    {
+        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+        const double dt2 = problem.finalTime - status.simulationTime;
+        return dt1 < dt2 ? dt1 : dt2;
+    };
+    auto condition = [&] () { return status.simulationTime < problem.finalTime; };
+    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+    auto scheduler = std::make_shared<TaskScheduler>();
+    auto logger    = std::make_shared<Logger>();
+    auto writer    = std::make_shared<CheckpointWriter>();
+
+    writer->setFilenamePrefix (problem.name + "-" + scheme.name);
+    writer->setMeshDecomposition (nullptr);
+    writer->setTimeSeriesManager (nullptr);
+
+    scheduler->schedule ([&] (SimulationStatus, int rep)
+    {
+        writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+    }, TaskScheduler::Recurrence (problem.finalTime));
+
+    status = SimulationStatus();
+    status.totalCellsInMesh = mg->totalCellsInMesh();
+
+    md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
+    md->applyBoundaryCondition (*bc);
+
+    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   
+}
+
+
+
+
+// ============================================================================
 struct Hydro2DTestProgram::Problem
 {
     std::string name;

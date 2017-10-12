@@ -426,6 +426,59 @@ SCENARIO ("Rotation matrices should behave appropriately with unit vectors", "[U
 
 
 // ============================================================================
+#include "QuarticPolynomial.hpp"
+
+SCENARIO ("Quartic solver should work correctly", "[QuarticPolynomial]")
+{
+    GIVEN ("A polynomial with 4 easy roots -2, -1, 1, 2")
+    {
+        QuarticPolynomial q (1, 0, -5, 0, 4);
+
+        THEN ("The roots are found correctly to one part in 10^14")
+        {
+            double roots[4];
+            const int nr = q.solve (roots);
+            CHECK (nr == 4);
+            CHECK (roots[0] == Approx(-2).epsilon (1e-14));
+            CHECK (roots[1] == Approx(-1).epsilon (1e-14));
+            CHECK (roots[2] == Approx(+1).epsilon (1e-14));
+            CHECK (roots[3] == Approx(+2).epsilon (1e-14));
+        }
+    }
+    GIVEN ("A polynomial with 4 challenging roots -1, -1e-5, 1e-5, 1")
+    {
+        QuarticPolynomial q (1., 0., -1., 0., 1e-10);
+
+        THEN ("The roots are found correctly to one part in 10^10")
+        {
+            double roots[4];
+            const int nr = q.solve (roots);
+            CHECK (nr == 4);
+            CHECK (roots[0] == Approx(-1).epsilon (1e-10));
+            CHECK (roots[1] == Approx(-1e-5).epsilon (1e-10));
+            CHECK (roots[2] == Approx(+1e-5).epsilon (1e-10));
+            CHECK (roots[3] == Approx(+1).epsilon (1e-10));
+        }
+    }
+    GIVEN ("A polynomial with 2 easy roots -1, 1")
+    {
+        QuarticPolynomial q (-1, 0, 0, 0, 1);
+
+        THEN ("The roots are found correctly to one part in 10^10")
+        {
+            double roots[4];
+            const int nr = q.solve (roots);
+            CHECK (nr == 2);
+            CHECK (roots[0] == Approx(-1).epsilon (1e-14));
+            CHECK (roots[1] == Approx(+1).epsilon (1e-14));
+        }
+    }
+}
+
+
+
+
+// ============================================================================
 #include "Stencil.hpp"
 
 SCENARIO ("Stencil operations should behave correctly", "[Stencil]")
@@ -621,7 +674,7 @@ SCENARIO ("Relativistic MHD class produces reasonable results", "[ConservationLa
 
     GIVEN ("A state with cs << c and B=0")
     {
-        double P[8] = {1., 0., 0., 0., 1e-6, 0., 0., 0.};
+        double P[8] = {1., 0., 0., 0., 1e-6, 0, 0, 0};
 
         WHEN ("The eigenvalues from Newtonian and relativistic MHD are compared")
         {
@@ -644,7 +697,6 @@ SCENARIO ("Relativistic MHD class produces reasonable results", "[ConservationLa
                 }
             }
         }
-
         WHEN ("We try to convert from prim to cons and back again")
         {
             auto S1 = srmhd.fromPrimitive (R, P);

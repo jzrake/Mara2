@@ -33,69 +33,69 @@ int QuarticPolynomial::solve (double roots[4]) const
 
     if (nr == 1)
     {
-      u1 = x1;
+        u1 = x1;
     }
     else
     {
-      u1 = (x1 > x3) ? x1 : x3;
+        u1 = (x1 > x3) ? x1 : x3;
     }
 
     double R2 = 0.25 * a3 * a3 + u1 - a2;
-    double R = (R2>0.0) ? sqrt(R2) : 0.0;
+    double R = (R2 > 0.0) ? std::sqrt (R2) : 0.0;
     double D2, E2;
 
     if (R != 0.0)
     {
-      const double foo1 = 0.75 * a3 * a3 - R2 - 2.0 * a2;
-      const double foo2 = 0.25 * (4.0 * a3 * a2 - 8.0 * a1 - a3 * a3 * a3) / R;
-      D2 = foo1 + foo2;
-      E2 = foo1 - foo2;
+        const double foo1 = 0.75 * a3 * a3 - R2 - 2.0 * a2;
+        const double foo2 = 0.25 * (4.0 * a3 * a2 - 8.0 * a1 - a3 * a3 * a3) / R;
+        D2 = foo1 + foo2;
+        E2 = foo1 - foo2;
     }
     else
     {
-      const double foo1 = 0.75 * a3 * a3 - 2.0 * a2;
-      const double foo2 = 2.00 * std::sqrt (u1 * u1 - 4.0 * a0);
-      D2 = foo1 + foo2;
-      E2 = foo1 - foo2;
+        const double foo1 = 0.75 * a3 * a3 - 2.0 * a2;
+        const double foo2 = 2.00 * std::sqrt (u1 * u1 - 4.0 * a0);
+        D2 = foo1 + foo2;
+        E2 = foo1 - foo2;
     }
 
     if (D2 >= 0.0)
     {
-      const double D = std::sqrt (D2);
-      r1 = -0.25 * a3 + 0.5 * R - 0.5 * D;
-      r2 = -0.25 * a3 + 0.5 * R + 0.5 * D;
-      nr12 = 2;
+        const double D = std::sqrt (D2);
+        r1 = -0.25 * a3 + 0.5 * R - 0.5 * D;
+        r2 = -0.25 * a3 + 0.5 * R + 0.5 * D;
+        nr12 = 2;
     }
     else
     {
-      r1 = r2 = -0.25 * a3 + 0.5 * R;
-      nr12 = 0;
+        r1 = r2 = -0.25 * a3 + 0.5 * R;
+        nr12 = 0;
     }
 
     if (E2 >= 0.0)
     {
-      const double E = sqrt(E2);
-      r3 = -0.25 * a3 - 0.5 * R - 0.5 * E;
-      r4 = -0.25 * a3 - 0.5 * R + 0.5 * E;
-      nr34 = 2;
+        const double E = std::sqrt (E2);
+        r3 = -0.25 * a3 - 0.5 * R - 0.5 * E;
+        r4 = -0.25 * a3 - 0.5 * R + 0.5 * E;
+        nr34 = 2;
     }
     else
     {
-      r3 = r4 = -0.25 * a3 - 0.5 * R;
-      nr34 = 0;
+        r3 = r4 = -0.25 * a3 - 0.5 * R;
+        nr34 = 0;
     }
 
     int i = 0;
 
     if (nr12 != 0)
     {
-      roots[i++] = r1;
-      roots[i++] = r2;
+        roots[i++] = r1;
+        roots[i++] = r2;
     }
     if (nr34 != 0)
     {
-      roots[i++] = r3;
-      roots[i++] = r4;
+        roots[i++] = r3;
+        roots[i++] = r4;
     }
 
     std::sort (roots, roots + nr12 + nr34);
@@ -125,9 +125,9 @@ void QuarticPolynomial::solve_cubic_equation (
     }
     else if (delta < 0.0)
     {
-        const double theta = acos(r/std::sqrt (-q * q * q)) / 3.0;
-        const double costh = cos(theta);
-        const double sinth = sin(theta);
+        const double theta = std::acos (r / std::sqrt (-q * q * q)) / 3.0;
+        const double costh = std::cos (theta);
+        const double sinth = std::sin (theta);
         const double sq = std::sqrt (-q);
         x1 = 2.0 * sq*costh - a2 / 3.0;
         x2 = -sq*costh - a2 / 3.0 - std::sqrt(3) * sq * sinth;

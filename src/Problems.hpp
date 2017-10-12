@@ -19,6 +19,19 @@ private:
 
 
 
+class Relativistic1DTestProgram : public SubProgram
+{
+public:
+    struct Problem;
+    struct Scheme;
+    int run (int argc, const char* argv[]) override;
+private:
+    void runProblem (const Problem& problem, const Scheme& scheme);
+};
+
+
+
+
 class Hydro2DTestProgram : public SubProgram
 {
 public:

@@ -630,6 +630,16 @@ ConservationLaw::State RelativisticMHD::fromConserved (const Request& request, c
 
     if (int error = solver.solve_anton2dzw(P))
     {
+        std::cout << "U = ["
+        << U[0] << " "
+        << U[1] << " "
+        << U[2] << " "
+        << U[3] << " "
+        << U[4] << " "
+        << U[5] << " "
+        << U[6] << " "
+        << U[7] << "]\n";
+
         throw std::runtime_error (solver.get_error (error));
     }
     return fromPrimitive (request, P);
@@ -715,6 +725,7 @@ ConservationLaw::State RelativisticMHD::fromPrimitive (const Request& request, c
     const double v2 = vn * vn;
     const double v3 = vn * v2;
     const double v4 = vn * v3;
+
     const double K  =  W4 * (P[RHO] * h0 * (1. / cs2 - 1.));
     const double L  = -W2 * (P[RHO] * h0 + bb / cs2);
     const double A4 =      K      - L             -     b0 * b0;
@@ -723,9 +734,9 @@ ConservationLaw::State RelativisticMHD::fromPrimitive (const Request& request, c
     const double A1 = -4 * K * v3 - L * vn * 2    - 2 * b0 * bn;
     const double A0 =      K * v4 + L * v2        +     bn * bn;
 
-    QuarticPolynomial quartic (A4,A3,A2,A1,A0);
+    QuarticPolynomial quartic (A4, A3, A2, A1, A0);
     double roots[4];
-    int nr = quartic.solve (roots);
+    const int nr = quartic.solve (roots);
     const double C = std::sqrt (h0 + bb); /* constant in Alfven wave expression */
 
     if (nr == 4)
@@ -739,10 +750,60 @@ ConservationLaw::State RelativisticMHD::fromPrimitive (const Request& request, c
         S.A[6] = (bn + C * vn * W0) / (b0 + C * W0);
         S.A[7] = roots[3];
     }
+    else if (nr == 2) // This generally happens when B=0
+    {
+        S.A[0] = roots[0];
+        S.A[1] = (bn - C * vn * W0) / (b0 - C * W0);
+        S.A[2] = vn;
+        S.A[3] = vn;
+        S.A[4] = vn;
+        S.A[5] = vn;
+        S.A[6] = (bn + C * vn * W0) / (b0 + C * W0);
+        S.A[7] = roots[1];
+    }
+    else
+    {
+        std::cout << "nr = " << nr << std::endl;
+
+        std::cout << "R = ["
+        << roots[0] << " "
+        << roots[1] << " "
+        << roots[2] << " "
+        << roots[3] << "]\n";
+
+        std::cout << "C = ["
+        << A0 << " "
+        << A1 << " "
+        << A2 << " "
+        << A3 << " "
+        << A4 << "]\n";
+
+        std::cout << "P = ["
+        << S.P[0] << " "
+        << S.P[1] << " "
+        << S.P[2] << " "
+        << S.P[3] << " "
+        << S.P[4] << " "
+        << S.P[5] << " "
+        << S.P[6] << " "
+        << S.P[7] << "]\n";
+
+        std::cout << "A = ["
+        << S.A[0] << " "
+        << S.A[1] << " "
+        << S.A[2] << " "
+        << S.A[3] << " "
+        << S.A[4] << " "
+        << S.A[5] << " "
+        << S.A[6] << " "
+        << S.A[7] << "]\n";
+
+        throw std::runtime_error ("got bad eigenvalues");
+    }
     return S;
 }
 
-void RelativisticMHD::addSourceTerms (const Cow::Array& P, Cow::Array& L) const
+void RelativisticMHD::addSourceTerms (const Cow::Array& P,  Cow::Array& L) const
 {
 }
 
