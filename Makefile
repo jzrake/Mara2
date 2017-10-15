@@ -38,7 +38,7 @@ H5L      ?= -L/usr/lib -lhdf5
 # =====================================================================
 COW      := Cow/src/libcow.a
 LUA      := Lua/src/liblua.a
-SRC      := $(wildcard src/*.cpp)
+SRC      := $(wildcard src/*.cpp) $(wildcard src/Problems/*.cpp)
 OBJ      := $(SRC:%.cpp=%.o)
 DEP      := $(SRC:%.cpp=%.d)
 CXXFLAGS += -MMD -MP

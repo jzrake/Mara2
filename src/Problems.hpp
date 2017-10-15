@@ -57,20 +57,4 @@ private:
 
 
 
-
-class MagneticBraidingProgram : public SubProgram
-{
-public:
-    int run (int argc, const char* argv[]) override;
-};
-
-
-
-
-class UnstablePinchProgram : public SubProgram
-{
-public:
-    int run (int argc, const char* argv[]) override;
-};
-
 #endif

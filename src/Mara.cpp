@@ -1,14 +1,73 @@
+#include <iomanip>
+
 // Mara includes
 #include "Mara.hpp"
 #include "Problems.hpp"
 #include "BackwardsCompat.hpp"
 #include "Checkpoint.hpp"
+#include "TaskScheduler.hpp"
+#include "Timer.hpp"
 
 // Cow includes
 #include "MPI.hpp"
 #include "DebugHelper.hpp"
 
+// Problems
+#include "Problems/CollisionalHydro.hpp"
+#include "Problems/MagneticBraiding.hpp"
+#include "Problems/UnstablePinch.hpp"
+
 using namespace Cow;
+
+
+
+
+// ============================================================================
+int maraMainLoop (
+    SimulationStatus& status,
+    std::function<double ()> timestep,
+    std::function<bool ()> condition,
+    std::function<void (double)> advance,
+    TaskScheduler& scheduler,
+    Logger& logger)
+{
+    auto simulationTimer = Timer();
+    auto sessionKzps = 0.0;
+    auto sessionIter = 0;
+
+    logger.log ("Mara") << "Beginning main loop" << std::endl;
+
+    while (condition())
+    {
+        scheduler.dispatch (status);
+
+        auto stepTimer = Timer();
+        double dt = timestep();
+        advance (dt);
+
+        status.simulationTime += dt;
+        status.simulationIter += 1;
+        status.wallMinutes = simulationTimer.minutes();
+
+        double kzps = 1e-3 * status.totalCellsInMesh / stepTimer.age();
+        logger.log() << "["     << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
+        logger.log() << "t="    << std::setprecision (4) << std::fixed << status.simulationTime << " ";
+        logger.log() << "dt="   << std::setprecision (4) << std::scientific << dt << " ";
+        logger.log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
+
+        sessionKzps += kzps;
+        sessionIter +=1;
+    }
+
+    scheduler.dispatch (status);
+
+    if (sessionIter > 0)
+    {
+        logger.log ("Mara") << "Completed main loop" << std::endl;
+        logger.log ("Mara") << "Mean kzps was " << sessionKzps / sessionIter << std::endl;
+    }
+    return 0;
+}
 
 
 
@@ -128,6 +187,7 @@ int main (int argc, const char* argv[])
     programs["regress-mhd"] = std::make_unique<NewtonianMHD2DTestProgram>();
     programs["braid"]       = std::make_unique<MagneticBraidingProgram>();
     programs["pinch"]       = std::make_unique<UnstablePinchProgram>();
+    programs["kinetic"]     = std::make_unique<CollisionalHydroProgram>();
     programs["stitch"]      = std::make_unique<CheckpointStitcherProgram>();
     programs["tovtk"]       = std::make_unique<CheckpointToVtkProgram>();
 

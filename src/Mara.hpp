@@ -25,13 +25,14 @@ class ConservationLaw;
 class ConstrainedTransport;
 class FieldOperator;
 class IntercellFluxScheme;
+class ParticleData;
 class MeshData;
 class MeshGeometry;
 class MeshOperator;
 class RiemannSolver;
 class SolutionScheme;
 class SubProgram;
-
+class TaskScheduler;
 
 
 
@@ -109,6 +110,7 @@ public MayUseIntercellFluxScheme
 public:
     virtual int getStencilSize() const = 0;
     virtual void advance (MeshData& solution, double dt) const = 0;
+    virtual void advance (MeshData& solution, ParticleData& particles, double dt) const {};
 };
 
 
@@ -549,5 +551,16 @@ public:
     virtual ConservationLaw::State intercellFlux (const FaceData&) const = 0;
     virtual int getStencilSize() const = 0;
 };
+
+
+
+
+int maraMainLoop (
+    SimulationStatus& status,
+    std::function<double ()> timestep,
+    std::function<bool ()> condition,
+    std::function<void (double)> advance,
+    TaskScheduler& scheduler,
+    Logger& logger);
 
 #endif

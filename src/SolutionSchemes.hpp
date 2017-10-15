@@ -6,7 +6,7 @@
 
 
 
-class MeshHelpers
+class SchemeHelpers
 {
 public:
     static void makeFootprint (
@@ -61,15 +61,15 @@ private:
 
 
 /**
-A place-holder class for when we're ready to begin implementing radiation
-hydro.
+A place-holder class for when we're ready to begin implementing hydro with
+collisions.
 */
-class BasicRadHydroScheme : public GenericSolutionScheme
+class CollisionalHydroScheme : public GenericSolutionScheme
 {
 public:
-    BasicRadHydroScheme();
+    CollisionalHydroScheme();
     void advance (MeshData& solution, double dt) const override;
-private:
+    void advance (MeshData& solution, ParticleData& particles, double dt) const override;
 };
 
 #endif
