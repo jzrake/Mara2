@@ -82,6 +82,15 @@ Cow::Shape CartesianMeshGeometry::cellsShape() const
     return shape;
 }
 
+Cow::Index CartesianMeshGeometry::indexAtCoordinate (Coordinate x) const
+{
+    return Cow::Index ({{
+        int((x[0] - lower[0]) / dx[0]),
+        int((x[1] - lower[1]) / dx[1]),
+        int((x[2] - lower[2]) / dx[2]),
+        0, 0 }});
+}
+
 Coordinate CartesianMeshGeometry::coordinateAtIndex (double i, double j, double k) const
 {
     return Coordinate ({{

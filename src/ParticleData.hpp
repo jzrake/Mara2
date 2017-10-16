@@ -12,7 +12,6 @@ public:
     struct Particle
     {
         double position = 0.;
-        double momentum = 0.;
         double velocity = 0.;
         double opticalDepth = 0.;
     };

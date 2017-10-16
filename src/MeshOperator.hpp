@@ -38,6 +38,8 @@ public:
 
     void setMeshGeometry (std::shared_ptr<MeshGeometry>);
 
+    const MeshGeometry& getMeshGeometry() const;
+
     /**
     Return an array which results by applying F to the coordinates (x, y, z)
     of each location in the mesh. The size of the returned array in the first
@@ -111,11 +113,13 @@ public:
         FluxCorrection fluxCorrection=nullptr) const;
 
     /**
-    Assign weights to the grid cells based on a coordinate. The vectors
-    indexes and weights will contain grid indexes and the associated weights.
-    The weights add up to 1. If those vectors already have same size as the
-    number of cells receiving weight, then for performance reasons they will
-    not be re-allocated.
+    Assign weight densities to the grid cells based on a coordinate. The
+    vectors indexes will contain the mesh indexes over which the input is
+    distributed. The weights vector contains the mass in each cell divided by
+    the cell volume, such that the sum of volume times assigned density is
+    equal to 1. If those vectors already have same size as the number of cells
+    receiving weight, then for performance reasons they will not be re-
+    allocated.
     */
     void weight (Coordinate point, std::vector<Index>& indexes, std::vector<double>& weights) const;
 

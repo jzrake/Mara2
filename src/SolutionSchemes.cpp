@@ -26,7 +26,7 @@ void SchemeHelpers::makeFootprint (
         if (arrayShape[axis] > 1)
         {
             footprint[axis] = 2 * ng;
-            startIndex[axis] = -ng;
+            startIndex[axis] = -boundaryShape[axis];
             interior.lower[axis] =  ng;
             interior.upper[axis] = -ng;
         }

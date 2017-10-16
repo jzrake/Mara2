@@ -23,8 +23,6 @@
 using namespace Cow;
 
 
-
-
 // ============================================================================
 int UnstablePinchProgram::run (int argc, const char* argv[])
 {

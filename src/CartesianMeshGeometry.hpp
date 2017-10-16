@@ -15,6 +15,7 @@ public:
     void setCellsShape (Cow::Shape S) override;
     void setLowerUpper (Coordinate L, Coordinate U) override;
     Cow::Shape cellsShape() const override;
+    Cow::Index indexAtCoordinate (Coordinate x) const override;
     Coordinate coordinateAtIndex (double i, double j, double k) const override;
     unsigned long totalCellsInMesh() const override;
     double cellLength (int i, int j, int k, int axis) const override;

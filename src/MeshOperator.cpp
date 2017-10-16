@@ -37,6 +37,12 @@ void MeshOperator::setMeshGeometry (std::shared_ptr<MeshGeometry> g)
     geometry = g;
 }
 
+const MeshGeometry& MeshOperator::getMeshGeometry() const
+{
+    ENSURE_GEOMETRY_IS_VALID;
+    return *geometry;
+}
+
 Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, VectorMode vectorMode, Shape3D boundaryShape) const
 {
     ENSURE_GEOMETRY_IS_VALID;
@@ -384,6 +390,8 @@ Array MeshOperator::godunov (
     Index start,
     FluxCorrection fluxCorrection) const
 {
+    ENSURE_GEOMETRY_IS_VALID;
+
     const int nq = cellData.size(3);
     const int np = faceData.size(3);
 
@@ -460,5 +468,90 @@ Array MeshOperator::godunov (
 
 void MeshOperator::weight (Coordinate point, std::vector<Index>& indexes, std::vector<double>& weights) const
 {
+    ENSURE_GEOMETRY_IS_VALID;
+    const int particleShape = 2;
 
+
+    if (particleShape == 0)
+    {
+        const auto i = geometry->indexAtCoordinate (point);
+        const auto V = geometry->cellVolume (i[0], i[1], i[2]);
+
+        indexes.resize(1);
+        weights.resize(1);
+        indexes[0] = i;
+        weights[0] = 1 / V;
+    }
+
+    if (particleShape == 1)
+    {
+        const auto i0 = geometry->indexAtCoordinate (point);
+        const auto im = Index {{i0[0] - 1, i0[1], i0[2], 0, 0}};
+        const auto ip = Index {{i0[0] + 1, i0[1], i0[2], 0, 0}};
+
+        const double x = point[0];
+        const double dx = geometry->cellLength (i0[0], i0[1], i0[2], 0);
+        const double xm = geometry->coordinateAtIndex (im)[0];
+        const double x0 = geometry->coordinateAtIndex (i0)[0];
+        const double xp = geometry->coordinateAtIndex (ip)[0];
+
+        const double wm = std::max (0.0, 1 - std::fabs (xm - x) / dx);
+        const double w0 = std::max (0.0, 1 - std::fabs (x0 - x) / dx);
+        const double wp = std::max (0.0, 1 - std::fabs (xp - x) / dx);
+        const double wt = wm + w0 + wp;
+
+        indexes.resize(3);
+        weights.resize(3);
+
+        const auto Vm = geometry->cellVolume (im[0], im[1], im[2]);
+        const auto V0 = geometry->cellVolume (i0[0], i0[1], i0[2]);
+        const auto Vp = geometry->cellVolume (ip[0], ip[1], ip[2]);
+
+        indexes[0] = im;
+        indexes[1] = i0;
+        indexes[2] = ip;
+        weights[0] = wm / Vm / wt;
+        weights[1] = w0 / V0 / wt;
+        weights[2] = wp / Vp / wt;
+    }
+
+    if (particleShape == 2)
+    {
+        const auto i0 = geometry->indexAtCoordinate (point);
+        const auto im1 = Index {{i0[0] - 1, i0[1], i0[2], 0, 0}};
+        const auto ip1 = Index {{i0[0] + 1, i0[1], i0[2], 0, 0}};
+        const auto im2 = Index {{i0[0] - 2, i0[1], i0[2], 0, 0}};
+        const auto ip2 = Index {{i0[0] + 2, i0[1], i0[2], 0, 0}};
+
+        const double x = point[0];
+        const double dx = geometry->cellLength (i0[0], i0[1], i0[2], 0);
+        const double x0 = geometry->coordinateAtIndex (i0)[0];
+        const double xm1 = geometry->coordinateAtIndex (im1)[0];
+        const double xp1 = geometry->coordinateAtIndex (ip1)[0];
+        const double xm2 = geometry->coordinateAtIndex (im2)[0];
+        const double xp2 = geometry->coordinateAtIndex (ip2)[0];
+
+        const double w0 = std::max (0.0, 1 - std::fabs (x0 - x) / dx / 2);
+        const double wm1 = std::max (0.0, 1 - std::fabs (xm1 - x) / dx / 2);
+        const double wp1 = std::max (0.0, 1 - std::fabs (xp1 - x) / dx / 2);
+        const double wm2 = std::max (0.0, 1 - std::fabs (xm2 - x) / dx / 2);
+        const double wp2 = std::max (0.0, 1 - std::fabs (xp2 - x) / dx / 2);
+        const double wt = w0 + wm1 + wp1 + wm2 + wp2;
+
+        indexes.resize(5);
+        weights.resize(5);
+
+        const auto V0 = geometry->cellVolume (i0[0], i0[1], i0[2]);
+
+        indexes[0] = i0;
+        indexes[1] = im1;
+        indexes[2] = ip1;
+        indexes[3] = im2;
+        indexes[4] = ip2;
+        weights[0] = w0 / V0 / wt;
+        weights[1] = wm1 / V0 / wt;
+        weights[2] = wp1 / V0 / wt;
+        weights[3] = wm2 / V0 / wt;
+        weights[4] = wp2 / V0 / wt;
+    }
 }

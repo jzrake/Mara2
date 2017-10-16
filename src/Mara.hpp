@@ -194,6 +194,7 @@ public:
 class MeshGeometry
 {
 public:
+    using Index = Cow::Index;
 
     /**
     A type used to identify a patch in a global composite mesh.
@@ -246,15 +247,20 @@ public:
     virtual Cow::Shape cellsShape() const = 0;
 
     /**
-    Return the total number of cells in the mesh.
+    Return the index of the grid cell containing the given coordinate.
     */
-    virtual unsigned long totalCellsInMesh() const = 0;
+    virtual Cow::Index indexAtCoordinate (Coordinate x) const = 0;
 
     /**
-    Return the coordinates assocaited to a given index location in the mesh.
+    Return the coordinates associated to a given index location in the mesh.
     Integer values are generally used for cell centroids.
     */
     virtual Coordinate coordinateAtIndex (double i, double j, double k) const = 0;
+
+    /**
+    Return the total number of cells in the mesh.
+    */
+    virtual unsigned long totalCellsInMesh() const = 0;
 
     /**
     Return the linear dimension of the cell with given index along a given axis.
