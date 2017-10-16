@@ -14,6 +14,7 @@ ParticleData::ParticleData()
         p.position = double(n) / (N - 1);
         p.velocity = 0;
         p.momentum = 0;
+        p.opticalDepth = 0;
         particles.push_back(p);
     }
 }

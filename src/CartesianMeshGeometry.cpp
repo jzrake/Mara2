@@ -82,17 +82,17 @@ Cow::Shape CartesianMeshGeometry::cellsShape() const
     return shape;
 }
 
-unsigned long CartesianMeshGeometry::totalCellsInMesh() const
-{
-    return shape[0] * shape[1] * shape[2];
-}
-
 Coordinate CartesianMeshGeometry::coordinateAtIndex (double i, double j, double k) const
 {
     return Coordinate ({{
         lower[0] + dx[0] * (i + 0.5),
         lower[1] + dx[1] * (j + 0.5),
         lower[2] + dx[2] * (k + 0.5)}});
+}
+
+unsigned long CartesianMeshGeometry::totalCellsInMesh() const
+{
+    return shape[0] * shape[1] * shape[2];
 }
 
 double CartesianMeshGeometry::cellLength (int i, int j, int k, int axis) const

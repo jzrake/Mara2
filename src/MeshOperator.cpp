@@ -457,3 +457,8 @@ Array MeshOperator::godunov (
     }
     return result;
 }
+
+void MeshOperator::weight (Coordinate point, std::vector<Index>& indexes, std::vector<double>& weights) const
+{
+
+}

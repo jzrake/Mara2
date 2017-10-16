@@ -1,13 +1,9 @@
-#include "BoundaryConditions.hpp"
-#include "CartesianMeshGeometry.hpp"
 #include "CellCenteredFieldCT.hpp"
-#include "ConservationLaws.hpp"
 #include "FieldOperator.hpp"
 #include "IntercellFluxSchemes.hpp"
 #include "MeshData.hpp"
 #include "MeshOperator.hpp"
 #include "SolutionSchemes.hpp"
-#include "RiemannSolvers.hpp"
 
 using namespace Cow;
 
@@ -178,87 +174,4 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         fieldOperator->recoverPrimitive (U[interior], solution.P[interior]);
         solution.applyBoundaryCondition (*boundaryCondition);
     }
-}
-
-
-
-
-// ============================================================================
-#include "ParticleData.hpp"
-
-CollisionalHydroScheme::CollisionalHydroScheme()
-{
-    fluxScheme = std::make_shared<MethodOfLines>();
-}
-
-void CollisionalHydroScheme::advance (MeshData& solution, double dt) const
-{
-    throw std::logic_error ("CollisionalHydroScheme does not implement advance() without particle data");
-}
-
-void CollisionalHydroScheme::advance (MeshData& solution, ParticleData& particleData, double dt) const
-{
-    if (! fieldOperator)     throw std::logic_error ("No FieldOperator instance");
-    if (! meshOperator)      throw std::logic_error ("No MeshOperator instance");
-    if (! boundaryCondition) throw std::logic_error ("No BoundaryCondition instance");
-    if (! fluxScheme)        throw std::logic_error ("No IntercellFluxScheme instance");
-
-
-    // Figure out the scheme footprint, and if we have enough guard zones
-    // ------------------------------------------------------------------------
-    auto footprint = Shape3D();
-    auto startIndex = Index();
-    auto interior = Region();
-
-    SchemeHelpers::makeFootprint (
-        fluxScheme->getStencilSize(),
-        solution.P.shape(),
-        solution.getBoundaryShape(),
-        footprint, startIndex, interior);
-
-
-    // Setup callback to compute Godunov fluxes
-    // ------------------------------------------------------------------------
-    auto cl = fieldOperator->getConservationLaw();
-    auto nq = cl->getNumConserved();
-
-    auto D = IntercellFluxScheme::FaceData();
-    D.conservationLaw = cl;
-
-    auto Fhat = [&] (GodunovStencil& stencil)
-    {
-        D.areaElement = stencil.faceNormal.cartesian();
-        D.stencilData = stencil.cellData;
-
-        auto S = fluxScheme->intercellFlux (D);
-
-        for (int q = 0; q < nq; ++q)
-        {
-            stencil.godunovFlux[q] = S.F[q];
-        }
-    };
-
-
-    // Update
-    // ------------------------------------------------------------------------
-    auto U0 = fieldOperator->generateConserved (solution.P);
-    auto U = U0;
-
-    auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex);
-    auto L = meshOperator->divergence (F, -1.0);
-
-    cl->addSourceTerms (solution.P, L);
-
-    for (auto& p : particleData.particles)
-    {
-        p.position += dt * p.velocity;
-    }
-
-    for (int n = 0; n < L.size(); ++n)
-    {
-        U[n] += dt * L[n];
-    }
-
-    fieldOperator->recoverPrimitive (U[interior], solution.P[interior]);
-    solution.applyBoundaryCondition (*boundaryCondition);
 }

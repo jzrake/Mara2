@@ -110,6 +110,15 @@ public:
         Index start={},
         FluxCorrection fluxCorrection=nullptr) const;
 
+    /**
+    Assign weights to the grid cells based on a coordinate. The vectors
+    indexes and weights will contain grid indexes and the associated weights.
+    The weights add up to 1. If those vectors already have same size as the
+    number of cells receiving weight, then for performance reasons they will
+    not be re-allocated.
+    */
+    void weight (Coordinate point, std::vector<Index>& indexes, std::vector<double>& weights) const;
+
 private:
     std::shared_ptr<MeshGeometry> geometry;
 };

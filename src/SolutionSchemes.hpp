@@ -21,7 +21,6 @@ public:
 
 
 
-
 class GenericSolutionScheme : public SolutionScheme
 {
 public:
@@ -44,7 +43,6 @@ protected:
 
 
 
-
 class MethodOfLinesTVD : public GenericSolutionScheme
 {
 public:
@@ -58,18 +56,5 @@ private:
 };
 
 
-
-
-/**
-A place-holder class for when we're ready to begin implementing hydro with
-collisions.
-*/
-class CollisionalHydroScheme : public GenericSolutionScheme
-{
-public:
-    CollisionalHydroScheme();
-    void advance (MeshData& solution, double dt) const override;
-    void advance (MeshData& solution, ParticleData& particles, double dt) const override;
-};
 
 #endif
