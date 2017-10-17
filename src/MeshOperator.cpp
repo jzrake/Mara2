@@ -469,7 +469,7 @@ Array MeshOperator::godunov (
 void MeshOperator::weight (Coordinate point, std::vector<Index>& indexes, std::vector<double>& weights) const
 {
     ENSURE_GEOMETRY_IS_VALID;
-    const int particleShape = 2;
+    const int particleShape = 0;
 
 
     if (particleShape == 0)

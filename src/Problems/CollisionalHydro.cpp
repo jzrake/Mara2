@@ -101,8 +101,8 @@ void CollisionalHydroScheme::advance (MeshData& solution, ParticleData& particle
 
     // Update particles
     // ------------------------------------------------------------------------
-    const double meanFreePath = 0.02;
-    const double particleMass = 1.0 / particleData.particles.size();
+    const double meanFreePath = 0.1;
+    const double particleMass = 0.2 / particleData.particles.size();
     std::vector<Index> indexes;
     std::vector<double> weights;
 
@@ -168,7 +168,7 @@ void CollisionalHydroScheme::advance (MeshData& solution, ParticleData& particle
 // ============================================================================
 int CollisionalHydroProgram::run (int argc, const char* argv[])
 {
-    auto cs = Shape {{256, 1, 1 }}; // cells shape
+    auto cs = Shape {{128, 1, 1 }}; // cells shape
     auto bs = Shape {{  2, 0, 0 }};
     auto ss = std::make_shared<CollisionalHydroScheme>();
     auto bc = std::make_shared<PeriodicBoundaryCondition>();
@@ -187,12 +187,11 @@ int CollisionalHydroProgram::run (int argc, const char* argv[])
     ss->setBoundaryCondition (bc);
 
     auto status = SimulationStatus();
-    auto cflParameter = 0.5;
-    auto finalTime = 0.04;
+    auto cflParameter = 0.25;
+    auto finalTime = 8.;
     auto L = mo->linearCellDimension();
-    auto P = md->getPrimitive();
 
-    auto timestep  = [&] () { return cflParameter * fo->getCourantTimestep (P, L); };
+    auto timestep  = [&] () { return cflParameter / cs[0]; };
     auto condition = [&] () { return status.simulationTime < finalTime; };
     auto advance   = [&] (double dt) { return ss->advance (*md, *pd, dt); };
     auto scheduler = std::make_shared<TaskScheduler>();
@@ -206,13 +205,13 @@ int CollisionalHydroProgram::run (int argc, const char* argv[])
     scheduler->schedule ([&] (SimulationStatus, int rep)
     {
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
-    }, TaskScheduler::Recurrence (finalTime));
+    }, TaskScheduler::Recurrence (0.1));
 
     status = SimulationStatus();
     status.totalCellsInMesh = mg->totalCellsInMesh();
 
 
-    int N = 1000;
+    int N = 10000;
 
     for (int i = 0; i < cs[0]; ++i)
     {
@@ -221,17 +220,17 @@ int CollisionalHydroProgram::run (int argc, const char* argv[])
         for (int n = 0; n < N; ++n)
         {
             auto p = ParticleData::Particle();
-            double pressure = 1.0 + 0.0 * std::sin (4 * M_PI * x);
+            double pressure = 1.0 + 0.1 * std::sin (2 * M_PI * x);
             p.position = x;
-            p.velocity = 1.0 + std::sqrt (pressure) * (-1 + 2 * double (rand()) / RAND_MAX);
-            p.opticalDepth = 0;
+            p.velocity = std::sqrt (pressure) * (-1 + 2 * double (rand()) / RAND_MAX);
+            p.opticalDepth = 1.0;
             pd->particles.push_back(p);
         }
     }
 
     auto initialData = [&] (double x, double, double) -> std::vector<double>
     {
-        return std::vector<double> {1, 0, 0, 0, 1};
+        return std::vector<double> {1, 0, 0, 0, 0.01};
     };
 
     md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
