@@ -30,7 +30,10 @@ class CollisionalHydroScheme : public GenericSolutionScheme
 public:
     CollisionalHydroScheme();
     void advance (MeshData& solution, double dt) const override;
-    void advance (MeshData& solution, ParticleData& particles, double dt) const override;
+    void advance (MeshData& solution, ParticleData& particleData, double dt) const override;
+    double getCollisionTime (MeshData& solution, ParticleData& particleData) const;
+private:
+    double crossSection;
 };
 
 
@@ -40,6 +43,7 @@ public:
 CollisionalHydroScheme::CollisionalHydroScheme()
 {
     fluxScheme = std::make_shared<MethodOfLines>();
+    crossSection = 500.0; // per unit mass
 }
 
 void CollisionalHydroScheme::advance (MeshData& solution, double dt) const
@@ -101,8 +105,7 @@ void CollisionalHydroScheme::advance (MeshData& solution, ParticleData& particle
 
     // Update particles
     // ------------------------------------------------------------------------
-    const double meanFreePath = 0.1;
-    const double particleMass = 0.2 / particleData.particles.size();
+    const double particleMass = 5.0 / particleData.particles.size();
     std::vector<Index> indexes;
     std::vector<double> weights;
 
@@ -113,18 +116,29 @@ void CollisionalHydroScheme::advance (MeshData& solution, ParticleData& particle
     {
         auto x = Coordinate {{ p.position, 0.0, 0.0 }};
         auto xind = geometry.indexAtCoordinate(x)[0] - startIndex[0];
-        double v = solution.P (xind, 0, 0, 1);
+        double df = solution.P (xind, 0, 0, 0);
+        double vf = solution.P (xind, 0, 0, 1);
+        double dl = 1.0 / (crossSection * df);
 
         p.position += dt * p.velocity;
-        p.opticalDepth += dt * std::fabs (p.velocity - v) / meanFreePath;
+        p.opticalDepth += std::fabs (p.velocity - vf) / (dl / dt);
 
 
         // Collisions
         // --------------------------------------------------------------------
-        if (p.opticalDepth > 1)
+        if (p.opticalDepth > 1.0)
         {
             numCollisions += 1;
             meshOperator->weight (x, indexes, weights);
+
+            const double v0 = p.velocity;
+            const double u0 = v0 - vf; // initial velocity in fluid frame
+            const double u1 = -u0;     // final velocity in fluid frame
+            const double v1 = u1 + vf; // final velocity in system frame
+            const double dv = v1 - v0; // change in particle velocity (both frames)
+
+            p.velocity = v1;
+            p.opticalDepth -= 1.0;
 
             for (unsigned int i = 0; i < indexes.size(); ++i)
             {
@@ -133,11 +147,8 @@ void CollisionalHydroScheme::advance (MeshData& solution, ParticleData& particle
                 I[1] -= startIndex[1];
                 I[2] -= startIndex[2];
 
-                L(I[0], I[1], I[2], 1) += 2 * p.velocity * particleMass * weights[i];
+                L(I[0], I[1], I[2], 1) -= dv * particleMass * weights[i];
             }
-
-            p.velocity *= -1.0;
-            p.opticalDepth -= 1.0;
         }
 
 
@@ -160,6 +171,34 @@ void CollisionalHydroScheme::advance (MeshData& solution, ParticleData& particle
 
     fieldOperator->recoverPrimitive (U[interior], solution.P[interior]);
     solution.applyBoundaryCondition (*boundaryCondition);
+}
+
+double CollisionalHydroScheme::getCollisionTime (MeshData& solution, ParticleData& particleData) const
+{
+    const auto& geometry = meshOperator->getMeshGeometry();
+    double collisionTime = 1.0;
+    auto footprint = Shape3D();
+    auto startIndex = Index();
+    auto interior = Region();
+
+    SchemeHelpers::makeFootprint (
+        fluxScheme->getStencilSize(),
+        solution.P.shape(),
+        solution.getBoundaryShape(),
+        footprint, startIndex, interior);
+
+    for (auto& p : particleData.particles)
+    {
+        auto x = Coordinate {{ p.position, 0.0, 0.0 }};
+        auto xind = geometry.indexAtCoordinate(x)[0] - startIndex[0];
+        double df = solution.P (xind, 0, 0, 0);
+        double vf = solution.P (xind, 0, 0, 1);
+        double dl = 1.0 / (crossSection * df);
+        double dt = dl / std::fabs (p.velocity - vf);
+
+        collisionTime = std::min (collisionTime, dt);
+    }
+    return collisionTime;
 }
 
 
@@ -188,10 +227,11 @@ int CollisionalHydroProgram::run (int argc, const char* argv[])
 
     auto status = SimulationStatus();
     auto cflParameter = 0.25;
-    auto finalTime = 8.;
+    auto finalTime = 12.;
     auto L = mo->linearCellDimension();
+    auto timestepSize = 0.0;
 
-    auto timestep  = [&] () { return cflParameter / cs[0]; };
+    auto timestep  = [&] () { return timestepSize; };
     auto condition = [&] () { return status.simulationTime < finalTime; };
     auto advance   = [&] (double dt) { return ss->advance (*md, *pd, dt); };
     auto scheduler = std::make_shared<TaskScheduler>();
@@ -207,9 +247,17 @@ int CollisionalHydroProgram::run (int argc, const char* argv[])
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     }, TaskScheduler::Recurrence (0.1));
 
+    scheduler->schedule ([&] (SimulationStatus, int rep)
+    {
+        auto L = mo->linearCellDimension();
+        auto P = md->getPrimitive();
+        timestepSize = ss->getCollisionTime (*md, *pd);
+        timestepSize = std::min (timestepSize, fo->getCourantTimestep (P, L));
+        timestepSize *= cflParameter;
+    }, TaskScheduler::Recurrence (0.0, 0.0, 10));
+
     status = SimulationStatus();
     status.totalCellsInMesh = mg->totalCellsInMesh();
-
 
     int N = 10000;
 
@@ -220,7 +268,7 @@ int CollisionalHydroProgram::run (int argc, const char* argv[])
         for (int n = 0; n < N; ++n)
         {
             auto p = ParticleData::Particle();
-            double pressure = 1.0 + 0.1 * std::sin (2 * M_PI * x);
+            double pressure = 1.0 + 0.1 * std::sin (4 * M_PI * x);
             p.position = x;
             p.velocity = std::sqrt (pressure) * (-1 + 2 * double (rand()) / RAND_MAX);
             p.opticalDepth = 1.0;
@@ -231,6 +279,7 @@ int CollisionalHydroProgram::run (int argc, const char* argv[])
     auto initialData = [&] (double x, double, double) -> std::vector<double>
     {
         return std::vector<double> {1, 0, 0, 0, 0.01};
+        // return std::vector<double> {1, 0, 0, 0, 0.10 + 0.001 * std::sin (4 * M_PI * x)};
     };
 
     md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));

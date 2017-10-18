@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <list>
 
 namespace Cow { namespace H5 { class Location; }}
 
@@ -9,11 +10,20 @@ namespace Cow { namespace H5 { class Location; }}
 class ParticleData
 {
 public:
+    struct ScatteringEvent
+    {
+        double energy;
+        double momentum;
+        double duration;
+        double remaining;
+    };
+
     struct Particle
     {
         double position = 0.;
         double velocity = 0.;
         double opticalDepth = 0.;
+        std::list<ScatteringEvent> events;
     };
 
     ParticleData();
