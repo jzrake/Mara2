@@ -27,8 +27,8 @@ void SchemeHelpers::makeFootprint (
         {
             footprint[axis] = 2 * ng;
             startIndex[axis] = -boundaryShape[axis];
-            interior.lower[axis] =  ng;
-            interior.upper[axis] = -ng;
+            interior.lower[axis] =  boundaryShape[axis];
+            interior.upper[axis] = -boundaryShape[axis];
         }
         else
         {

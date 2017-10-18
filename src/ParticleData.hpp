@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <list>
+#include "Array.hpp"
 
 namespace Cow { namespace H5 { class Location; }}
 
@@ -23,7 +24,13 @@ public:
         double position = 0.;
         double velocity = 0.;
         double opticalDepth = 0.;
+        double weight = 0.;
+
+        double fluidDensity;
+        double fluidVelocity;
         std::list<ScatteringEvent> events;
+
+        Cow::Index meshIndex;
     };
 
     ParticleData();
