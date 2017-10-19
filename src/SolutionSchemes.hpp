@@ -33,11 +33,14 @@ public:
     void setMeshOperator        (std::shared_ptr<MeshOperator> mo)        override { meshOperator = mo; }
     void setFieldOperator       (std::shared_ptr<FieldOperator> fo)       override { fieldOperator = fo; }
     void setIntercellFluxScheme (std::shared_ptr<IntercellFluxScheme> fs) override;
+    void setSourceTermsFunction (SourceTermsFunction sourceTermsFunctionToUse) { sourceTermsFunction = sourceTermsFunctionToUse; }
+
 protected:
     std::shared_ptr<BoundaryCondition>    boundaryCondition;
     std::shared_ptr<FieldOperator>        fieldOperator;
     std::shared_ptr<MeshOperator>         meshOperator;
     std::shared_ptr<IntercellFluxScheme>  fluxScheme;
+    SourceTermsFunction                   sourceTermsFunction;
 };
 
 

@@ -55,6 +55,14 @@ public:
         VectorMode vectorMode=VectorMode::scalars, Shape3D boundaryShape=Shape3D()) const;
 
     /**
+    Generate an array of source terms from the given callback function and an
+    array of primitive data. The optional start index indicates the left-most
+    index of the input data with respect to the left of the mesh geometry
+    instance, and must be used if passing in data that has guard zones.
+    */
+    Array generateSourceTerms (SourceTermsFunction S, const Array& P, Index start={}) const;
+
+    /**
     Return the 1, 2, or 3 dimensional measure of the given mesh locations:
     length of edges, area of faces, or volume of cells.
     */

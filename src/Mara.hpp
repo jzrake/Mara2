@@ -36,6 +36,7 @@ class TaskScheduler;
 
 
 
+
 /**
 These classes are here to support dependency injection.
 */
@@ -72,22 +73,13 @@ class TimeSeriesManager;
 
 
 
-
+using StateArray = std::array<double, MARA_NUM_FIELDS>;
 using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
+using SourceTermsFunction = std::function<StateArray (double x, double y, double z, StateArray primitive)>;
 using AreaElement = std::array<double, 3>;
 using Coordinate = std::array<double, 3>;
 enum class MeshLocation { vert, edge, face, cell };
 enum class MeshBoundary { left, right };
-
-
-
-
-class MaraSession : public MayUseLogger
-{
-public:
-    MaraSession();
-    SimulationStatus launch (SimulationSetup& setup);
-};
 
 
 
@@ -116,6 +108,22 @@ public:
 
 
 
+/**
+DEPRECATED
+*/
+class MaraSession : public MayUseLogger
+{
+public:
+    MaraSession();
+    SimulationStatus launch (SimulationSetup& setup);
+};
+
+
+
+
+/**
+DEPRECATED
+*/
 class SimulationSetup
 {
 public:
@@ -153,7 +161,9 @@ public:
 
 
 
-
+/**
+DEPRECATED
+*/
 class SimulationStatus
 {
 public:

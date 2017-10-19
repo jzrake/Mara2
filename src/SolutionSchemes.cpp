@@ -166,6 +166,16 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
 
         cl->addSourceTerms (solution.P, L);
 
+        if (sourceTermsFunction)
+        {
+            auto S = meshOperator->generateSourceTerms (sourceTermsFunction, solution.P, startIndex);
+
+            for (int n = 0; n < L.size(); ++n)
+            {
+                L[n] += S[n];
+            }
+        }
+
         for (int n = 0; n < L.size(); ++n)
         {
             U[n] = U0[n] * (1 - b[rk]) + (U[n] + dt * L[n]) * b[rk];
