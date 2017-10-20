@@ -157,6 +157,9 @@ void ReflectingBoundaryCondition::setConservationLaw (std::shared_ptr<Conservati
 
 Cow::Array ReflectingBoundaryCondition::reflect (const Cow::Array::Reference& validData, int axis) const
 {
+    if (conservationLaw == nullptr)
+        throw std::logic_error ("ReflectingBoundaryCondition needs an instance of ConvervationLaw");
+
     const int ivel = conservationLaw->getIndexFor (ConservationLaw::VariableType::velocity);
 
     auto reflectedData = Cow::Array (validData);
@@ -169,6 +172,7 @@ Cow::Array ReflectingBoundaryCondition::reflect (const Cow::Array::Reference& va
     {
         it[ivel + axis] *= -1;
     }
+
     return reflectedData;
 }
 

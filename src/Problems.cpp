@@ -35,43 +35,43 @@ std::vector<Hydro1DTestProgram::Problem> Hydro1DTestProgram::Problem::get()
 {
     auto Shocktube1 = [&] (double x, double, double)
     {
-        auto S1 = std::vector<double> {1.000, 0.000, 0.0, 0.0, 1.000};
-        auto S2 = std::vector<double> {0.125, 0.000, 0.0, 0.0, 0.100};
-        return x < 0.5 ? S1 : S2;
+	auto S1 = std::vector<double> {1.000, 0.000, 0.0, 0.0, 1.000};
+	auto S2 = std::vector<double> {0.125, 0.000, 0.0, 0.0, 0.100};
+	return x < 0.5 ? S1 : S2;
     };
     auto Shocktube2 = [&] (double x, double, double)
     {
-        auto S1 = std::vector<double> {1.000,-2.000, 0.0, 0.0, 0.400};
-        auto S2 = std::vector<double> {1.000, 2.000, 0.0, 0.0, 0.400};
-        return x < 0.5 ? S1 : S2;
+	auto S1 = std::vector<double> {1.000,-2.000, 0.0, 0.0, 0.400};
+	auto S2 = std::vector<double> {1.000, 2.000, 0.0, 0.0, 0.400};
+	return x < 0.5 ? S1 : S2;
     };
     auto Shocktube3 = [&] (double x, double, double)
     {
-        auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e+3};
-        auto S2 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e-2};
-        return x < 0.5 ? S1 : S2;
+	auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e+3};
+	auto S2 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e-2};
+	return x < 0.5 ? S1 : S2;
     };
     auto Shocktube4 = [&] (double x, double, double)
     {
-        auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e-2};
-        auto S2 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e+2};
-        return x < 0.5 ? S1 : S2;
+	auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e-2};
+	auto S2 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1e+2};
+	return x < 0.5 ? S1 : S2;
     };
     auto Shocktube5 = [&] (double x, double, double)
     {
-        auto S1 = std::vector<double> {5.99924, 19.59750, 0.0, 0.0, 460.894};
-        auto S2 = std::vector<double> {5.99924, -6.19633, 0.0, 0.0,  46.095};
-        return x < 0.5 ? S1 : S2;
+	auto S1 = std::vector<double> {5.99924, 19.59750, 0.0, 0.0, 460.894};
+	auto S2 = std::vector<double> {5.99924, -6.19633, 0.0, 0.0,  46.095};
+	return x < 0.5 ? S1 : S2;
     };
     auto ContactWave = [&] (double x, double, double)
     {
-        auto S1 = std::vector<double> {1.0, 0.0, 0.7, 0.2, 1.0};
-        auto S2 = std::vector<double> {0.1, 0.0, 0.7, 0.2, 1.0};
-        return x < 0.5 ? S1 : S2;
+	auto S1 = std::vector<double> {1.0, 0.0, 0.7, 0.2, 1.0};
+	auto S2 = std::vector<double> {0.1, 0.0, 0.7, 0.2, 1.0};
+	return x < 0.5 ? S1 : S2;
     };
     auto DensityWave = [&] (double x, double, double)
     {
-        return std::vector<double> {1.0 + 0.1 * std::sin (4 * M_PI * x), 1.0, 0.0, 0.0, 1.0};
+	return std::vector<double> {1.0 + 0.1 * std::sin (4 * M_PI * x), 1.0, 0.0, 0.0, 1.0};
     };
 
     auto periodic = std::make_shared<PeriodicBoundaryCondition>();
@@ -141,10 +141,10 @@ int Hydro1DTestProgram::run (int argc, const char* argv[])
 {
     for (const auto& problem : Problem::get())
     {
-        for (const auto& scheme : Scheme::get())
-        {
-            runProblem (problem, scheme);
-        }
+	for (const auto& scheme : Scheme::get())
+	{
+	    runProblem (problem, scheme);
+	}
     }
     return 0;
 }
@@ -175,9 +175,9 @@ void Hydro1DTestProgram::runProblem (const Problem& problem, const Scheme& schem
 
     auto timestep  = [&] ()
     {
-        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
-        const double dt2 = problem.finalTime - status.simulationTime;
-        return dt1 < dt2 ? dt1 : dt2;
+	const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+	const double dt2 = problem.finalTime - status.simulationTime;
+	return dt1 < dt2 ? dt1 : dt2;
     };
     auto condition = [&] () { return status.simulationTime < problem.finalTime; };
     auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
@@ -191,7 +191,7 @@ void Hydro1DTestProgram::runProblem (const Problem& problem, const Scheme& schem
 
     scheduler->schedule ([&] (SimulationStatus, int rep)
     {
-        writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+	writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     }, TaskScheduler::Recurrence (problem.finalTime));
 
     status = SimulationStatus();
@@ -200,7 +200,7 @@ void Hydro1DTestProgram::runProblem (const Problem& problem, const Scheme& schem
     md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
     md->applyBoundaryCondition (*bc);
 
-    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   
+    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
 }
 
 
@@ -220,9 +220,9 @@ std::vector<Relativistic1DTestProgram::Problem> Relativistic1DTestProgram::Probl
 {
     auto Shocktube1 = [&] (double x, double, double)
     {
-        auto S1 = std::vector<double> {1.000, 0.0, 0.0, 0.0, 1.0, 0, 0, 0};
-        auto S2 = std::vector<double> {0.125, 0.0, 0.0, 0.0, 0.1, 0, 0, 0};
-        return x < 0.5 ? S1 : S2;
+	auto S1 = std::vector<double> {1.000, 0.0, 0.0, 0.0, 1.0, 0, 0, 0};
+	auto S2 = std::vector<double> {0.125, 0.0, 0.0, 0.0, 0.1, 0, 0, 0};
+	return x < 0.5 ? S1 : S2;
     };
     auto periodic = std::make_shared<PeriodicBoundaryCondition>();
     auto outflow  = std::make_shared<OutflowBoundaryCondition>();
@@ -267,10 +267,10 @@ int Relativistic1DTestProgram::run (int argc, const char* argv[])
 {
     for (const auto& problem : Problem::get())
     {
-        for (const auto& scheme : Scheme::get())
-        {
-            runProblem (problem, scheme);
-        }
+	for (const auto& scheme : Scheme::get())
+	{
+	    runProblem (problem, scheme);
+	}
     }
     return 0;
 }
@@ -301,9 +301,9 @@ void Relativistic1DTestProgram::runProblem (const Problem& problem, const Scheme
 
     auto timestep  = [&] ()
     {
-        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
-        const double dt2 = problem.finalTime - status.simulationTime;
-        return dt1 < dt2 ? dt1 : dt2;
+	const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+	const double dt2 = problem.finalTime - status.simulationTime;
+	return dt1 < dt2 ? dt1 : dt2;
     };
     auto condition = [&] () { return status.simulationTime < problem.finalTime; };
     auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
@@ -317,7 +317,7 @@ void Relativistic1DTestProgram::runProblem (const Problem& problem, const Scheme
 
     scheduler->schedule ([&] (SimulationStatus, int rep)
     {
-        writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+	writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     }, TaskScheduler::Recurrence (problem.finalTime));
 
     status = SimulationStatus();
@@ -326,7 +326,7 @@ void Relativistic1DTestProgram::runProblem (const Problem& problem, const Scheme
     md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
     md->applyBoundaryCondition (*bc);
 
-    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   
+    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
 }
 
 
@@ -346,19 +346,19 @@ std::vector<Hydro2DTestProgram::Problem> Hydro2DTestProgram::Problem::get()
 {
     auto Shocktube2D = [&] (double x, double y, double)
     {
-        auto S1 = std::vector<double> {1.000, 0.000, 0.0, 0.0, 1.000};
-        auto S2 = std::vector<double> {0.125, 0.000, 0.0, 0.0, 0.100};
-        return x + y < 1. ? S1 : S2;
+	auto S1 = std::vector<double> {1.000, 0.000, 0.0, 0.0, 1.000};
+	auto S2 = std::vector<double> {0.125, 0.000, 0.0, 0.0, 0.100};
+	return x + y < 1. ? S1 : S2;
     };
     auto ContactWave2D = [&] (double x, double y, double)
     {
-        auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1.0};
-        auto S2 = std::vector<double> {0.1, 0.0, 0.0, 0.0, 1.0};
-        return x + y < 1. ? S1 : S2;
+	auto S1 = std::vector<double> {1.0, 0.0, 0.0, 0.0, 1.0};
+	auto S2 = std::vector<double> {0.1, 0.0, 0.0, 0.0, 1.0};
+	return x + y < 1. ? S1 : S2;
     };
     auto DensityWave2D = [&] (double x, double y, double)
     {
-        return std::vector<double> {1.0 + 0.1 * std::sin (4 * M_PI * (x + y)), 1.0, 1.0, 0.0, 1.0};
+	return std::vector<double> {1.0 + 0.1 * std::sin (4 * M_PI * (x + y)), 1.0, 1.0, 0.0, 1.0};
     };
 
     auto periodic = std::make_shared<PeriodicBoundaryCondition>();
@@ -405,10 +405,10 @@ int Hydro2DTestProgram::run (int argc, const char* argv[])
 {
     for (const auto& problem : Problem::get())
     {
-        for (const auto& scheme : Scheme::get())
-        {
-            runProblem (problem, scheme);
-        }
+	for (const auto& scheme : Scheme::get())
+	{
+	    runProblem (problem, scheme);
+	}
     }
     return 0;
 }
@@ -439,9 +439,9 @@ void Hydro2DTestProgram::runProblem (const Problem& problem, const Scheme& schem
 
     auto timestep  = [&] ()
     {
-        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
-        const double dt2 = problem.finalTime - status.simulationTime;
-        return dt1 < dt2 ? dt1 : dt2;
+	const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+	const double dt2 = problem.finalTime - status.simulationTime;
+	return dt1 < dt2 ? dt1 : dt2;
     };
     auto condition = [&] () { return status.simulationTime < problem.finalTime; };
     auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
@@ -455,7 +455,7 @@ void Hydro2DTestProgram::runProblem (const Problem& problem, const Scheme& schem
 
     scheduler->schedule ([&] (SimulationStatus, int rep)
     {
-        writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+	writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     }, TaskScheduler::Recurrence (problem.finalTime));
 
     status = SimulationStatus();
@@ -464,7 +464,7 @@ void Hydro2DTestProgram::runProblem (const Problem& problem, const Scheme& schem
     md->assignPrimitive (mo->generate (problem.idf, MeshLocation::cell));
     md->applyBoundaryCondition (*bc);
 
-    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   
+    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
 }
 
 
@@ -485,41 +485,41 @@ std::vector<NewtonianMHD2DTestProgram::Problem> NewtonianMHD2DTestProgram::Probl
 {
     auto CylindricalBlast = [&] (double x, double y, double)
     {
-        x -= 0.5;
-        y -= 0.5;
-        const double R = std::sqrt (x * x + y * y);
-        auto S1 = std::vector<double> {1.000, 0., 0., 0., 1.000, 1.33, 1.33, 0.};
-        auto S2 = std::vector<double> {0.125, 0., 0., 0., 0.100, 1.33, 1.33, 0.};
-        return R < 0.125 ? S1 : S2;
+	x -= 0.5;
+	y -= 0.5;
+	const double R = std::sqrt (x * x + y * y);
+	auto S1 = std::vector<double> {1.000, 0., 0., 0., 1.000, 1.33, 1.33, 0.};
+	auto S2 = std::vector<double> {0.125, 0., 0., 0., 0.100, 1.33, 1.33, 0.};
+	return R < 0.125 ? S1 : S2;
     };
     auto FieldLoopP = [&] (double x, double y, double)
     {
-        x -= 0.5;
-        y -= 0.5;
-        const double B = 1e-5;
-        const double k = 10.0;
-        const double R = std::sqrt (x * x + y * y);
-        const double bf = B * 3 * k * std::pow (k * R, 2) * std::exp (-std::pow (k * R, 3)); // B-phi
-        auto P = std::vector<double>(8);
-        P[0] = 1.0;
-        P[1] = 1.0;
-        P[2] = 1.0;
-        P[3] = 0.0;
-        P[4] = 1.0;
-        P[5] = bf * (-y / R);
-        P[6] = bf * ( x / R);
-        P[7] = 0.0;
-        return P;
+	x -= 0.5;
+	y -= 0.5;
+	const double B = 1e-5;
+	const double k = 10.0;
+	const double R = std::sqrt (x * x + y * y);
+	const double bf = B * 3 * k * std::pow (k * R, 2) * std::exp (-std::pow (k * R, 3)); // B-phi
+	auto P = std::vector<double>(8);
+	P[0] = 1.0;
+	P[1] = 1.0;
+	P[2] = 1.0;
+	P[3] = 0.0;
+	P[4] = 1.0;
+	P[5] = bf * (-y / R);
+	P[6] = bf * ( x / R);
+	P[7] = 0.0;
+	return P;
     };
     auto FieldLoopA = [&] (double x, double y, double)
     {
-        x -= 0.5;
-        y -= 0.5;
-        const double B = 1e-5;
-        const double k = 10.0;
-        const double R = std::sqrt (x * x + y * y);
-        const double A = B * std::exp (-std::pow (k * R, 3));
-        return std::vector<double>  {0.0, 0.0, A };
+	x -= 0.5;
+	y -= 0.5;
+	const double B = 1e-5;
+	const double k = 10.0;
+	const double R = std::sqrt (x * x + y * y);
+	const double A = B * std::exp (-std::pow (k * R, 3));
+	return std::vector<double>  {0.0, 0.0, A };
     };
 
     const double A = 1.0;
@@ -528,17 +528,17 @@ std::vector<NewtonianMHD2DTestProgram::Problem> NewtonianMHD2DTestProgram::Probl
     const double k = 2 * M_PI;
     auto AbcFieldP = [&] (double x, double y, double z)
     {
-        auto bx = C * std::cos (k * z) - B * std::sin (k * y);
-        auto by = A * std::cos (k * x) - C * std::sin (k * z);
-        auto bz = B * std::cos (k * y) - A * std::sin (k * x);
-        return std::vector<double> { 1., 0., 0., 0., 1., bx, by, bz };
+	auto bx = C * std::cos (k * z) - B * std::sin (k * y);
+	auto by = A * std::cos (k * x) - C * std::sin (k * z);
+	auto bz = B * std::cos (k * y) - A * std::sin (k * x);
+	return std::vector<double> { 1., 0., 0., 0., 1., bx, by, bz };
     };
     auto AbcFieldA = [&] (double x, double y, double z)
     {
-        auto bx = C * std::cos (k * z) - B * std::sin (k * y);
-        auto by = A * std::cos (k * x) - C * std::sin (k * z);
-        auto bz = B * std::cos (k * y) - A * std::sin (k * x);
-        return std::vector<double> { bx / k, by / k, bz / k };
+	auto bx = C * std::cos (k * z) - B * std::sin (k * y);
+	auto by = A * std::cos (k * x) - C * std::sin (k * z);
+	auto bz = B * std::cos (k * y) - A * std::sin (k * x);
+	return std::vector<double> { bx / k, by / k, bz / k };
     };
 
     auto periodic = std::make_shared<PeriodicBoundaryCondition>();
@@ -582,10 +582,10 @@ int NewtonianMHD2DTestProgram::run (int argc, const char* argv[])
 {
     for (const auto& problem : Problem::get())
     {
-        for (const auto& scheme : Scheme::get())
-        {
-            runProblem (problem, scheme);
-        }
+	for (const auto& scheme : Scheme::get())
+	{
+	    runProblem (problem, scheme);
+	}
     }
     return 0;
 }
@@ -622,9 +622,9 @@ void NewtonianMHD2DTestProgram::runProblem (const Problem& problem, const Scheme
 
     auto timestep  = [&] ()
     {
-        const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
-        const double dt2 = problem.finalTime - status.simulationTime;
-        return dt1 < dt2 ? dt1 : dt2;
+	const double dt1 = cflParameter * fo->getCourantTimestep (P, L);
+	const double dt2 = problem.finalTime - status.simulationTime;
+	return dt1 < dt2 ? dt1 : dt2;
     };
     auto condition = [&] () { return status.simulationTime < problem.finalTime; };
     auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
@@ -638,13 +638,13 @@ void NewtonianMHD2DTestProgram::runProblem (const Problem& problem, const Scheme
 
     scheduler->schedule ([&] (SimulationStatus, int rep)
     {
-        auto Bcell = md->getMagneticField (MeshLocation::cell, MeshData::includeGuard);
-        auto Mcell = ct->monopole (Bcell, MeshLocation::cell);
+	auto Bcell = md->getMagneticField (MeshLocation::cell, MeshData::includeGuard);
+	auto Mcell = ct->monopole (Bcell, MeshLocation::cell);
 
-        md->allocateDiagnostics ({ "monopole" });
-        md->assignDiagnostic (Mcell, 0, MeshData::includeGuard);
+	md->allocateDiagnostics ({ "monopole" });
+	md->assignDiagnostic (Mcell, 0, MeshData::includeGuard);
 
-        writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+	writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     }, TaskScheduler::Recurrence (problem.finalTime));
 
     status = SimulationStatus();
@@ -654,13 +654,13 @@ void NewtonianMHD2DTestProgram::runProblem (const Problem& problem, const Scheme
 
     if (problem.ivp)
     {
-        auto A = mo->generate (problem.ivp, MeshLocation::face, MeshOperator::VectorMode::scalars, bs);
-        auto F = ct->vectorPotentialToFluxes (A);
-        auto G = ct->generateGodunovFluxes (F, 0);
-        auto Bcell = mo->divergence (G);
-        md->assignMagneticField (Bcell, MeshLocation::cell, MeshData::includeGuard);
+	auto A = mo->generate (problem.ivp, MeshLocation::face, MeshOperator::VectorMode::scalars, bs);
+	auto F = ct->vectorPotentialToFluxes (A);
+	auto G = ct->generateGodunovFluxes (F, 0);
+	auto Bcell = mo->divergence (G);
+	md->assignMagneticField (Bcell, MeshLocation::cell, MeshData::includeGuard);
     }
     md->applyBoundaryCondition (*bc);
 
-    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);   
+    maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
 }
