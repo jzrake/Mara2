@@ -26,6 +26,51 @@ using namespace Cow;
 
 
 // ============================================================================
+class ThermalConvectionBoundaryCondition : public BoundaryCondition
+{
+public:
+    void apply (
+        Cow::Array& A,
+        MeshLocation location,
+        MeshBoundary boundary,
+        int axis,
+        int numGuard) const override
+    {
+        switch (axis)
+        {
+            case 0: return periodic.apply (A, location, boundary, axis, numGuard);
+            case 1: return periodic.apply (A, location, boundary, axis, numGuard);
+            case 2:
+            {
+                switch (boundary)
+                {
+                    case MeshBoundary::left: return reflecting.apply (A, location, boundary, axis, numGuard);
+                    case MeshBoundary::right: return outflow.apply (A, location, boundary, axis, numGuard);
+                }
+            }
+        }
+        throw std::logic_error ("ThermalConvectionBoundaryCondition");
+    }
+
+    bool isAxisPeriodic (int axis) override
+    {
+        switch (axis)
+        {
+            case 0: return true;
+            case 1: return true;
+            case 2: return false;
+            default: throw std::logic_error ("ThermalConvectionBoundaryCondition");
+        }
+    }
+    ReflectingBoundaryCondition reflecting;
+    OutflowBoundaryCondition outflow;
+    PeriodicBoundaryCondition periodic;
+};
+
+
+
+
+// ============================================================================
 int ThermalConvectionProgram::run (int argc, const char* argv[])
 {
     auto user = Variant::NamedValues();
@@ -60,7 +105,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     double timestepSize = 0.0;
 
     auto bd = std::shared_ptr<BlockDecomposition>();
-    auto bc = std::shared_ptr<BoundaryCondition> (new PeriodicBoundaryCondition);
+    auto bc = std::shared_ptr<BoundaryCondition> (new ThermalConvectionBoundaryCondition);
     auto fs = std::make_shared<MethodOfLinesPlm>();
     auto cs = Shape {{ int (user["N"]), 1, int (user["N"]) * int (user["aspect"]) }};
     auto bs = Shape {{ 2, 0, 2 }};
