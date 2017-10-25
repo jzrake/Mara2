@@ -639,28 +639,28 @@ SCENARIO ("Stencil operations should behave correctly", "[Stencil]")
 #include "IntercellFluxSchemes.hpp"
 #include "RiemannSolvers.hpp"
 
-SCENARIO ("Mara session should launch if given minimal setup", "[Session]")
-{
-    auto session = MaraSession();
-    auto setup = SimulationSetup();
+// SCENARIO ("Mara session should launch if given minimal setup", "[Session]")
+// {
+//     auto session = MaraSession();
+//     auto setup = SimulationSetup();
 
-    setup.finalTime               = 0.001;
-    setup.checkpointInterval      = 0.0;
-    setup.vtkOutputInterval       = 0.0;
-    setup.boundaryCondition       = std::make_shared<PeriodicBoundaryCondition>();
-    setup.conservationLaw         = std::make_shared<NewtonianHydro>();
-    setup.riemannSolver           = std::make_shared<HlleRiemannSolver>();
-    setup.meshGeometry            = std::make_shared<CartesianMeshGeometry>();
-    setup.intercellFluxScheme     = std::make_shared<MethodOfLinesPlm>();
-    setup.constrainedTransport    = std::make_shared<UniformCartesianCT>();
-    setup.initialDataFunction     = [] (double x, double, double)
-    {
-        return std::vector<double> { 1.0 + 0.1 * std::sin (2 * M_PI * x), 0., 0., 0., 1. };
-    };
+//     setup.finalTime               = 0.001;
+//     setup.checkpointInterval      = 0.0;
+//     setup.vtkOutputInterval       = 0.0;
+//     setup.boundaryCondition       = std::make_shared<PeriodicBoundaryCondition>();
+//     setup.conservationLaw         = std::make_shared<NewtonianHydro>();
+//     setup.riemannSolver           = std::make_shared<HlleRiemannSolver>();
+//     setup.meshGeometry            = std::make_shared<CartesianMeshGeometry>();
+//     setup.intercellFluxScheme     = std::make_shared<MethodOfLinesPlm>();
+//     setup.constrainedTransport    = std::make_shared<UniformCartesianCT>();
+//     setup.initialDataFunction     = [] (double x, double, double)
+//     {
+//         return std::vector<double> { 1.0 + 0.1 * std::sin (2 * M_PI * x), 0., 0., 0., 1. };
+//     };
 
-    session.getLogger()->setLogToNull();
-    CHECK (session.launch (setup).simulationIter == 1);
-}
+//     session.getLogger()->setLogToNull();
+//     CHECK (session.launch (setup).simulationIter == 1);
+// }
 
 
 

@@ -25,11 +25,10 @@
 -include Makefile.in
 #
 # Any macros that are omitted receive these default values:
-LUA_ARCH ?= generic
 AR       ?= ar rcu
 RANLIB   ?= ranlib
-CXX      ?= mpicxx
 CXXFLAGS ?= -std=c++14 -Wall -O0 -g
+CXX      ?= mpicxx
 H5I      ?= -I/usr/include
 H5L      ?= -L/usr/lib -lhdf5
 
@@ -37,19 +36,18 @@ H5L      ?= -L/usr/lib -lhdf5
 # Build macros
 # =====================================================================
 COW      := Cow/src/libcow.a
-LUA      := Lua/src/liblua.a
 SRC      := $(wildcard src/*.cpp) $(wildcard src/Problems/*.cpp)
 OBJ      := $(SRC:%.cpp=%.o)
 DEP      := $(SRC:%.cpp=%.d)
 CXXFLAGS += -MMD -MP
-CXXFLAGS += -ICow/src -ILua/src
+CXXFLAGS += -ICow/src
 LDFLAGS  += $(H5L)
 
 
 # Build rules
 # =====================================================================
 #
-mara: $(OBJ) $(COW) $(LUA)
+mara: $(OBJ) $(COW)
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 clean:
@@ -57,13 +55,9 @@ clean:
 
 clean-all: clean
 	$(MAKE) -C Cow clean
-	$(MAKE) -C Lua clean
 
 $(COW): FORCE
 	$(MAKE) -C Cow
-
-$(LUA): FORCE
-	$(MAKE) -C Lua $(LUA_ARCH)
 
 FORCE:
 

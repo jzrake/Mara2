@@ -3,7 +3,6 @@
 // Mara includes
 #include "Mara.hpp"
 #include "Problems.hpp"
-#include "BackwardsCompat.hpp"
 #include "Checkpoint.hpp"
 #include "TaskScheduler.hpp"
 #include "Timer.hpp"
@@ -74,59 +73,21 @@ int maraMainLoop (
 
 
 // ============================================================================
-SimulationSetup::SimulationSetup()
-{
-    finalTime = 1.0;
-    checkpointInterval = 1.0;
-    vtkOutputInterval = 1.0;
-    timeSeriesInterval = 0.1;
-    vtkUseBinary = true;
-    cflParameter = 0.25;
-    rungeKuttaOrder = 2;
-    outputDirectory = ".";
-    runName = "test";
-    disableCT = false;
-}
-
-
-
-
-// ============================================================================
 SimulationStatus::SimulationStatus()
 {
-    simulationIter = 0;
-    numCheckpoints = 0;
-    numVtkOutputs = 0;
-    numTimeSeriesEntries = 0;
-    simulationTime = 0.0;
-    lastCheckpoint = 0.0;
-    lastVtkOutput = 0.0;
-    lastTimeSeriesEntry = 0.0;
 }
 
 void SimulationStatus::update (const Variant::NamedValues& values)
 {
     simulationIter = values.at ("simulationIter");
-    numCheckpoints = values.at ("numCheckpoints");
-    numVtkOutputs = values.at ("numVtkOutputs");
-    numTimeSeriesEntries = values.at ("numTimeSeriesEntries");
     simulationTime = values.at ("simulationTime");
-    lastCheckpoint = values.at ("lastCheckpoint");
-    lastVtkOutput = values.at ("lastVtkOutput");
-    lastTimeSeriesEntry = values.at ("lastTimeSeriesEntry");
 }
 
 Variant::NamedValues SimulationStatus::pack() const
 {
     auto values = Variant::NamedValues();
     values["simulationIter"] = simulationIter;
-    values["numCheckpoints"] = numCheckpoints;
-    values["numVtkOutputs"] = numVtkOutputs;
-    values["numTimeSeriesEntries"] = numTimeSeriesEntries;
     values["simulationTime"] = simulationTime;
-    values["lastCheckpoint"] = lastCheckpoint;
-    values["lastVtkOutput"] = lastVtkOutput;
-    values["lastTimeSeriesEntry"] = lastTimeSeriesEntry;
     return values;
 }
 
@@ -206,9 +167,5 @@ int main (int argc, const char* argv[])
     else if (programs.find (argv[1]) != programs.end())
     {
         return programs[argv[1]]->run (argc - 1, argv + 1);
-    }
-    else
-    {
-        return BackwardsCompatProgram().run (argc - 1, argv + 1);
     }
 }

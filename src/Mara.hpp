@@ -64,9 +64,7 @@ protected:
 /**
 These are higher level classes used by the driver.
 */
-class MaraSession;
 class MeshDecomposition;
-class SimulationSetup;
 class SimulationStatus;
 class TimeSeriesManager;
 
@@ -109,60 +107,7 @@ public:
 
 
 /**
-DEPRECATED
-*/
-class MaraSession : public MayUseLogger
-{
-public:
-    MaraSession();
-    SimulationStatus launch (SimulationSetup& setup);
-};
-
-
-
-
-/**
-DEPRECATED
-*/
-class SimulationSetup
-{
-public:
-    SimulationSetup();
-
-    // Run description
-    double finalTime;
-    double checkpointInterval;
-    double vtkOutputInterval;
-    double timeSeriesInterval;
-    double cflParameter;
-    int rungeKuttaOrder;
-    bool vtkUseBinary;
-    std::string outputDirectory;
-    std::string runName;
-    std::string luaScript;
-    std::string luaCommandLine;
-    std::string restartFile;
-
-    // Solver options
-    bool disableCT;
-
-    // Algorithms
-    std::shared_ptr<MeshGeometry> meshGeometry;
-    std::shared_ptr<ConservationLaw> conservationLaw;
-    std::shared_ptr<IntercellFluxScheme> intercellFluxScheme;
-    std::shared_ptr<ConstrainedTransport> constrainedTransport;
-    std::shared_ptr<RiemannSolver> riemannSolver;
-    std::shared_ptr<BoundaryCondition> boundaryCondition;
-    InitialDataFunction initialDataFunction;
-    InitialDataFunction vectorPotentialFunction;
-    InitialDataFunction boundaryValueFunction;
-};
-
-
-
-
-/**
-DEPRECATED
+NEEDS UPDATE
 */
 class SimulationStatus
 {
@@ -171,17 +116,10 @@ public:
     void print (std::ostream& stream);
     void update (const Variant::NamedValues& values);
     Variant::NamedValues pack() const;
-    int simulationIter;
-    int numCheckpoints;
-    int numVtkOutputs;
-    int numTimeSeriesEntries;
-    double simulationTime;
-    double lastCheckpoint;
-    double lastVtkOutput;
-    double lastTimeSeriesEntry;
-
-    double wallMinutes;
-    long totalCellsInMesh;
+    double simulationTime = 0.0;
+    int simulationIter = 0;
+    long totalCellsInMesh = 0;
+    double wallMinutes = 0.0;
 };
 
 

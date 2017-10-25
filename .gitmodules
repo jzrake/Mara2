@@ -1,6 +1,3 @@
 [submodule "Cow"]
 	path = Cow
 	url = https://github.com/jzrake/Cow2.git
-[submodule "Lua"]
-	path = Lua
-	url = https://github.com/jzrake/Lua

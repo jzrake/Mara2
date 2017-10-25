@@ -19,24 +19,47 @@ compressible gasdynamics and magnetohydrodynamics (MHD).
 
 
 
+Building
+-----------------------------------------------
+
+1. Make sure you have a working installation of MPI and HDF5.
+
+2. Create a file called Makefile.in, in the Mara root directory, and copy the
+following lines into it:
+
+    CXX = mpicxx
+    H5I = -I/usr/include
+    H5L = -L/usr/lib -lhdf5
+
+3. Modify these values to indicate your HDF5 installation directory, and name
+of your MPI C++ compiler. Provide the full path of the executable if it's not
+in your system PATH or your system has more than one.
+
+4. Type make.
+
+
+
+
 Basic usage
 -----------------------------------------------
 
-1. mara config.lua
-2. mara run problem.lua
+mara command [key=val] [key=val]
 
-In config mode (1), the user provides a Lua file which declares global
-variables describing the run (see example_cfg.lua). The executable will launch
-a single run from the parameters listed in that file. In scripted mode (2) the
-lua environment will be populated with a limited API that allows the user to
-script the execution with finer granularity. Any number of sequential runs may
-by launched by providing a Lua table of parameters to the mara.run function.
+The first argument `command` is the same of a sub-program, which runs a
+particular solver and physics configuration. Most of the sub-program source
+code can be found in the src/Problems directory. To see a list of available
+commands type `mara` without any arguments.
+
+The list of key-value pairs on the command line will be passed to the sub-
+problem as parameters. Don't use dashes before them.
 
 
 
 
 Code base
 -----------------------------------------------
+
+# Overview
 
 Mara's source code is written in C++, with some limited usage of C++11
 features: lambda functions, auto keyword, std::shared_ptr, and move semantics.
@@ -48,6 +71,37 @@ distributed memory parallelism (through a thin MPI wrapper). Having this layer
 helps in the "separation of concerns"; physics solvers delegate menial tasks
 like array allocation and interprocess communication to facilities in the Cow
 namespace, which keeps the solver code clean and expressive.
+
+
+# Standards and style
+
+Mara uses a very consistent (though maybe idiosyncratic) coding standard
+throughout the code base. I have adopted it from the JUCE toolkit, which I
+believe is exemplary when it comes to quality of C++ code development. The
+coding standards I use are outlined here:
+
+https://www.juce.com/learn/coding-standards
+
+You may find some of these annoying or superficial, but if you are contributing
+code, at least please make an effort to conform to them.
+
+
+# Git commits
+
+For git commits, please write try to format your commit messages like the
+following (without the '>' of course):
+
+    Fix typo in the README file
+
+    This commit also adds some links to potentially relevant URL's.
+    All tests are passing.
+
+First word is a present tense verb, is capitalized, there is no period at the
+end, and the whole first line should be less than 50 characters. More detail
+should follow on a paragraph below, separated by a newline. Good git
+conventions and their rationale are outlined here:
+
+https://chris.beams.io/posts/git-commit
 
 
 
