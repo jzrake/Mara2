@@ -89,7 +89,7 @@ code, at least please make an effort to conform to them.
 # Git commits
 
 For git commits, please write try to format your commit messages like the
-following (without the '>' of course):
+following (without the leading spaces of course):
 
     Fix typo in the README file
 
