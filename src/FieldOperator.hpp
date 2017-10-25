@@ -77,7 +77,6 @@ public:
                             as P on axis 0, 1, and 2, but has only one
                             component on axis 3.
     */
-
     double getCourantTimestep (Array::Reference P, Array::Reference L) const;
 
     /**

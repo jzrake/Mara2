@@ -121,6 +121,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
     // Gravitational source terms, heating, and initial data function
     // ------------------------------------------------------------------------
+    const double q0 = 2.0; // heating hate
     const double d0 = 1.0; // density at base of atmosphere
     const double g0 = 1.0; // gravitational acceleration at base
     const double z0 = 1.0; // gravity fall-off distance
@@ -139,7 +140,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         S[3] = -rho * g;
         S[4] = -rho * g * vel;
 
-        double qdot = 2.0 * std::exp (-y * y / 0.005) * std::exp (-z * z / h / h);
+        double qdot = q0 * std::exp (-(y * y + z * z) / 0.01);
         S[4] += qdot * (t < P);
 
         return S;
@@ -151,7 +152,6 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         const double pre = cs2 * rho;
         return std::vector<double> {rho, 0, 0, 0, pre};
     };
-
 
 
     auto clineUser = Variant::fromCommandLine (argc, argv);

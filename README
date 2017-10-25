@@ -58,7 +58,7 @@ Basic usage
 
 mara command [key=val] [key=val]
 
-The first argument `command` is the same of a sub-program, which runs a
+The first argument `command` is the name of a sub-program, which runs a
 particular solver and physics configuration. Most of the sub-program source
 code can be found in the src/Problems directory. To see a list of available
 commands type `mara` without any arguments.
@@ -101,8 +101,8 @@ code, at least please make an effort to conform to them.
 
 # Git commits
 
-For git commits, please write try to format your commit messages like the
-following (without the leading spaces of course):
+For git commits, please try to format your commit messages like the following
+(without the leading spaces of course):
 
     Fix typo in the README file
 
