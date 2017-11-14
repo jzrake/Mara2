@@ -48,7 +48,7 @@ LDFLAGS  += $(H5L)
 # =====================================================================
 #
 mara: $(OBJ) $(COW)
-	$(CXX) $(LDFLAGS) -o $@ $^
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 clean:
 	$(RM) $(OBJ) $(DEP) mara
