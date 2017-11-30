@@ -64,7 +64,7 @@ protected:
 /**
 These are higher level classes used by the driver.
 */
-class MeshDecomposition;
+// class MeshDecomposition;
 class SimulationStatus;
 class TimeSeriesManager;
 
@@ -106,9 +106,6 @@ public:
 
 
 
-/**
-NEEDS UPDATE
-*/
 class SimulationStatus
 {
 public:

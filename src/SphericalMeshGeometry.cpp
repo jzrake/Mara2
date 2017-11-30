@@ -58,13 +58,17 @@ Cow::Index SphericalMeshGeometry::indexAtCoordinate (Coordinate x) const
 
 Coordinate SphericalMeshGeometry::coordinateAtIndex (double i, double j, double k) const
 {
-    const double r0 = edges[0].at (int(i) + 0);
-    const double r1 = edges[0].at (int(i) + 1);
-    const double q0 = edges[1].at (int(j) + 0);
-    const double q1 = edges[1].at (int(j) + 1);
-    const double p0 = edges[2].at (int(k) + 0);
-    const double p1 = edges[2].at (int(k) + 1);
-    const double r = std::sqrt (r0 * r1) * std::pow (r1 / r0, i);
+    int i0 = i + 0.5; if (i0 < 0) i0 = 0; if (i0 >= shape[0]) i0 = shape[0] - 1;
+    int j0 = j + 0.5; if (j0 < 0) j0 = 0; if (j0 >= shape[1]) j0 = shape[1] - 1;
+    int k0 = k + 0.5; if (k0 < 0) k0 = 0; if (k0 >= shape[2]) k0 = shape[2] - 1;
+
+    const double r0 = edges[0].at (i0 + 0);
+    const double r1 = edges[0].at (i0 + 1);
+    const double q0 = edges[1].at (j0 + 0);
+    const double q1 = edges[1].at (j0 + 1);
+    const double p0 = edges[2].at (k0 + 0);
+    const double p1 = edges[2].at (k0 + 1);
+    const double r = std::sqrt (r0 * r1) * std::pow (r1 / r0, i - i0);
     const double q = (0.5 - j) * q0 + (0.5 + j) * q1;
     const double p = (0.5 - k) * p0 + (0.5 + k) * p1;
     return Coordinate ({{ r, q, p }});
@@ -185,14 +189,14 @@ void SphericalMeshGeometry::cacheSpacing()
 
     for (int i = 0; i < edges[0].size(); ++i)
     {
-        edges[0][i] = lower[0] * std::pow (upper[0] / lower[0], double(i) / edges[0].size());
+        edges[0][i] = lower[0] * std::pow (upper[0] / lower[0], double(i) / shape[0]);
     }
-    for (int j = 0; j < edges[0].size(); ++j)
+    for (int j = 0; j < edges[1].size(); ++j)
     {
-        edges[1][j] = lower[1] + (upper[1] - lower[1]) * double(j) / edges[1].size();
+        edges[1][j] = lower[1] + (upper[1] - lower[1]) * double(j) / shape[1];
     }
-    for (int k = 0; k < edges[0].size(); ++k)
+    for (int k = 0; k < edges[2].size(); ++k)
     {
-        edges[2][k] = lower[2] + (upper[2] - lower[2]) * double(k) / edges[2].size();
+        edges[2][k] = lower[2] + (upper[2] - lower[2]) * double(k) / shape[2];
     }
 }
