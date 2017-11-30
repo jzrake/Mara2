@@ -40,7 +40,7 @@ void CheckpointWriter::setFormat (std::string formatString)
         format = Format::multiple;
         return;
     }
-    throw std::runtime_error ("Checkpoint format string not single or multiple");
+    throw std::runtime_error ("Checkpoint format string must be 'single' or 'multiple'");
 }
 
 void CheckpointWriter::setFilenamePrefix (std::string filenamePrefixToUse)

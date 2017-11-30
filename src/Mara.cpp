@@ -168,4 +168,7 @@ int main (int argc, const char* argv[])
     {
         return programs[argv[1]]->run (argc - 1, argv + 1);
     }
+
+    std::cout << "invalid sub-program '" << argv[1] << "'\n";
+    return 0;
 }

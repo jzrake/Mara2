@@ -12,6 +12,7 @@
 #include "../MeshData.hpp"
 #include "../MeshOperator.hpp"
 #include "../Problems.hpp"
+#include "../RiemannSolvers.hpp"
 #include "../SolutionSchemes.hpp"
 #include "../TaskScheduler.hpp"
 #include "../TimeSeriesManager.hpp"
@@ -172,7 +173,8 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
     auto bd = std::shared_ptr<BlockDecomposition>();
     auto bc = std::shared_ptr<BoundaryCondition> (new ThermalConvectionBoundaryCondition (initialData));
-    auto fs = std::make_shared<MethodOfLinesPlm>();
+    auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
+    auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
     auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto cl = std::make_shared<NewtonianHydro>();
 
@@ -207,6 +209,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
     cl->setGammaLawIndex (double (user["gamma"]));
     fs->setPlmTheta (double (user["plm"]));
+    fs->setRiemannSolver (rs);
     fo->setConservationLaw (cl);
     mo->setMeshGeometry (mg);
     ss->setSourceTermsFunction (sourceTermsFunction);

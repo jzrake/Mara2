@@ -1,3 +1,4 @@
+#include <cassert>
 #include "CartesianMeshGeometry.hpp"
 
 
@@ -32,6 +33,16 @@ MeshGeometry::PatchIndex MeshGeometry::getPatchIndex() const
 Coordinate MeshGeometry::coordinateAtIndex (Cow::Index index) const
 {
     return coordinateAtIndex (index[0], index[1], index[2]);
+}
+
+Cow::Index MeshGeometry::getStartIndex() const
+{
+    return startIndex;
+}
+
+void MeshGeometry::assignStartIndex (Index index)
+{
+    startIndex = index;
 }
 
 
@@ -161,16 +172,6 @@ Cow::Array CartesianMeshGeometry::getPointCoordinates (int axis) const
         coords[n] = coordinateAtIndex (n - 0.5, n - 0.5, n - 0.5)[axis];
     }
     return coords;
-}
-
-Cow::Index CartesianMeshGeometry::getStartIndex() const
-{
-    return startIndex;
-}
-
-void CartesianMeshGeometry::assignStartIndex (Index index)
-{
-    startIndex = index;
 }
 
 void CartesianMeshGeometry::cacheSpacing()

@@ -94,12 +94,6 @@ private:
 BlockDecomposition::BlockDecomposition (const std::shared_ptr<MeshGeometry> globalGeometry, Logger& logger) :
 globalGeometry (globalGeometry)
 {
-    // The geometry instance needs to be cartesian.
-    if (! dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get()))
-    {
-        throw std::logic_error ("Geometry instance for BlockDecomposition not cartesian");
-    }
-
     auto world = MpiCommunicator::world();
     communicator = world.createCartesian (3, globalGeometry->fleshedOutAxes());
     logger.log ("BlockDecomposition")
@@ -124,9 +118,9 @@ Cow::Shape BlockDecomposition::getGlobalShape() const
 
 int BlockDecomposition::patchCoordsContainingCell (int index, int axis) const
 {
-    auto globalGeom = dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get());
+    // auto globalGeom = dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get());
     auto globalDims = communicator.getDimensions();
-    auto globalShape = globalGeom->cellsShape();
+    auto globalShape = globalGeometry->cellsShape();
 
     for (int n = 0; n < globalDims[axis]; ++n)
     {
@@ -143,7 +137,6 @@ int BlockDecomposition::patchCoordsContainingCell (int index, int axis) const
 
 std::shared_ptr<MeshGeometry> BlockDecomposition::decompose() const
 {
-    auto globalGeom = dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get());
     auto localGeom = std::make_shared<CartesianMeshGeometry>();
     auto localRegion = getPatchRegion();
 
@@ -151,11 +144,11 @@ std::shared_ptr<MeshGeometry> BlockDecomposition::decompose() const
     localGeom->assignPatchIndex (getPatchIndex());
     localGeom->setCellsShape (localRegion.shape());
     localGeom->setLowerUpper (
-        globalGeom->coordinateAtIndex (
+        globalGeometry->coordinateAtIndex (
         localRegion.lower[0] - 0.5,
         localRegion.lower[1] - 0.5,
         localRegion.lower[2] - 0.5),
-        globalGeom->coordinateAtIndex (
+        globalGeometry->coordinateAtIndex (
         localRegion.upper[0] - 0.5,
         localRegion.upper[1] - 0.5,
         localRegion.upper[2] - 0.5));
@@ -165,10 +158,9 @@ std::shared_ptr<MeshGeometry> BlockDecomposition::decompose() const
 
 Cow::Region BlockDecomposition::getPatchRegion (MeshGeometry::PatchIndex index) const
 {
-    auto globalGeom = dynamic_cast<const CartesianMeshGeometry*> (globalGeometry.get());
     auto cartCoords = communicator.getCoordinates (index[0]);
     auto globalDims = communicator.getDimensions();
-    auto globalShape = globalGeom->cellsShape();
+    auto globalShape = globalGeometry->cellsShape();
     auto R = Region();
 
     for (int n = 0; n < 3; ++n)
@@ -222,7 +214,6 @@ std::vector<double> BlockDecomposition::areaAverageOverSurface (
     int globalIndex,
     int axis) const
 {
-    // int coord = communicator.getCoordinates
     auto splitComm = communicator.split (communicator.getCoordinates()[axis]);
     auto areaAveraged = std::vector<double>();
 

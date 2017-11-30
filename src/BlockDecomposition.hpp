@@ -10,7 +10,6 @@
 class BlockDecomposition : public MeshDecomposition
 {
 public:
-
     BlockDecomposition() { }
 
     /**
@@ -36,8 +35,8 @@ public:
     Cow::Shape getGlobalShape() const;
 
     /**
-    Return the logical cartesian coordinate, along the given axis, of the grid
-    patch at the given global cell index.
+    Return the logically cartesian coordinate, along the given axis, of the
+    grid patch at the given global cell index.
     */
     int patchCoordsContainingCell (int index, int axis) const;
 
@@ -77,15 +76,15 @@ public:
 
     /**
     Perform a volume integral over all patches, and divide by the total mesh
-    volume. The quanitites to be averaged are likely volume-integrated cell
+    volume. The quanitites to be averaged should be volume-integrated cell
     diagnostics. One volume-average is performed per entry in diagnostics.
     */
     std::vector<double> volumeAverageOverPatches (const std::vector<double>& diagnostics) const;
 
     /**
-    Perform an area average of the given diagnostics over the subset of
-    of participating processors which contain the given cartesian index
-    of the global mesh, on the given axis.
+    Perform an area average of the given diagnostics over the subset of of
+    participating processors which contain the given cartesian index of the
+    global mesh, on the given axis. WARNING: This method is not implemented.
     */
     std::vector<double> areaAverageOverSurface (const std::vector<double>& diagnostics, int globalIndex, int axis) const;
 

@@ -166,6 +166,17 @@ public:
     void assignPatchIndex (PatchIndex newPatchIndex);
 
     /**
+    Set the starting index of this patch in a global geometry. This method
+    should only be called by a MeshDecomposition object.
+    */
+    void assignStartIndex (Index index);
+
+    /**
+    Return the starting index of this patch in a global geometry.
+    */
+    Index getStartIndex() const;
+
+    /**
     Return the index of this patch in a global composite mesh.
     */
     PatchIndex getPatchIndex() const;
@@ -248,6 +259,7 @@ public:
     virtual double meshVolume() const = 0;
 
 private:
+    Index startIndex;
     PatchIndex patchIndex;
 };
 
