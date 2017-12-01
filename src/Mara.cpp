@@ -16,6 +16,7 @@
 #include "Problems/MagneticBraiding.hpp"
 #include "Problems/UnstablePinch.hpp"
 #include "Problems/ThermalConvection.hpp"
+#include "Problems/SphericalWind.hpp"
 
 using namespace Cow;
 
@@ -194,7 +195,8 @@ int main (int argc, const char* argv[])
     programs["braid"]       = std::make_unique<MagneticBraidingProgram>();
     programs["pinch"]       = std::make_unique<UnstablePinchProgram>();
     programs["kinetic"]     = std::make_unique<CollisionalHydroProgram>();
-    programs["convect"]      = std::make_unique<ThermalConvectionProgram>();
+    programs["convect"]     = std::make_unique<ThermalConvectionProgram>();
+    programs["wind"]        = std::make_unique<SphericalWind>();
     programs["stitch"]      = std::make_unique<CheckpointStitcherProgram>();
     programs["tovtk"]       = std::make_unique<CheckpointToVtkProgram>();
 

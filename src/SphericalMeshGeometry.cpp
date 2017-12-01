@@ -8,10 +8,10 @@
 // ============================================================================
 SphericalMeshGeometry::SphericalMeshGeometry()
 {
+    std::cout << "Build spherical\n";
     shape = {{ 128, 1, 1, 1, 1 }};
     lower = {{ 1.0, 0.0, 0.0 }};
     upper = {{ 10.0, M_PI, 2 * M_PI }};
-    cacheSpacing();
 }
 
 SphericalMeshGeometry::SphericalMeshGeometry(Cow::Shape S)
@@ -19,7 +19,6 @@ SphericalMeshGeometry::SphericalMeshGeometry(Cow::Shape S)
     shape = {{ S[0], S[1], S[2], 1, 1 }};
     lower = {{ 1.0, 0.0, 0.0 }};
     upper = {{ 10.0, M_PI, 2 * M_PI }};
-    cacheSpacing();
 }
 
 SphericalMeshGeometry::SphericalMeshGeometry (int ni, int nj, int nk)
@@ -27,7 +26,6 @@ SphericalMeshGeometry::SphericalMeshGeometry (int ni, int nj, int nk)
     shape = {{ ni, nj, nk, 1, 1 }};
     lower = {{ 1.0, 0.0, 0.0 }};
     upper = {{ 10.0, M_PI, 2 * M_PI }};
-    cacheSpacing();
 }
 
 void SphericalMeshGeometry::setCellsShape (Cow::Shape S)
@@ -35,14 +33,12 @@ void SphericalMeshGeometry::setCellsShape (Cow::Shape S)
     shape[0] = S[0];
     shape[1] = S[1];
     shape[2] = S[2];
-    cacheSpacing();
 }
 
 void SphericalMeshGeometry::setLowerUpper (Coordinate L, Coordinate U)
 {
     lower = L;
     upper = U;
-    cacheSpacing();
 }
 
 Cow::Shape SphericalMeshGeometry::cellsShape() const
@@ -62,12 +58,13 @@ Coordinate SphericalMeshGeometry::coordinateAtIndex (double i, double j, double 
     int j0 = j + 0.5; if (j0 < 0) j0 = 0; if (j0 >= shape[1]) j0 = shape[1] - 1;
     int k0 = k + 0.5; if (k0 < 0) k0 = 0; if (k0 >= shape[2]) k0 = shape[2] - 1;
 
-    const double r0 = edges[0].at (i0 + 0);
-    const double r1 = edges[0].at (i0 + 1);
-    const double q0 = edges[1].at (j0 + 0);
-    const double q1 = edges[1].at (j0 + 1);
-    const double p0 = edges[2].at (k0 + 0);
-    const double p1 = edges[2].at (k0 + 1);
+    const double r0 = getEdge (i0 + 0, 0);
+    const double r1 = getEdge (i0 + 1, 0);
+    const double q0 = getEdge (j0 + 0, 1);
+    const double q1 = getEdge (j0 + 1, 1);
+    const double p0 = getEdge (k0 + 0, 2);
+    const double p1 = getEdge (k0 + 1, 2);
+
     const double r = std::sqrt (r0 * r1) * std::pow (r1 / r0, i - i0);
     const double q = (0.5 - j) * q0 + (0.5 + j) * q1;
     const double p = (0.5 - k) * p0 + (0.5 + k) * p1;
@@ -81,48 +78,48 @@ unsigned long SphericalMeshGeometry::totalCellsInMesh() const
 
 double SphericalMeshGeometry::cellLength (int i, int j, int k, int axis) const
 {
-    const double ri = std::sqrt (edges[0][i] * edges[0][i]);
-    const double qi = 0.5 *     (edges[1][j] + edges[1][j]);
+    const double ri = std::sqrt (getEdge (i, 0) * getEdge (i + 1, 0));
+    const double qi = 0.5 *     (getEdge (j, 1) + getEdge (j + 1, 1));
 
     switch (axis)
     {
-        case 0: return 1. * (edges[0][i + 1] - edges[0][i]);
-        case 1: return ri * (edges[1][j + 1] - edges[1][j]);
-        case 2: return ri * (edges[2][k + 1] - edges[2][k]) * std::sin (qi);
+        case 0: return 1. * (getEdge (i + 1, 0) - getEdge (i, 0));
+        case 1: return ri * (getEdge (j + 1, 1) - getEdge (j, 1));
+        case 2: return ri * (getEdge (k + 1, 2) - getEdge (k, 2)) * std::sin (qi);
         default: throw std::logic_error ("Axis argument not 0, 1, or 2");
     }
 }
 
 double SphericalMeshGeometry::cellVolume (int i, int j, int k) const
 {
-    const double r0 = edges[0].at (i + 0);
-    const double r1 = edges[0].at (i + 1);
-    const double q0 = edges[1].at (j + 0);
-    const double q1 = edges[1].at (j + 1);
-    const double p0 = edges[2].at (k + 0);
-    const double p1 = edges[2].at (k + 1);
+    const double r0 = getEdge (i + 0, 0);
+    const double r1 = getEdge (i + 1, 0);
+    const double q0 = getEdge (j + 0, 1);
+    const double q1 = getEdge (j + 1, 1);
+    const double p0 = getEdge (k + 0, 2);
+    const double p1 = getEdge (k + 1, 2);
     return -1. / 3 * (r1 * r1 * r1 - r0 * r0 * r0) * (std::cos (q1) - std::cos (q0)) * (p1 - p0);
 }
 
 double SphericalMeshGeometry::meshVolume() const
 {
-    const double r0 = edges[0].front();
-    const double r1 = edges[0].back();
-    const double q0 = edges[1].front();
-    const double q1 = edges[1].back();
-    const double p0 = edges[2].front();
-    const double p1 = edges[2].back();
+    const double r0 = lower[0];
+    const double r1 = upper[0];
+    const double q0 = lower[1];
+    const double q1 = upper[1];
+    const double p0 = lower[2];
+    const double p1 = upper[2];
     return -1. / 3 * (r1 * r1 * r1 - r0 * r0 * r0) * (std::cos (q1) - std::cos (q0)) * (p1 - p0);
 }
 
 double SphericalMeshGeometry::faceArea (int i, int j, int k, int axis) const
 {
-    const double r0 = edges[0].at (i + 0);
-    const double r1 = edges[0].at (i + 1);
-    const double q0 = edges[1].at (j + 0);
-    const double q1 = edges[1].at (j + 1);
-    const double p0 = edges[2].at (k + 0);
-    const double p1 = edges[2].at (k + 1);
+    const double r0 = getEdge (i + 0, 0);
+    const double r1 = getEdge (i + 1, 0);
+    const double q0 = getEdge (j + 0, 1);
+    const double q1 = getEdge (j + 1, 1);
+    const double p0 = getEdge (k + 0, 2);
+    const double p1 = getEdge (k + 1, 2);
 
     switch (axis)
     {
@@ -146,14 +143,14 @@ UnitVector SphericalMeshGeometry::faceNormal (int i, int j, int k, int axis) con
 
 double SphericalMeshGeometry::edgeLength (int i, int j, int k, int axis) const
 {
-    const double r0 = edges[0][i];
-    const double q0 = edges[1][j];
+    const double r0 = getEdge (i, 0);
+    const double q0 = getEdge (j, 1);
 
     switch (axis)
     {
-        case 0: return 1. * (edges[0][i + 1] - edges[0][i]);
-        case 1: return r0 * (edges[1][j + 1] - edges[1][j]);
-        case 2: return r0 * (edges[2][k + 1] - edges[2][k]) * std::sin (q0);
+        case 0: return 1. * (getEdge (i + 1, 0) - getEdge (i, 0));
+        case 1: return r0 * (getEdge (j + 1, 1) - getEdge (j, 1));
+        case 2: return r0 * (getEdge (k + 1, 2) - getEdge (k, 2)) * std::sin (q0);
         default: throw std::logic_error ("Axis argument not 0, 1, or 2");
     }
 }
@@ -181,22 +178,20 @@ Cow::Array SphericalMeshGeometry::getPointCoordinates (int axis) const
     return coords;
 }
 
-void SphericalMeshGeometry::cacheSpacing()
+std::shared_ptr<MeshGeometry> SphericalMeshGeometry::duplicate() const
 {
-    edges[0] = std::vector<double> (shape[0] + 1);
-    edges[1] = std::vector<double> (shape[1] + 1);
-    edges[2] = std::vector<double> (shape[2] + 1);
+    auto mg = new SphericalMeshGeometry;
+    *mg = *this;
+    return std::shared_ptr<MeshGeometry> (mg);
+}
 
-    for (int i = 0; i < edges[0].size(); ++i)
+double SphericalMeshGeometry::getEdge (double n, int axis) const
+{
+    switch (axis)
     {
-        edges[0][i] = lower[0] * std::pow (upper[0] / lower[0], double(i) / shape[0]);
-    }
-    for (int j = 0; j < edges[1].size(); ++j)
-    {
-        edges[1][j] = lower[1] + (upper[1] - lower[1]) * double(j) / shape[1];
-    }
-    for (int k = 0; k < edges[2].size(); ++k)
-    {
-        edges[2][k] = lower[2] + (upper[2] - lower[2]) * double(k) / shape[2];
+        case 0: return lower[0] * std::pow (upper[0] / lower[0], n / shape[0]);
+        case 1: return lower[1] + (upper[1] - lower[1]) * n / shape[1];
+        case 2: return lower[2] + (upper[2] - lower[2]) * n / shape[2];
+        default: assert (false);
     }
 }

@@ -33,6 +33,7 @@ class RiemannSolver;
 class SolutionScheme;
 class SubProgram;
 class TaskScheduler;
+class TimeSeriesManager;
 
 
 
@@ -61,19 +62,11 @@ protected:
 
 
 
-/**
-These are higher level classes used by the driver.
-*/
-// class MeshDecomposition;
-class SimulationStatus;
-class TimeSeriesManager;
-
-
-
-
 using StateArray = std::array<double, MARA_NUM_FIELDS>;
 using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
 using SourceTermsFunction = std::function<StateArray (double x, double y, double z, StateArray primitive)>;
+// using SourceTermsGeometry = std::function<StateArray (std::array<std::array<double, 2>, 3>, StateArray primitive)>;
+
 using AreaElement = std::array<double, 3>;
 using Coordinate = std::array<double, 3>;
 enum class MeshLocation { vert, edge, face, cell };
@@ -254,6 +247,17 @@ public:
     Return the total volume of this grid patch.
     */
     virtual double meshVolume() const = 0;
+
+    /**
+    Return a 1D array of coordiate values along the given axis. This method
+    only makes sense for logically cartesian, grid-aligned meshes.
+    */
+    virtual Cow::Array getPointCoordinates (int axis) const = 0;
+
+    /**
+    Return a copy of this mesh geometry as a new object.
+    */
+    virtual std::shared_ptr<MeshGeometry> duplicate() const = 0;
 
 private:
     Index startIndex;

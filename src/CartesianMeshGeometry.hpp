@@ -25,7 +25,8 @@ public:
     UnitVector faceNormal (int i, int j, int k, int axis) const override;
     double edgeLength (int i, int j, int k, int axis) const override;
     UnitVector edgeVector (int i, int j, int k, int axis) const override;
-    Cow::Array getPointCoordinates (int axis) const;
+    Cow::Array getPointCoordinates (int axis) const override;
+    std::shared_ptr<MeshGeometry> duplicate() const override;
 private:
     void cacheSpacing();
     Coordinate lower;

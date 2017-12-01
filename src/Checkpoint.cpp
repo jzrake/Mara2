@@ -161,8 +161,7 @@ void CheckpointWriter::writeCheckpoint (
         meshGroup.writeString ("type", "cartesian");
 
         auto pointGroup = meshGroup.createGroup ("points");
-        auto geometry = dynamic_cast<const CartesianMeshGeometry*>
-        (block ? block->getGlobalGeometry().get() : &meshGeometry);
+        auto geometry = (block ? block->getGlobalGeometry().get() : &meshGeometry);
 
         pointGroup.writeArray ("x", geometry->getPointCoordinates (0));
         pointGroup.writeArray ("y", geometry->getPointCoordinates (1));

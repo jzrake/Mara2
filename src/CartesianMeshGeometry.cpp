@@ -130,6 +130,13 @@ Cow::Array CartesianMeshGeometry::getPointCoordinates (int axis) const
     return coords;
 }
 
+std::shared_ptr<MeshGeometry> CartesianMeshGeometry::duplicate() const
+{
+    auto mg = new CartesianMeshGeometry;
+    *mg = *this;
+    return std::shared_ptr<MeshGeometry> (mg);
+}
+
 void CartesianMeshGeometry::cacheSpacing()
 {
     for (int n = 0; n < 3; ++n)

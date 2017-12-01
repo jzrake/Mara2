@@ -137,7 +137,7 @@ int BlockDecomposition::patchCoordsContainingCell (int index, int axis) const
 
 std::shared_ptr<MeshGeometry> BlockDecomposition::decompose() const
 {
-    auto localGeom = std::make_shared<CartesianMeshGeometry>();
+    auto localGeom = globalGeometry->duplicate();
     auto localRegion = getPatchRegion();
 
     localGeom->assignStartIndex (localRegion.lower);

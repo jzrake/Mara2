@@ -328,15 +328,23 @@ Array MeshOperator::divergence (const Array& flux, double factor, Index start) c
 
     Array::deploy (divergence.shape(), [&] (int i, int j, int k)
     {
+        const double A1000 = A (1,0,0,0);
+        const double A0000 = A (0,0,0,0);
+        const double A0101 = A (0,1,0,1);
+        const double A0001 = A (0,0,0,1);
+        const double A0012 = A (0,0,1,2);
+        const double A0002 = A (0,0,0,2);
+        const double vol = V (0,0,0);
+
         for (int q = 0; q < nq; ++q)
         {
-            D (0,0,0,q) = factor / V (0,0,0) * (
-                +F (1,0,0,q,0) * A (0,0,0,0)
-                -F (0,0,0,q,0) * A (1,0,0,0)
-                +F (0,1,0,q,1) * A (0,1,0,1)
-                -F (0,0,0,q,1) * A (0,0,0,1)
-                +F (0,0,1,q,2) * A (0,0,1,2)
-                -F (0,0,0,q,2) * A (0,0,0,2));
+            D (0,0,0,q) = factor / vol * (
+                +F (1,0,0,q,0) * A1000
+                -F (0,0,0,q,0) * A0000
+                +F (0,1,0,q,1) * A0101
+                -F (0,0,0,q,1) * A0001
+                +F (0,0,1,q,2) * A0012
+                -F (0,0,0,q,2) * A0002);
         }
     });
     return divergence;
