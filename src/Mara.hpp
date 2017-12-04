@@ -259,6 +259,11 @@ public:
     */
     virtual std::shared_ptr<MeshGeometry> duplicate() const = 0;
 
+    /**
+    Return a string identifier indicating the type of mesh represented.
+    */
+    virtual std::string getType() const = 0;
+
 private:
     Index startIndex;
     PatchIndex patchIndex;

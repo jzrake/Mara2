@@ -137,6 +137,11 @@ std::shared_ptr<MeshGeometry> CartesianMeshGeometry::duplicate() const
     return std::shared_ptr<MeshGeometry> (mg);
 }
 
+std::string CartesianMeshGeometry::getType() const
+{
+    return "cartesian";
+}
+
 void CartesianMeshGeometry::cacheSpacing()
 {
     for (int n = 0; n < 3; ++n)

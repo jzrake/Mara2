@@ -26,6 +26,7 @@ public:
     UnitVector edgeVector (int i, int j, int k, int axis) const override;
     Cow::Array getPointCoordinates (int axis) const override;
     std::shared_ptr<MeshGeometry> duplicate() const override;
+    std::string getType() const override;
 private:
     double getEdge (double i, int axis) const;
     Coordinate lower;

@@ -8,7 +8,6 @@
 // ============================================================================
 SphericalMeshGeometry::SphericalMeshGeometry()
 {
-    std::cout << "Build spherical\n";
     shape = {{ 128, 1, 1, 1, 1 }};
     lower = {{ 1.0, 0.0, 0.0 }};
     upper = {{ 10.0, M_PI, 2 * M_PI }};
@@ -39,6 +38,8 @@ void SphericalMeshGeometry::setLowerUpper (Coordinate L, Coordinate U)
 {
     lower = L;
     upper = U;
+
+    std::cout << "upper: " << " " << U[0] << " " << U[1] << " " << U[2] << std::endl;
 }
 
 Cow::Shape SphericalMeshGeometry::cellsShape() const
@@ -54,20 +55,10 @@ Cow::Index SphericalMeshGeometry::indexAtCoordinate (Coordinate x) const
 
 Coordinate SphericalMeshGeometry::coordinateAtIndex (double i, double j, double k) const
 {
-    int i0 = i + 0.5; if (i0 < 0) i0 = 0; if (i0 >= shape[0]) i0 = shape[0] - 1;
-    int j0 = j + 0.5; if (j0 < 0) j0 = 0; if (j0 >= shape[1]) j0 = shape[1] - 1;
-    int k0 = k + 0.5; if (k0 < 0) k0 = 0; if (k0 >= shape[2]) k0 = shape[2] - 1;
 
-    const double r0 = getEdge (i0 + 0, 0);
-    const double r1 = getEdge (i0 + 1, 0);
-    const double q0 = getEdge (j0 + 0, 1);
-    const double q1 = getEdge (j0 + 1, 1);
-    const double p0 = getEdge (k0 + 0, 2);
-    const double p1 = getEdge (k0 + 1, 2);
-
-    const double r = std::sqrt (r0 * r1) * std::pow (r1 / r0, i - i0);
-    const double q = (0.5 - j) * q0 + (0.5 + j) * q1;
-    const double p = (0.5 - k) * p0 + (0.5 + k) * p1;
+    const double r = getEdge (i + 0.5, 0);
+    const double q = getEdge (j + 0.5, 1);
+    const double p = getEdge (k + 0.5, 2);
     return Coordinate ({{ r, q, p }});
 }
 
@@ -183,6 +174,11 @@ std::shared_ptr<MeshGeometry> SphericalMeshGeometry::duplicate() const
     auto mg = new SphericalMeshGeometry;
     *mg = *this;
     return std::shared_ptr<MeshGeometry> (mg);
+}
+
+std::string SphericalMeshGeometry::getType() const
+{
+    return "cartesian";
 }
 
 double SphericalMeshGeometry::getEdge (double n, int axis) const

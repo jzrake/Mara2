@@ -64,7 +64,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command')
     parser.add_argument('checkpoints', nargs='+')
-    parser.add_argument('--field', '-f', default='p', choices=['B', 'v', 'd'])
+    parser.add_argument('--field', '-f', default='p')
     args = parser.parse_args()
     plot(args)
 
