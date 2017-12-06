@@ -1,6 +1,4 @@
-#ifndef CellCenteredFieldCT_hpp
-#define CellCenteredFieldCT_hpp
-
+#pragma once
 #include "Array.hpp"
 #include "Mara.hpp"
 
@@ -70,5 +68,3 @@ public:
 private:
     double meshSpacing;
 };
-
-#endif

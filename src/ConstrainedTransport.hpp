@@ -1,7 +1,4 @@
-#ifndef ConstrainedTransport_hpp
-#define ConstrainedTransport_hpp
-
-
+#pragma once
 #include "Mara.hpp"
 
 
@@ -120,5 +117,3 @@ private:
     Array H; // Magnetic flux through faces
     Array E; // EMF on cell edges (may also be used as vector potential)
 };
-
-#endif

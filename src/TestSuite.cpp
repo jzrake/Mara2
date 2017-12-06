@@ -631,41 +631,8 @@ SCENARIO ("Stencil operations should behave correctly", "[Stencil]")
 
 
 // ============================================================================
-#include "Mara.hpp"
-#include "CartesianMeshGeometry.hpp"
-#include "BoundaryConditions.hpp"
 #include "ConservationLaws.hpp"
-#include "ConstrainedTransport.hpp"
-#include "IntercellFluxSchemes.hpp"
-#include "RiemannSolvers.hpp"
 
-// SCENARIO ("Mara session should launch if given minimal setup", "[Session]")
-// {
-//     auto session = MaraSession();
-//     auto setup = SimulationSetup();
-
-//     setup.finalTime               = 0.001;
-//     setup.checkpointInterval      = 0.0;
-//     setup.vtkOutputInterval       = 0.0;
-//     setup.boundaryCondition       = std::make_shared<PeriodicBoundaryCondition>();
-//     setup.conservationLaw         = std::make_shared<NewtonianHydro>();
-//     setup.riemannSolver           = std::make_shared<HlleRiemannSolver>();
-//     setup.meshGeometry            = std::make_shared<CartesianMeshGeometry>();
-//     setup.intercellFluxScheme     = std::make_shared<MethodOfLinesPlm>();
-//     setup.constrainedTransport    = std::make_shared<UniformCartesianCT>();
-//     setup.initialDataFunction     = [] (double x, double, double)
-//     {
-//         return std::vector<double> { 1.0 + 0.1 * std::sin (2 * M_PI * x), 0., 0., 0., 1. };
-//     };
-
-//     session.getLogger()->setLogToNull();
-//     CHECK (session.launch (setup).simulationIter == 1);
-// }
-
-
-
-
-// ============================================================================
 SCENARIO ("Relativistic MHD class produces reasonable results", "[ConservationLaws]")
 {
     auto nrmhd = NewtonianMHD();
@@ -824,8 +791,37 @@ SCENARIO ("Time series manager should behave reasonably", "[TimeSeriesManager]")
 
 
 // ============================================================================
+#include "SphericalMeshGeometry.hpp"
+
+SCENARIO ("Spherical polar mesh geometry should do its geometry right", "[SphericalMeshGeometry]")
+{
+    GIVEN ("An instance of SphericalMeshGeometry with shape [100, 1, 1]")
+    {
+        SphericalMeshGeometry geometry (100, 1, 1);
+        geometry.setLowerUpper ({{1.0, 0.0, 0.0}}, {{10.0, M_PI, 2 * M_PI}});
+
+        WHEN ("The geometry is queried for basic values")
+        {
+            THEN ("The results are correct")
+            {
+                CHECK (geometry.cellsShape()[0] == 100);
+                CHECK (geometry.cellsShape()[1] == 1);
+                CHECK (geometry.cellsShape()[2] == 1);
+                CHECK (geometry.coordinateAtIndex (-0.5, 0.0, 0.0)[0] == Approx ( 1.0).epsilon (1e-14));
+                CHECK (geometry.coordinateAtIndex (99.5, 0.0, 0.0)[0] == Approx (10.0).epsilon (1e-14));
+                CHECK (geometry.meshVolume() == 4. / 3 * M_PI * 999);
+            }
+        }
+    }
+}
+
+
+
+
+// ============================================================================
 #include "MeshOperator.hpp"
 #include "BoundaryConditions.hpp"
+#include "CartesianMeshGeometry.hpp"
 
 SCENARIO ("Mesh operator should generate data, take div and curl", "[MeshOperator]")
 {

@@ -3,15 +3,14 @@
 
 
 
-
-class CartesianMeshGeometry : public MeshGeometry
+class SphericalMeshGeometry : public MeshGeometry
 {
 public:
     using Shape = Cow::Shape;
     using Index = Cow::Index;
-    CartesianMeshGeometry();
-    CartesianMeshGeometry (Cow::Shape shape);
-    CartesianMeshGeometry (int ni, int nj, int nk);
+    SphericalMeshGeometry();
+    SphericalMeshGeometry (Cow::Shape shape);
+    SphericalMeshGeometry (int ni, int nj, int nk);
     void setCellsShape (Cow::Shape S) override;
     void setLowerUpper (Coordinate L, Coordinate U) override;
     Cow::Shape cellsShape() const override;
@@ -29,11 +28,8 @@ public:
     std::shared_ptr<MeshGeometry> duplicate() const override;
     std::string getType() const override;
 private:
-    void cacheSpacing();
+    double getEdge (double i, int axis) const;
     Coordinate lower;
     Coordinate upper;
     Shape shape;
-    double dx[3];
-    double dA[3];
-    double dV;
 };

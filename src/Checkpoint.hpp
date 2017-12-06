@@ -1,5 +1,4 @@
-#ifndef Checkpoint_hpp
-#define Checkpoint_hpp
+#pragma once
 
 #include "Mara.hpp"
 
@@ -70,6 +69,3 @@ public:
 private:
     void doFile (std::string filename) const;
 };
-
-
-#endif

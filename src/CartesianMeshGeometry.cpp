@@ -1,38 +1,5 @@
+#include <cassert>
 #include "CartesianMeshGeometry.hpp"
-
-
-
-
-// ============================================================================
-MeshGeometry::MeshGeometry()
-{
-    patchIndex[0] = 0;
-    patchIndex[1] = 0;
-    patchIndex[2] = 0;
-    patchIndex[3] = 0;
-    patchIndex[4] = 0;
-}
-
-std::vector<bool> MeshGeometry::fleshedOutAxes() const
-{
-    auto shape = cellsShape();
-    return { shape[0] > 1, shape[1] > 1, shape[2] > 1};
-}
-
-void MeshGeometry::assignPatchIndex (PatchIndex newPatchIndex)
-{
-    patchIndex = newPatchIndex;
-}
-
-MeshGeometry::PatchIndex MeshGeometry::getPatchIndex() const
-{
-    return patchIndex;
-}
-
-Coordinate MeshGeometry::coordinateAtIndex (Cow::Index index) const
-{
-    return coordinateAtIndex (index[0], index[1], index[2]);
-}
 
 
 
@@ -163,14 +130,16 @@ Cow::Array CartesianMeshGeometry::getPointCoordinates (int axis) const
     return coords;
 }
 
-Cow::Index CartesianMeshGeometry::getStartIndex() const
+std::shared_ptr<MeshGeometry> CartesianMeshGeometry::duplicate() const
 {
-    return startIndex;
+    auto mg = new CartesianMeshGeometry;
+    *mg = *this;
+    return std::shared_ptr<MeshGeometry> (mg);
 }
 
-void CartesianMeshGeometry::assignStartIndex (Index index)
+std::string CartesianMeshGeometry::getType() const
 {
-    startIndex = index;
+    return "cartesian";
 }
 
 void CartesianMeshGeometry::cacheSpacing()

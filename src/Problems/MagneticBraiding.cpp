@@ -194,9 +194,7 @@ int MagneticBraidingProgram::run (int argc, const char* argv[])
         auto volumeAverageOverPatches = [&] (std::vector<double> vals)
         {
             if (bd)
-            {
                 return bd->volumeAverageOverPatches (vals);
-            }
 
             for (auto& val : vals)
                 val /= mg->meshVolume();

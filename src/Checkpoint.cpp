@@ -40,7 +40,7 @@ void CheckpointWriter::setFormat (std::string formatString)
         format = Format::multiple;
         return;
     }
-    throw std::runtime_error ("Checkpoint format string not single or multiple");
+    throw std::runtime_error ("Checkpoint format string must be 'single' or 'multiple'");
 }
 
 void CheckpointWriter::setFilenamePrefix (std::string filenamePrefixToUse)
@@ -156,13 +156,12 @@ void CheckpointWriter::writeCheckpoint (
         }
 
 
-        // Write the mesh information (needs to be generalized to non-rectilinear meshes)
+        // Write the mesh information
         // --------------------------------------------------------------------
-        meshGroup.writeString ("type", "cartesian");
+        meshGroup.writeString ("type", meshGeometry.getType());
 
         auto pointGroup = meshGroup.createGroup ("points");
-        auto geometry = dynamic_cast<const CartesianMeshGeometry*>
-        (block ? block->getGlobalGeometry().get() : &meshGeometry);
+        auto geometry = (block ? block->getGlobalGeometry().get() : &meshGeometry);
 
         pointGroup.writeArray ("x", geometry->getPointCoordinates (0));
         pointGroup.writeArray ("y", geometry->getPointCoordinates (1));

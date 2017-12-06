@@ -1,9 +1,9 @@
 #include <cmath>
-#include "ThermalConvection.hpp"
+#include "SphericalWind.hpp"
 #include "../Mara.hpp"
 #include "../BoundaryConditions.hpp"
 #include "../BlockDecomposition.hpp"
-#include "../CartesianMeshGeometry.hpp"
+#include "../SphericalMeshGeometry.hpp"
 #include "../CellCenteredFieldCT.hpp"
 #include "../Checkpoint.hpp"
 #include "../ConservationLaws.hpp"
@@ -26,82 +26,8 @@ using namespace Cow;
 
 
 
-/**
-Boundary conditions for a vertical atmosphere. The x and y directions are
-periodic. The floor is reflecting and the ceiling is currently set to the
-value of the initial condition.
-*/
-class ThermalConvectionBoundaryCondition : public BoundaryCondition
-{
-public:
-    ThermalConvectionBoundaryCondition (InitialDataFunction idf) : idf (idf)
-    {
-        reflecting.setConservationLaw (std::make_shared<NewtonianHydro>());
-    }
-
-    void setMeshGeometry (std::shared_ptr<MeshGeometry> geometryToUse) override
-    {
-        geometry = geometryToUse;
-    }
-
-    void apply (
-        Cow::Array& A,
-        MeshLocation location,
-        MeshBoundary boundary,
-        int axis,
-        int numGuard) const override
-    {
-        switch (axis)
-        {
-            case 0: return periodic.apply (A, location, boundary, axis, numGuard);
-            case 1: return periodic.apply (A, location, boundary, axis, numGuard);
-            case 2:
-
-            if (boundary == MeshBoundary::left)
-                return reflecting.apply (A, location, boundary, axis, numGuard);
-
-            for (int i = 0; i < A.size(0); ++i)
-            {
-                for (int j = 0; j < A.size(1); ++j)
-                {
-                    for (int k = A.size(2) - numGuard; k < A.size(2); ++k)
-                    {
-                        auto I = Index {{i, j, k - numGuard, 0, 0}};
-                        auto z = geometry->coordinateAtIndex(I)[2];
-                        auto P = idf (0, 0, z);
-
-                        for (int q = 0; q < 5; ++q)
-                        {
-                            A(i, j, k, q) = P[q];
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    bool isAxisPeriodic (int axis) override
-    {
-        switch (axis)
-        {
-            case 0: return true;
-            case 1: return true;
-            case 2: return false;
-            default: throw std::logic_error ("ThermalConvectionBoundaryCondition");
-        }
-    }
-
-    ReflectingBoundaryCondition reflecting;
-    PeriodicBoundaryCondition periodic;
-    InitialDataFunction idf;
-    std::shared_ptr<MeshGeometry> geometry;
-};
-
-
-
-
 // ============================================================================
-int ThermalConvectionProgram::run (int argc, const char* argv[])
+int SphericalWind::run (int argc, const char* argv[])
 {
     auto status = SimulationStatus();
     auto user = Variant::NamedValues();
@@ -114,43 +40,34 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     user["tsi"]     = 0.1;
     user["cfl"]     = 0.5;
     user["plm"]     = 2.0;
-    user["N"]       = 16;
-    user["aspect"]  = 1;
-    user["dims"]    = 2;
-    user["gamma"]   = 5. / 3;
+    user["Nr"]      = 128;
+    user["Nt"]      = 1;
 
 
     // Gravitational source terms, heating, and initial data function
     // ------------------------------------------------------------------------
-    const double q0 = 2.0; // heating hate
-    const double d0 = 1.0; // density at base of atmosphere
-    const double g0 = 1.0; // gravitational acceleration at base
-    const double z0 = 1.0; // gravity fall-off distance
-    const double h = 0.25; // pressure scale height
-    const double cs2 = h * g0; // nominal, 'isothermal' sound speed at base
-
-    auto sourceTermsFunction = [&] (double x, double y, double z, StateArray p)
+    auto sourceTermsFunction = [&] (double r, double q, double p, StateArray P)
     {
-        const double t = status.simulationTime;
-        const double P = 1; // time period
+        const double dg = P[0];
+        const double vr = P[1];
+        const double vq = P[2];
+        const double vp = P[3];
+        const double pg = P[4];
 
-        const double g = g0 / (1.0 + z / z0);
-        const double rho = p[0];
-        const double vel = p[3];
         auto S = StateArray();
-        S[3] = -rho * g;
-        S[4] = -rho * g * vel;
-
-        double qdot = q0 * std::exp (-(y * y + z * z) / 0.01);
-        S[4] += qdot * (t < P);
+        S[0] = 0.0;
+        S[1] = (2 * pg + dg * (vq * vq + vp * vp)) / r;
+        S[2] = pg * std::tan (M_PI_2 - q) + dg * (vp * vp * std::tan (M_PI_2 - q) - vr * vq) / r;
+        S[3] = -dg * vp * (vr + vq * std::tan (M_PI_2 - q)) / r;
+        S[4] = 0.0;
 
         return S;
     };
 
-    auto initialData = [&] (double x, double y, double z) -> std::vector<double>
+    auto initialData = [&] (double r, double q, double p) -> std::vector<double>
     {
-        const double rho = d0 * std::pow (1 + z / z0, -z0 / h);
-        const double pre = cs2 * rho;
+        double rho = 1.0;
+        double pre = 1.0;
         return std::vector<double> {rho, 0, 0, 0, pre};
     };
 
@@ -172,25 +89,22 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     double timestepSize = 0.0;
 
     auto bd = std::shared_ptr<BlockDecomposition>();
-    auto bc = std::shared_ptr<BoundaryCondition> (new ThermalConvectionBoundaryCondition (initialData));
+    auto bc = std::shared_ptr<BoundaryCondition> (new OutflowBoundaryCondition);
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
-    auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
+    auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
     auto cl = std::make_shared<NewtonianHydro>();
 
 
-    // Set up grid shape. In 1D it's z-only. In 2D it's the x-z plane.
+    // Set up grid shape.
     // ------------------------------------------------------------------------
-    auto dims = int (user["dims"]);
-    int Nvert = int (user["N"]) * int (user["aspect"]);
-    int Nhori = int (user["N"]);
-    auto cs = Shape {{ Nhori, Nhori, Nvert, 1, 1 }};
-    auto bs = Shape {{ 2, 2, 2, 0, 0 }};
-    if (dims <= 2) { cs[0] = 1; bs[0] = 0; }
-    if (dims <= 1) { cs[1] = 1; bs[1] = 0; }
+    int Nr = int (user["Nr"]);
+    int Nt = int (user["Nt"]);
+    auto cs = Shape {{ Nr, Nt, 1, 1, 1 }};
+    auto bs = Shape {{ 2, Nt == 1 ? 0 : 2, 0, 0, 0 }};
 
     mg->setCellsShape (cs);
-    mg->setLowerUpper ({{-0.5, -0.5, 0.0}}, {{0.5, 0.5, 1.0 * int (user["aspect"])}});
+    mg->setLowerUpper ({{1.0, 0.0, 0.0}}, {{10.0, M_PI, 2 * M_PI}});
 
     if (! user["serial"])
     {
@@ -207,7 +121,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     auto fo = std::make_shared<FieldOperator>();
     auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());
 
-    cl->setGammaLawIndex (double (user["gamma"]));
+    cl->setGammaLawIndex (5. / 3);
     fs->setPlmTheta (double (user["plm"]));
     fs->setRiemannSolver (rs);
     fo->setConservationLaw (cl);
@@ -271,7 +185,3 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     logger->log() << std::endl << user << std::endl;
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  
 }
-
-
-
-
