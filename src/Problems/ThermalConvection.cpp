@@ -4,6 +4,7 @@
 #include "../BoundaryConditions.hpp"
 #include "../BlockDecomposition.hpp"
 #include "../CartesianMeshGeometry.hpp"
+#include "../SphericalMeshGeometry.hpp" //include spherical mesh geometry
 #include "../CellCenteredFieldCT.hpp"
 #include "../Checkpoint.hpp"
 #include "../ConservationLaws.hpp"
@@ -118,6 +119,32 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     user["aspect"]  = 1;
     user["dims"]    = 2;
     user["gamma"]   = 5. / 3;
+    user["cartesian"] = true; //setting spherical or cartesian, default to cartesian
+
+    // Gravitational source terms, heating, and initial data function
+    // ------------------------------------------------------------------------
+
+
+    auto sourceTermsFunction = [&] (double r, double q, double p, StateArray P)
+    {
+      /*
+        const double dg = P[0];
+        const double vr = P[1];
+        const double vq = P[2];
+        const double vp = P[3];
+        const double pg = P[4];
+*/
+        auto S = StateArray();
+/*
+        S[0] = 0.0;
+        S[1] = (2 * pg + dg * (vq * vq + vp * vp)) / r;
+        S[2] = pg * std::tan (M_PI_2 - q) + dg * (vp * vp * std::tan (M_PI_2 - q) - vr * vq) / r;
+        S[3] = -dg * vp * (vr + vq * std::tan (M_PI_2 - q)) / r;
+        S[4] = 0.0;
+*/
+        return S;
+    };
+
 
 
     // Gravitational source terms, heating, and initial data function
@@ -129,12 +156,16 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     const double h = 0.25; // pressure scale height
     const double cs2 = h * g0; // nominal, 'isothermal' sound speed at base
 
+/*
+Need to change some terms here, like hydrostatic equiliirum rho and pressure
+*/
+/*
     auto sourceTermsFunction = [&] (double x, double y, double z, StateArray p)
     {
         const double t = status.simulationTime;
         const double P = 1; // time period
 
-        const double g = g0 / (1.0 + z / z0);
+        const double g = g0 / (1.0 + z / z0); //should this be g0/(1+z/z0)^2? alternatively g(R) = g0*std::pow((z0/(z0+z)),2)
         const double rho = p[0];
         const double vel = p[3];
         auto S = StateArray();
@@ -146,11 +177,20 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
         return S;
     };
-
-    auto initialData = [&] (double x, double y, double z) -> std::vector<double>
+*/
+    auto initialData = [&] (double r, double q, double p) -> std::vector<double>
     {
-        const double rho = d0 * std::pow (1 + z / z0, -z0 / h);
+        //const double rho = d0 * std::pow (1 + z / z0, -z0 / h);
+      /*  const double gamma = user["gamma"];
+        const double lambda = g0 * z0 * z0; // since G*M/z0^2 = g0
+        const double a = 2.0*(gamma - 1) / gamma;
+        const double b = (gamma - 1) / gamma * lambda;
+
+        const double rho = std::pow((1.0 / std::pow(r, a)*(-1.0 * b * std::pow(r, a - 1))/(a - 1)),1/(gamma - 1));
         const double pre = cs2 * rho;
+        */
+        const double rho = 1.0;
+        const double pre = 1.0;
         return std::vector<double> {rho, 0, 0, 0, pre};
     };
 
@@ -175,22 +215,35 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     auto bc = std::shared_ptr<BoundaryCondition> (new ThermalConvectionBoundaryCondition (initialData));
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
-    auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto cl = std::make_shared<NewtonianHydro>();
-
+/*
+Gridshape setlowerupper and .... needs to be changed here, scope problems here
+*/
+    auto bs = Shape();
 
     // Set up grid shape. In 1D it's z-only. In 2D it's the x-z plane.
     // ------------------------------------------------------------------------
+/*    i f (user["cartesian"])
+    {
+    auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto dims = int (user["dims"]);
-    int Nvert = int (user["N"]) * int (user["aspect"]);
-    int Nhori = int (user["N"]);
-    auto cs = Shape {{ Nhori, Nhori, Nvert, 1, 1 }};
-    auto bs = Shape {{ 2, 2, 2, 0, 0 }};
+    int Nvert = int (user["N"]) * int (user["aspect"]); //gridpoints in vertical
+    int Nhori = int (user["N"]); //gridpoints in horizontal
+    auto cs = Shape {{ Nhori, Nhori, Nvert, 1, 1 }}; //square base gridpoints
+    bs = Shape {{ 2, 2, 2, 0, 0 }};
     if (dims <= 2) { cs[0] = 1; bs[0] = 0; }
     if (dims <= 1) { cs[1] = 1; bs[1] = 0; }
-
     mg->setCellsShape (cs);
-    mg->setLowerUpper ({{-0.5, -0.5, 0.0}}, {{0.5, 0.5, 1.0 * int (user["aspect"])}});
+    mg->setLowerUpper({{-0.5, -0.5, 0.0}}, {{0.5, 0.5, 1.0 * int (user["aspect"])}});
+    }
+    else //spherical part here
+    {
+    */
+    auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
+    bs = Shape {{ 2, 0, 0, 0, 0 }};
+    mg->setCellsShape ({{ 100, 1, 1 }});
+    mg->setLowerUpper ({{ 1.0, M_PI*0.5-0.1, 0}}, {{10.0, M_PI*0.5+0.1, 0.1}});
+  //  }
 
     if (! user["serial"])
     {
@@ -234,6 +287,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
         double localDt = double (user["cfl"]) * fo->getCourantTimestep (P, L);
+
         timestepSize = MpiCommunicator::world().minimum (localDt);
     };
 
@@ -269,9 +323,5 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     taskRecomputeDt (status, 0);
 
     logger->log() << std::endl << user << std::endl;
-    return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  
+    return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
 }
-
-
-
-
