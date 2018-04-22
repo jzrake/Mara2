@@ -45,85 +45,48 @@ public:
     {
         geometry = geometryToUse;
     }
-/*
 
-    void apply ( //cartesian version here!
-        Cow::Array& A,
-        MeshLocation location,
-        MeshBoundary boundary,
-        int axis,
-        int numGuard) const override
-    {
-        switch (axis)
-        {
-            case 0: return periodic.apply (A, location, boundary, axis, numGuard); //uses the BoundaryCondition::periodic apply method
-            case 1: return periodic.apply (A, location, boundary, axis, numGuard);
-            case 2:
+    void apply (
+      Cow::Array& A, //boundary condition array
+      MeshLocation location, //enum class {vert, edge, face, cell} in mara.hpp
+      MeshBoundary boundary, //either left or right, enum class
+      int axis, //0 ,1 or 2
+      int numGuard) const override //number of guardzones; overrides virtual method in BoundaryConditions class in Mara.hpp
+      {
+          switch (axis) // this will be iterated in the applySimple method in BoundaryConditions.cpp, which is called in MeshData as applyBoundaryCondition
+          {
+              case 0:
+              if (boundary == MeshBoundary::left) return reflecting.apply (A, location, boundary, axis, numGuard); //this apply belongs to derived class ReflectingBoundaryCondition
+              if (boundary == MeshBoundary::right) return reflecting.apply (A, location, boundary, axis, numGuard);
 
-            if (boundary == MeshBoundary::left)
-                return reflecting.apply (A, location, boundary, axis, numGuard);
+              /*
+              for (int i = A.size(0) - numGuard; i < A.size(0); ++i) //looping over radial guardzones
+              {
+                  for (int j = 0; j < A.size(1); ++j)
+                  {
+                      for (int k = 0; k < A.size(2); ++k)
+                      {
+                          auto I = Index {{i - numGuard, j, k, 0, 0}};
+                          auto r = geometry->coordinateAtIndex(I)[0];
+//                        auto q = geometry->coordinateAtIndex(I)[1]; //for querying coordinates in q and p
+//                        auto p = geometry->coordinateAtIndex(I)[2];
 
-            for (int i = 0; i < A.size(0); ++i)
-            {
-                for (int j = 0; j < A.size(1); ++j)
-                {
-                    for (int k = A.size(2) - numGuard; k < A.size(2); ++k) //set k = i to loop over radial guardzones
-                    {
-                        auto I = Index {{i, j, k - numGuard, 0, 0}};
-                        auto z = geometry->coordinateAtIndex(I)[2];
-                        auto P = idf (0, 0, z);
+                          auto P = idf (r, 0, 0); //change this to r,p,q in multidimensional
 
-                        for (int q = 0; q < 5; ++q)
-                        {
-                            A(i, j, k, q) = P[q]; //q is hydrodynamic variable
-                        }
-                    }
-                }
-            }
-        }
-    }
-*/
-
-void apply (
-    Cow::Array& A, //boundary condition array
-    MeshLocation location, //enum class {vert, edge, face, cell} in mara.hpp
-    MeshBoundary boundary, //either left or right, enum class
-    int axis, //0 ,1 or 2
-    int numGuard) const override //number of guardzones; overrides virtual method in BoundaryConditions class in Mara.hpp
-{
-    switch (axis) // this will be iterated in the applySimple method in BoundaryConditions.cpp, which is called in MeshData as applyBoundaryCondition
-    {
-        case 0:
-        if (boundary == MeshBoundary::left)
-            return reflecting.apply (A, location, boundary, axis, numGuard); //this apply belongs to derived class ReflectingBoundaryCondition
-
-        for (int i = A.size(0) - numGuard; i < A.size(0); ++i) //looping over radial guardzones
-        {
-            for (int j = 0; j < A.size(1); ++j)
-            {
-                for (int k = 0; k < A.size(2); ++k)
-                {
-                    auto I = Index {{i - numGuard, j, k, 0, 0}};
-                    auto r = geometry->coordinateAtIndex(I)[0];
-//                  auto q = geometry->coordinateAtIndex(I)[1]; //for querying coordinates in q and p
-//                  auto p = geometry->coordinateAtIndex(I)[2];
-
-                    auto P = idf (r, 0, 0); //change this to r,p,q in multidimensional
-
-                    for (int q = 0; q < 5; ++q)
-                    {
-                        A(i, j, k, q) = P[q]; //q is hydrodynamic variable
-                    }
-                    //std::cout << P[0] << std::endl;
-                }
-            }
-        }
+                          for (int q = 0; q < 5; ++q)
+                          {
+                              A(i, j, k, q) = P[q]; //q is hydrodynamic variable
+                          }
+                      }
+                  }
+              }
+              */
 //asserting to see if branch hit in 1D
-//        case 1: assert(false); return reflecting.apply (A, location, boundary, axis, numGuard); //uses the BoundaryCondition::periodic apply method; overloaded method
-//        case 2: assert(false); return periodic.apply (A, location, boundary, axis, numGuard); //applies periodic condition to non-r axes
+//            case 1: assert(false); return reflecting.apply (A, location, boundary, axis, numGuard); //uses the BoundaryCondition::periodic apply method; overloaded method
+//            case 2: assert(false); return periodic.apply (A, location, boundary, axis, numGuard); //applies periodic condition to non-r axes
 
-    }
-}
+          }
+      }
 
 
     bool isAxisPeriodic (int axis) override
@@ -139,6 +102,7 @@ void apply (
 
     ReflectingBoundaryCondition reflecting;
     PeriodicBoundaryCondition periodic;
+    OutflowBoundaryCondition outflow;
     InitialDataFunction idf;
     std::shared_ptr<MeshGeometry> geometry;
 };
@@ -153,14 +117,14 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     auto user = Variant::NamedValues();
     user["outdir"]  = "data";
     user["restart"] = "";
-    user["tfinal"]  = 110.0;
+    user["tfinal"]  = 1100; //1100
     user["serial"]  = false;
     user["cpi"]     = 0.25;
     user["cpf"]     = "single"; // or multiple
     user["tsi"]     = 0.1;
     user["cfl"]     = 0.5;
     user["plm"]     = 2.0;
-    user["N"]       = 16;
+    user["N"]       = 100; //16 default
     user["aspect"]  = 1;
     user["dims"]    = 2;
     user["gamma"]   = 5. / 3;
@@ -191,11 +155,10 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         auto S = StateArray();
         S[0] = 0.0;
         S[1] = (2 * pg + dg * (vq * vq + vp * vp)) / r;
-        S[2] = pg * std::tan (M_PI_2 - q) / r + dg * (vp * vp * std::tan (M_PI_2 - q) - vr * vq) / r; //missing 1/r in first term
+        S[2] = pg * std::tan (M_PI_2 - q) / r + dg * (vp * vp * std::tan (M_PI_2 - q) - vr * vq) / r;
         S[3] = -dg * vp * (vr + vq * std::tan (M_PI_2 - q)) / r;
         S[4] = 0.0;
 
-        //make this newtonian gravity, g = g0/r^2, where g0=GM
         const double g = g0 * std::pow(r,-2.0);
         const double rho = P[0];
 
@@ -205,37 +168,6 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         return S;
     };
 
-
-
-    // Gravitational source terms, heating, and initial data function
-    // ------------------------------------------------------------------------
-    //const double q0 = 2.0; // heating rate
-    //const double d0 = 1.0; // density at base of atmosphere
-    //const double z0 = 1.0; // gravity fall-off distance
-
-
-/*
-Need to change some terms here, like hydrostatic equiliirum rho and pressure
-*/
-/*
-    auto sourceTermsFunction = [&] (double x, double y, double z, StateArray p)
-    {
-        const double t = status.simulationTime;
-        const double P = 1; // time period
-
-        const double g = g0 / (1.0 + z / z0); //should this be g0/(1+z/z0)^2? alternatively g(R) = g0*std::pow((z0/(z0+z)),2)
-        const double rho = p[0];
-        const double vel = p[3];
-        auto S = StateArray();
-        S[3] = -rho * g;
-        S[4] = -rho * g * vel;
-
-        double qdot = q0 * std::exp (-(y * y + z * z) / 0.01);
-        S[4] += qdot * (t < P);
-
-        return S;
-    };
-*/
     auto initialData = [&] (double r, double q, double p) -> std::vector<double>
     {
         //*********************************************************************
@@ -301,7 +233,7 @@ Gridshape setlowerupper and .... needs to be changed here, scope problems here
     */
     auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
     bs = Shape {{ 2, 0, 0, 0, 0 }};
-    mg->setCellsShape ({{ 500, 1, 1 }});
+    mg->setCellsShape ({{ user["N"], 1, 1 }});
     mg->setLowerUpper ({{ 1.0, M_PI*0.5-0.1, 0}}, {{10.0, M_PI*0.5+0.1, 0.1}});
   //  }
 
@@ -356,6 +288,35 @@ Gridshape setlowerupper and .... needs to be changed here, scope problems here
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     };
 
+//lambda for computing primitives averaged over cell, rep is repetition
+    auto taskTimeSeries = [&] (SimulationStatus, int rep)
+    {
+        //bd defined, volumeAverageOverPatches returned, skips val forloop
+        auto volumeAverageOverPatches = [&] (std::vector<double> vals)
+        {
+            if (bd)
+                return bd->volumeAverageOverPatches (vals);
+
+            for (auto& val : vals)
+                val /= mg->meshVolume();
+
+            return vals;
+        };
+
+        auto volumeIntegrated = fo->volumeIntegratedDiagnostics (P, V);
+        auto volumeAveraged = volumeAverageOverPatches (volumeIntegrated);
+        auto fieldNames = cl->getDiagnosticNames();
+        auto entry = Variant::NamedValues();
+
+        for (unsigned int n = 0; n < fieldNames.size(); ++n)
+        {
+            entry[fieldNames[n]] = volumeAveraged[n];
+        }
+        tseries->append (status, entry);
+    };
+
+//schedule time series data; tasktimeseries callback; compute energy per cell and log, scheduler passed into maraMainLoop which is updated
+    scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time_series");
     scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]), "checkpoint");
     scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 16), "compute_dt");
 
