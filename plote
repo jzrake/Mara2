@@ -1,35 +1,31 @@
 #!/usr/bin/python
-import numpy as np
-import matplotlib.pyplot as plt
-import h5py
-import sys, os
-
 
 #run simulations and plot
-def run():
-	if (sys.argv[-1]=='run'):
-		for N in sys.argv[1:-1]:
+def plot_ts(time_series):
+	import matplotlib.pyplot as plt
+	import sys, os, h5py
+	if (sys.argv[2]=='run'):
+		for N in sys.argv[3:]:
 			os.system("./mara convect N=" + N)
 			os.system("mkdir ./data/plot" + N)
 			os.system("mv ./data/*.h5 ./data/plot" + N)
-			path = './data/plot' + N + '/chkpt.4400.h5'
+			path = './data/plot' + N + '/chkpt.4400.h5' #make this the last h5file
 			fileobj = h5py.File(path, 'r')
-			energy = fileobj['/time_series/total_energy']
+			time_series_data = fileobj['/time_series/'+time_series]
 			time = fileobj['/time_series/time']
-			plt.plot(time, energy, label = "N=" + N)
+			plt.plot(time, time_series_data, label = "N=" + N)
 	else:
-		for N in sys.argv[1:]:
+		for N in sys.argv[2:]:
 			path = './data/plot' + N + '/chkpt.4400.h5'
 			fileobj = h5py.File(path, 'r')
-			energy = fileobj['/time_series/total_energy']
+			time_series_data = fileobj['/time_series/'+time_series]
 			time = fileobj['/time_series/time']
-			plt.plot(time, energy, label = "N=" + N)
+			plt.plot(time, time_series_data, label = "N=" + N)
 
-run()
+	plt.xlabel("Time (s)"), plt.ylabel(time_series)
+	plt.savefig(time_series+".png") #save plot
+	plt.legend(), plt.show()
 
-plt.ylabel("Total energy")
-plt.xlabel("Time (s)")
-plt.legend()
-plt.savefig("Energy.png") #save plot
-
-plt.show()
+if __name__ == "__main__":
+	import sys
+	plot_ts(sys.argv[1])
