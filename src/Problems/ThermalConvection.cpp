@@ -117,14 +117,14 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     auto user = Variant::NamedValues();
     user["outdir"]  = "data";
     user["restart"] = "";
-    user["tfinal"]  = 1100; //1100
+    user["tfinal"]  = 3000; //1100
     user["serial"]  = false;
     user["cpi"]     = 0.25;
     user["cpf"]     = "single"; // or multiple
     user["tsi"]     = 0.1;
     user["cfl"]     = 0.5;
     user["plm"]     = 2.0;
-    user["N"]       = 100; //16 default
+    user["N"]       = 1000; //16 default
     user["aspect"]  = 1;
     user["dims"]    = 2;
     user["gamma"]   = 5. / 3;

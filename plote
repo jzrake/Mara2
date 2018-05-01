@@ -30,4 +30,6 @@ run()
 plt.ylabel("Total energy")
 plt.xlabel("Time (s)")
 plt.legend()
+plt.savefig("Energy.png") #save plot
+
 plt.show()
