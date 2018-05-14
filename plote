@@ -1,5 +1,6 @@
 #!/usr/bin/python
-
+#sample command
+#./plote total_energy run 100 200 500 1000 (for example)
 #run simulations and plot
 def plot_ts(time_series):
 	import matplotlib.pyplot as plt
@@ -23,8 +24,7 @@ def plot_ts(time_series):
 			plt.plot(time, time_series_data, label = "N=" + N)
 
 	plt.xlabel("Time (s)"), plt.ylabel(time_series)
-	plt.savefig(time_series+".png") #save plot
-	plt.legend(), plt.show()
+	plt.legend(), plt.savefig(time_series+".png"), plt.show()
 
 if __name__ == "__main__":
 	import sys

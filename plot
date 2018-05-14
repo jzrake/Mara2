@@ -1,8 +1,10 @@
 #!/usr/bin/python
+#sample command
+#./plot density chkpt.{0000,1000}.h5 #support globbing expressions
 def plot(primitive):
 	import numpy as np
 	import matplotlib.pyplot as plt
-	import sys, os, h5py, re
+	import sys, os, h5py, re, math
 
 	#using globbing and sys, but not argparse
 	h5files, fileobj, primitive_arrays = [], [], []
@@ -46,12 +48,13 @@ def plot(primitive):
 	for i in range(0,len(primitive_arrays)):
 		#plt.plot(x_array,primitive_arrays[i],label = "t = "+str(round(int(h5files[i][-6:-3])/441.0*fraction,2))+"sc")
 		plotlabel = re.search(".*\.([0-9]*)\..*", h5files[i]).group(1)
+		if primitive == "velocity1":
+			primitive_arrays[i] = np.array(primitive_arrays[i]) / math.sqrt( paramdict['h'] * paramdict['g0'] * 1.0 )
 		plt.plot(x_array,primitive_arrays[i], label = plotlabel)
 
 	plt.title(primitive + " plot t = 0 to " + str(round(fraction,2)) + "sc" + "; ff = " + str(round(ff,2)) + "; sc =" + str(round(sc,2)))
 	plt.xlabel("Radius (r)"); plt.ylabel(primitive)
-	plt.savefig(primitive+".png") #save plot
-	plt.legend(); plt.show()
+	plt.legend(); plt.savefig(primitive+".png"); plt.show()
 
 
 def main():

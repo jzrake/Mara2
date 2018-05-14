@@ -176,13 +176,10 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         const double beta = g0 / K * alpha;
         const double v0 = std::pow(rho0,(gamma - 1.0));
         const double c1 = v0 + beta / (2.0* alpha - 1.0);
-        //const double c2 = v0 - beta;
-        //const double rho = std::pow(( v0 * std::pow(r,(-2.0*alpha)) - beta / (2.0*alpha - 1.0) * (1.0 / r - std::pow(r,(-2.0*alpha))))  ,   (1.0 /(gamma -1.0))); incorrect
         const double rho = std::pow((c1 * std::pow(r,-2.0*alpha) - beta / (2.0* alpha - 1.0) * (1.0 / r) ),(1.0 / (gamma -1.0)));
 
-        //const double rho = std::pow(beta * (1.0 / r) + c2, 1/(gamma - 1.0)); //incorrect
         //const double rho = 1.0;
-        const double pre = cs2 * rho;
+        const double pre = cs2 * rho / gamma;
         return std::vector<double> {rho, 0, 0, 0, pre};
     };
 
@@ -311,6 +308,9 @@ Gridshape setlowerupper and .... needs to be changed here, scope problems here
         for (unsigned int n = 0; n < fieldNames.size(); ++n)
         {
             entry[fieldNames[n]] = volumeAveraged[n];
+        }
+        for (auto it = entry.begin(); it != entry.end(); it++){ //cout-ing name value pair 
+            std::cout << it->first << "and" << it->second << std::endl;
         }
         tseries->append (status, entry);
     };
