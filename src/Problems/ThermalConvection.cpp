@@ -172,13 +172,13 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     {
         //*********************************************************************
         //hard-coded to assume r_0 = 1.0;
-        const double alpha = (gamma - 1.0) / gamma;
+        /* const double alpha = (gamma - 1.0) / gamma;
         const double beta = g0 / K * alpha;
         const double v0 = std::pow(rho0,(gamma - 1.0));
         const double c1 = v0 + beta / (2.0* alpha - 1.0);
         const double rho = std::pow((c1 * std::pow(r,-2.0*alpha) - beta / (2.0* alpha - 1.0) * (1.0 / r) ),(1.0 / (gamma -1.0)));
-
-        //const double rho = 1.0;
+        */
+        const double rho = 1.0;
         const double pre = cs2 * rho / gamma;
         return std::vector<double> {rho, 0, 0, 0, pre};
     };
@@ -305,13 +305,17 @@ Gridshape setlowerupper and .... needs to be changed here, scope problems here
         auto fieldNames = cl->getDiagnosticNames();
         auto entry = Variant::NamedValues();
 
-        for (unsigned int n = 0; n < fieldNames.size(); ++n)
+        for (unsigned int n = 0; n < fieldNames.size(); ++n) //loop to set entry['primitive--name'] = volumeAveragedvalue, unrestricted in size
         {
             entry[fieldNames[n]] = volumeAveraged[n];
         }
-        for (auto it = entry.begin(); it != entry.end(); it++){ //cout-ing name value pair 
+        /*entry['total_entropy'] = volumeAveraged[]
+        auto volumeIntegrated = fo->volumeIntegratedDiagnostics (P, V); //add specific entropy to be integrated
+        auto volumeAveraged = volumeAverageOverPatches (volumeIntegrated);
+
+        for (auto it = entry.begin(); it != entry.end(); it++){ //cout-ing name value pair--testing here
             std::cout << it->first << "and" << it->second << std::endl;
-        }
+        }*/
         tseries->append (status, entry);
     };
 
