@@ -23,7 +23,11 @@ def plot_ts(time_series):
 			time = fileobj['/time_series/time']
 			plt.plot(time, time_series_data, label = "N=" + N)
 
-	plt.xlabel("Time (s)"), plt.ylabel(time_series)
+	plt.xlabel("Time (s)")
+	if time_series == 'total_entropy':
+		plt.ylabel(time_series+" (DS/specific c_v)")
+	else:
+		plt.ylabel(time_series)
 	plt.legend(), plt.savefig(time_series+".png"), plt.show()
 
 if __name__ == "__main__":
