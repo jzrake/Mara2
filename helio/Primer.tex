@@ -1,6 +1,8 @@
 \documentclass{article}
-\usepackage{listings}
 \usepackage{graphicx}
+%\usepackage[legalpaper, margin=1in]{geometry}
+
+
 
 \title{Primer on Mara Computational Library}
 \author{Andrew Liu \and Jonathan Zrake}
@@ -112,18 +114,18 @@ Mara uses a bit of abbrevations when referencing Cow modules which could be hard
 	\begin{itemize}
 		\item Array-type constructor can be Shape: using Shape = array<int,5>
 		\item Array constructor takes \texttt{\{n1, n2, n3, n4, n5\}}
-, Cow then computes n1*n2*n3*n4*n5*sizeof(double) and allocates that in memory 
-		\item Important thing to note is if Array \{\{100,1,1,5,1\}\}, then Array.size()=100*1*1*5*1=500
+, Cow then computes n1*n2*n3*n4*n5*sizeof(double) and allocates that in memory.
+		\item Important thing to note is if \texttt{Array \{\{100,1,1,5,1\}\}}, then Array.size()=100*1*1*5*1=500, which is how many cells are allocated in memory.
 		\item Some useful short-hand: \texttt{P(i,j,k,q,l)} will get direct access to the memory of a 5-dimensional (nested) array at \texttt{P[i][j][k][q][l]}
 		\item if \texttt{P(i,j,k)} then get direct access to \texttt{P(i,j,k,0,0)}
-		\item The notation to initialize Cow::Arrays is {{n1,n2,n3,n4,n5}}, where n1,n2,n3 are dimenions (of a grid usually) in direction 1,2 and 3 of your system. n4 is usually the number of primitives/conserved variables your system has. In classical hydrodynamics, n4=5. n5 is the so-called rank, which tells us for each primitive variable at a point on a mesh, how many components that primitive variable has. For Newtonian hydrodynamics rank is 1 since mass density/ total energy density is a scalar function and momentum1 density is also a scalar since we split each direction up into 3 equations, so n5 is 1. 
+		\item The notation to initialize \texttt{Cow::Array} is \texttt{\{\{n1,n2,n3,n4,n5\}\}}, where \texttt{n1,n2,n3} are dimenions (of a grid usually) in direction 1,2 and 3 of your system. \texttt{n4} is usually the number of primitives/conserved variables your system has. In classical hydrodynamics, \texttt{n4=5}. \texttt{n5} is the so-called rank, which tells us for each primitive variable at a point on a mesh, how many components that primitive variable has. For Newtonian hydrodynamics rank is 1 since mass density/ total energy density is a scalar function and momentum1 density is also a scalar since we split each direction up into 3 equations, so \texttt{n5=1}. One can contrast that with EM fields where rank=3 since 3 components of EM field is used to describe one primitive locally at one meshpoint.
 		\item Now to apply this idea of a 5 dimensional array, as mentioned above, since numComponent in our hydrodynamic case in \texttt{ThermalConvection.cpp} is 5. If location \texttt{i,j,k} are specified within the grid, then P(i,j,k,0-4,0) contain the 5 primitive variables and is a 5 component 1D array (or a vector) corresponding to the primitive in at cell:i,j,k.
 		\item P[Region] is how one references/retrieves information from an array, where region contains strided region (discussed below).
 		\item Shape3D is a helper class to make sure 3 component arrays return 5 component arrays
 		\item Shape3D(5-dim-Array) => 5 component array
 		\item 5 component array is {1,2,3,4,5}, 5 diminension array is A[][][][][], note the difference
 		\item if you pass 5 component array into Shape3D, private variable S is filled with the components, S is 5 component as well
-		\item begin() and end() methods works for Array, and gives iterator taking into account strides.
+		\item \texttt{begin()} and \texttt{end()} methods works for \texttt{Array}, and gives iterator taking into account strides since region is specified.
 	\end{itemize}
 	\item Region
 	\begin{itemize}
