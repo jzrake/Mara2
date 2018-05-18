@@ -1,0 +1,137 @@
+\documentclass{article}
+\usepackage{listings}
+\usepackage{graphicx}
+
+\title{Primer on Mara Computational Library}
+\author{Andrew Liu \and Jonathan Zrake}
+
+\begin{document}
+\maketitle
+
+\section{Introduction and Software Architecture}
+\subsection{Background}
+The objective of this primer is to introduce the main ideas of Mara and its funtionality in a relatively self-contained manner. 
+
+Mara is a multidimensional Godunov-type code that solves the equations of
+compressible gasdynamics and magnetohydrodynamics (MHD). (add link in footnotes or cite: https://github.com/jzrake/Mara2). Source code and visualization python modules available for pull request.
+
+Let's examine the basic structure of the program:
+\begin{itemize}
+	\item To begin the simulation, type: 
+
+	\texttt{./mara PROGRAM\_NAME PARAMETERS}
+
+	sample command:
+
+\texttt{./mara convect N=100 tfinal=100 cpi=0.25}
+	
+in the command line; \texttt{PROGRAM\_NAME} is the key name corresponding to key-value pairs listed in Mara.cpp inside int main block. All of the key-value pairs are specified as: 
+
+\texttt{programs["regress-1d"]=std::make\_unique<Hydro1DTestProgram>()}
+
+Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique pointers to Mara programs, more on that later. Sample input include: \texttt{regress-1d}, \texttt{raid}, \texttt{pinch}, \texttt{kinetic}, \texttt{convect}.
+
+	\item Run-time parameters can be specified in typical unix command format. For example, to specify the number of gridpoints used in a hydrodynamic simulation, \texttt{PARAMETERS} can include \texttt{N=1000}, representing 1000 gridpoints in the mesh, or \texttt{tfinal=100}, thereby setting the final physical time to 100s.  
+	
+	\item Simulation results will be regularly stored in checkpoints in \texttt{./Mara/data} subdirectory. The interval of saving down checkpoints can be specified in the run-time parameters described above; \texttt{cpi=xxx}. xxx being the physicaltime interval you want between written checkpoints.
+	
+
+\end{itemize}
+
+
+\subsection{Architecture: in the context of ThermalConvection.cpp}
+\begin{itemize}
+	\item Mara files are modular, with the physics related files containing numerical scheme implementations, Mesh implementation of different geometries (Cartesian/Spherical), stored in \texttt{./Mara/src/Problems/}. 
+	\item Coded-up sample problems are stored in \texttt{./Mara/src/}
+	\item Convenience or helper functions and general housekeeping code that ensures Mara runs smoothly are written in Cow; source code located in \texttt{./Mara/Cow/src/}, more on that in the next section
+	\item The command-line arguments are passed into mara.cpp main in the usual \texttt{int argc, const char* argv[]} manner
+	\item As mentioned above, the \texttt{program} map parses the command-line, looking for valid program names
+	\item If valid program name found, it runs the program through the run function specified in the individual program files. Example: \texttt{int ThermalConvectionProgram::run (int argc, const char* argv[])} in ThermalConvection.cpp.
+	\item Code contained within program files are particular configurations of a problem. For example, looking at ThermalConvection.cpp, one can specify a particular \texttt{ sourceTermsFunction}, which is a lambda which takes 3 spatial coordinates and an empty 5 component array (1 density, 3 momenta, 1 energy) containing the source terms at each specific cell gridpoint. With source term meaning the RHS of the set of Euler eq:
+	
+	$$\frac{\partial \textbf{(density)}}{\partial t} + \nabla \cdot \textbf{flux} = \textbf{source}$$
+	
+	This allows flexibility to customize simulations on any sources.
+	
+	\item Another important feature is the \texttt{initialData} lambda: the main use is to specific initial conditions. Notice \texttt{const double rho = 1.0;}. The initial profile of the gas is set to 1.0, and uniform across all the grid cells. We can also, customize \texttt{rho} to be any parametrizable function. A good example would be the hydrostatic profile. 
+	
+	\item The program file also assigns a few important pointers to important objects which are later used in the program (specifics of each are discussed in the next section). Generally speaking, pointers to mesh operators, field operators and mesh data (very important) will be assigned.
+	
+	\item A common misconception is to think that program files do all the heavy-lifting computations in one file. Instead, the iterations forward in time is done when the program file returns to Mara.cpp, where computations are advanced until simulations are completed. The time-step integrator can be specified in the individual program files through \texttt{ss=std::make\_shared<MethodOfLinesTVD>} member functions. (\texttt{ss} short for solution scheme). Important \texttt{ss} member function include \texttt{ss->setBoundaryCondition(bc) and ss->setRungeKuttaOrder(2)} for starters. And a few important housekeeping member functions to ensure the correct mesh and field operator are specified \texttt{ss->setMeshOperator(mo); ss->setFieldOperator(fo)}.
+	
+	
+	
+	
+	
+	\item scheduler and logger are pointers that are passed through back into the maraMainLoop in the Mara.cpp file. Main function of scheduler is to put together a list of tasks to be completed at certain points when the code runs. They could include writing checkpoints or saving down time series data to ensure code is running properly and thereby optimizing data retrieval. An example of scheduler is \texttt{scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time\_series");}. \texttt{taskTimeSeries} is a callback lambda which the function takes as input, thereby telling the scheduler what function to use to perform a specific task at certain periods of time during runtime. What determines \emph{when} the task is performed depends solely on the \textbf{recurrence rule}. This literally means, when will the task/function recurr in the program via some hard and fast rule. In this case, \texttt{TaskScheduler::Recurrence (user["tsi"])} does just that using \texttt{user["tsi"]} which is specified at runtime. \textbf{SPLIT LOGGER INTO SEPARATE PARAGRAPH}
+	
+	\item the basic function of the writer is to  
+	
+	\item The program file ends with: \texttt{return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger)}, the first 4 arguments are callback lambdas defined above in the program and the last two are dereferenced scheduler and logger pointers which allow allocated memory to persist in between loop.
+	
+	\item \texttt{maraMainLoop} loops over time and advances the simulation forward in time according to \texttt{advance} lambda and exits when \texttt{condition} lambda becomes false.
+
+\end{itemize}
+
+
+
+
+
+
+\section{Review on Cow}
+\subsection{Array}
+\begin{itemize}
+	\item \texttt{using Shape = std::array<int, 5>;
+} 
+	\item \texttt{using Index = std::array<int, 5>;}
+	\item \texttt{using using Array = Cow::Array}
+	\item Region
+	\item Range
+\end{itemize}
+
+\subsection{Variant}
+This is a section 
+
+\section{Mara}
+This is a section 
+
+\subsection{Mara}
+This is a section 
+
+\subsection{MeshData}
+This is a section 
+
+\subsection{BoundaryConditions}
+This is a section 
+
+\subsection{ConservationLaws}
+This is a section 
+
+\subsection{FieldOperator}
+\begin{itemize}
+	\item Field operators on the other hand perform operators on the primitive/conserved variables. This module includes convenience functions like \texttt{getConservationLaw()} which returns a shared pointer to the conservation law used. Other convenience functions include converting primitive variable arrays into conserved variables via \texttt{void generateConserved (Array::Reference P, Array::Reference U) const} which takes an array containing primitives P and puts the conserved variables into an empty array U. Courant timesteps are computed here as well. Perhaps an important diagnostic tool for sanity-checking the evolution of density-like thermodynamic quantities (i.e. entropy or total energy $e_T=e+\frac{1\rho v^2}{2}$) or momentum density in 3 dimensions $\rho \vec{v}$ in the Euler equations, is the \texttt{std::vector<double> volumeIntegratedDiagnostics (Array::Reference P, Array::Reference V) const} function. This returns volume integral (not volume average) of named diagnostics which are defaulted to `total\_energy' or 'mass' but one can customize this to ensure code is giving sensible results, \emph{P and V contain primitives and cell volume for individual grid cells respectively throughout the whole mesh.} 
+\end{itemize}
+
+\subsection{MeshOperator}
+\begin{itemize}
+	\item Mesh operators are operators which Mara performs on the mesh grid itself (just spatial dimensions, doesn't touch primitive/conserved data in each cell). Common member functions include \texttt{divergence} and {curl}. One important one is \texttt{measure}, which returns the 1, 2, or 3 dimensional measure of the given mesh locations: length of edges, area of faces, or volume of cells. \textbf{ Can talk about generate or generate Sourceterms HERE!!!!!!!!!!!}
+\end{itemize}
+
+\subsection{Problems}
+This is a section 
+
+\subsection{RiemannSolvers}
+This is a section 
+
+\subsection{SolutionSchemes}
+This is a section 
+
+
+
+
+
+
+
+
+
+\end{document}
