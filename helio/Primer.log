@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017/Debian) (preloaded format=pdflatex 2018.5.9)  18 MAY 2018 03:44
+This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017/Debian) (preloaded format=pdflatex 2018.5.9)  18 MAY 2018 04:17
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -241,36 +241,49 @@ T1/cmtt/m/n/10 ss->setMeshOperator(mo);
  []
 
 [3]
-Overfull \hbox (65.5181pt too wide) in paragraph at lines 136--137
+Overfull \hbox (79.97313pt too wide) in paragraph at lines 116--117
+[]\OT1/cmr/m/n/10 Important thing to note is if Ar-ray \OMS/cmtt/m/n/10 ff\OT1/
+cmr/m/n/10 100,1,1,5,1\OMS/cmtt/m/n/10 gg\OT1/cmr/m/n/10 , then Ar-ray.size()=1
+00*1*1*5*1=500 
+ []
+
+
+Overfull \hbox (10.1951pt too wide) in paragraph at lines 119--120
+[]\OT1/cmr/m/n/10 The no-ta-tion to ini-tial-ize Cow::Arrays is n1,n2,n3,n4,n5,
+ where n1,n2,n3
+ []
+
+
+Overfull \hbox (29.91615pt too wide) in paragraph at lines 120--121
+\OT1/cmr/m/n/10 since num-Com-po-nent in our hy-dro-dy-namic case in \OT1/cmtt/
+m/n/10 ThermalConvection.cpp
+ []
+
+[4] [5]
+Overfull \hbox (65.5181pt too wide) in paragraph at lines 162--163
 \OT1/cmr/m/n/10 served vari-ables. This mod-ule in-cludes con-ve-nience func-ti
 ons like \OT1/cmtt/m/n/10 getConservationLaw()
  []
 
 
-Overfull \hbox (7.77727pt too wide) in paragraph at lines 136--137
+Overfull \hbox (7.77727pt too wide) in paragraph at lines 162--163
 \OT1/cmr/m/n/10 P and puts the con-served vari-ables into an empty ar-ray U. Co
 urant timesteps
  []
 
 
-Overfull \hbox (21.24706pt too wide) in paragraph at lines 136--137
-\OT1/cmtt/m/n/10 volumeIntegratedDiagnostics (Array::Reference P, Array::Refere
-nce
- []
-
-[4]
-Overfull \hbox (18.51715pt too wide) in paragraph at lines 146--147
+Overfull \hbox (18.51715pt too wide) in paragraph at lines 172--173
 \OT1/cmr/m/n/10 trieval. An ex-am-ple of sched-uler is \OT1/cmtt/m/n/10 schedul
 er->schedule (taskTimeSeries,
  []
 
 
-Overfull \hbox (52.8787pt too wide) in paragraph at lines 146--147
+Overfull \hbox (52.8787pt too wide) in paragraph at lines 172--173
 \OT1/cmtt/m/n/10 TaskScheduler::Recurrence (user["tsi"]), "time[]series");\OT1/
 cmr/m/n/10 . \OT1/cmtt/m/n/10 taskTimeSeries
  []
 
-[5] [6] (./Primer.aux)
+[6] [7] (./Primer.aux)
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
@@ -282,7 +295,7 @@ Here is how much of TeX's memory you used:
  5976 multiletter control sequences out of 15000+600000
  8409 words of font info for 30 fonts, out of 8000000 for 9000
  81 hyphenation exceptions out of 8191
- 41i,6n,32p,1267b,239s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 41i,6n,32p,1313b,239s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/shar
 e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texl
@@ -290,15 +303,14 @@ ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist
 /fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts/
 type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
-ublic/amsfonts/cm/cmr5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
-sfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/c
-m/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti
-10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb
->
-Output written on Primer.pdf (6 pages, 158132 bytes).
+ublic/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cm
+tt10.pfb>
+Output written on Primer.pdf (7 pages, 151363 bytes).
 PDF statistics:
- 71 PDF objects out of 1000 (max. 8388607)
- 50 compressed objects within 1 object stream
+ 72 PDF objects out of 1000 (max. 8388607)
+ 51 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 

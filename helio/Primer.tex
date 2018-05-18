@@ -83,7 +83,7 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 	\end{itemize}
 	
 	
-	\item scheduler and logger are pointers passed into \texttt{maraMainLoop} in Mara.cpp. Scheduler arranges tasks to be performed in sequence and logger cout's essential output when simulation run. 
+	\item Scheduler and logger are pointers passed into \texttt{maraMainLoop} in Mara.cpp. Scheduler arranges tasks to be performed in sequence and logger cout's essential output when simulation run. 
 	
 	\item The writer then writes the data before returning maraMainLoop.
 	
@@ -97,20 +97,46 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 
 \end{itemize}
 
-
-
-
-
+Now that we've covered the basic flow of the program, we can delve deeper into the details of Cow and Mara modules and its syntax.
 
 \section{Review on Cow}
 \subsection{Array}
+
+Mara uses a bit of abbrevations when referencing Cow modules which could be hard to keep track of at times. We list the commonly used ones:
+
 \begin{itemize}
-	\item \texttt{using Shape = std::array<int, 5>;
+	\item \texttt{using Shape=std::array<int,5>;
 } 
-	\item \texttt{using Index = std::array<int, 5>;}
-	\item \texttt{using using Array = Cow::Array}
+	\item \texttt{using Index=std::array<int,5>;}
+	\item \texttt{using using Array=Cow::Array}
+	\begin{itemize}
+		\item Array-type constructor can be Shape: using Shape = array<int,5>
+		\item Array constructor takes \texttt{\{n1, n2, n3, n4, n5\}}
+, Cow then computes n1*n2*n3*n4*n5*sizeof(double) and allocates that in memory 
+		\item Important thing to note is if Array \{\{100,1,1,5,1\}\}, then Array.size()=100*1*1*5*1=500
+		\item Some useful short-hand: \texttt{P(i,j,k,q,l)} will get direct access to the memory of a 5-dimensional (nested) array at \texttt{P[i][j][k][q][l]}
+		\item if \texttt{P(i,j,k)} then get direct access to \texttt{P(i,j,k,0,0)}
+		\item The notation to initialize Cow::Arrays is {{n1,n2,n3,n4,n5}}, where n1,n2,n3 are dimenions (of a grid usually) in direction 1,2 and 3 of your system. n4 is usually the number of primitives/conserved variables your system has. In classical hydrodynamics, n4=5. n5 is the so-called rank, which tells us for each primitive variable at a point on a mesh, how many components that primitive variable has. For Newtonian hydrodynamics rank is 1 since mass density/ total energy density is a scalar function and momentum1 density is also a scalar since we split each direction up into 3 equations, so n5 is 1. 
+		\item Now to apply this idea of a 5 dimensional array, as mentioned above, since numComponent in our hydrodynamic case in \texttt{ThermalConvection.cpp} is 5. If location \texttt{i,j,k} are specified within the grid, then P(i,j,k,0-4,0) contain the 5 primitive variables and is a 5 component 1D array (or a vector) corresponding to the primitive in at cell:i,j,k.
+		\item P[Region] is how one references/retrieves information from an array, where region contains strided region (discussed below).
+		\item Shape3D is a helper class to make sure 3 component arrays return 5 component arrays
+		\item Shape3D(5-dim-Array) => 5 component array
+		\item 5 component array is {1,2,3,4,5}, 5 diminension array is A[][][][][], note the difference
+		\item if you pass 5 component array into Shape3D, private variable S is filled with the components, S is 5 component as well
+		\item begin() and end() methods works for Array, and gives iterator taking into account strides.
+	\end{itemize}
 	\item Region
+	\begin{itemize}
+		\item Empty region has no stride: lower=0, upper=0, stride=0. lower and upper are respectively the lower and upper index of a region. It can be positive or negative. Positive means it's an absolute region, negative or zero means index from that end (python-like notation when dealing with arrays). 
+		\item A natural region has stride 1: lower=0, upper=0, stride=1.
+		\item A region literally describes a region with lower,upper,stride within an array, that's why this concept is natural. It is also important to consider stride, lower and upper because of how memory is allocated. 
+		\item One useful method in Array class is Array[Region] which returns a reference to the region you specified
+	\end{itemize}
 	\item Range
+	\begin{itemize}
+		\item Like a 1-dimensional analog of Region where only concerned with 1 axis within an array
+
+	\end{itemize}
 \end{itemize}
 
 \subsection{Variant}
@@ -133,7 +159,7 @@ This is a section
 
 \subsection{FieldOperator}
 \begin{itemize}
-	\item Field operators on the other hand perform operators on the primitive/conserved variables. This module includes convenience functions like \texttt{getConservationLaw()} which returns a shared pointer to the conservation law used. Other convenience functions include converting primitive variable arrays into conserved variables via \texttt{void generateConserved (Array::Reference P, Array::Reference U) const} which takes an array containing primitives P and puts the conserved variables into an empty array U. Courant timesteps are computed here as well. Perhaps an important diagnostic tool for sanity-checking the evolution of density-like thermodynamic quantities (i.e. entropy or total energy $e_T=e+\frac{1\rho v^2}{2}$) or momentum density in 3 dimensions $\rho \vec{v}$ in the Euler equations, is the \texttt{std::vector<double> volumeIntegratedDiagnostics (Array::Reference P, Array::Reference V) const} function. This returns volume integral (not volume average) of named diagnostics which are defaulted to `total\_energy' or 'mass' but one can customize this to ensure code is giving sensible results, \emph{P and V contain primitives and cell volume for individual grid cells respectively throughout the whole mesh.} 
+	\item Field operators on the other hand perform operators on the primitive/conserved variables. This module includes convenience functions like \texttt{getConservationLaw()} which returns a shared pointer to the conservation law used. Other convenience functions include converting primitive variable arrays into conserved variables via \texttt{void generateConserved (Array::Reference P, Array::Reference U) const} which takes an array containing primitives P and puts the conserved variables into an empty array U. Courant timesteps are computed here as well. Perhaps an important diagnostic tool for sanity-checking the evolution of density-like thermodynamic quantities (i.e. entropy or total energy $e_T=e+\frac{1}{2}\rho v^2$, $e$ is the internal energy per unit volume) or momentum density in 3 dimensions $\rho \vec{v}$ in the Euler equations, is the \texttt{std::vector<double> volumeIntegratedDiagnostics (Array::Reference P, Array::Reference V) const} function. This returns volume integral (not volume average) of named diagnostics which are defaulted to `total\_energy' or 'mass' but one can customize this to ensure code is giving sensible results, \textbf{P and V contain primitives and cell volume for individual grid cells respectively throughout the whole mesh.} 
 \end{itemize}
 
 \subsection{MeshOperator}
@@ -143,7 +169,7 @@ This is a section
 
 \subsection{Scheduler}
 \begin{itemize}
-	\item scheduler and logger are pointers that are passed through back into the maraMainLoop in the Mara.cpp file. Main function of scheduler is to put together a list of tasks to be completed at certain points when the code runs. They could include writing checkpoints or saving down time series data to ensure code is running properly and thereby optimizing data retrieval. An example of scheduler is \texttt{scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time\_series");}. \texttt{taskTimeSeries} is a callback lambda which the function takes as input, thereby telling the scheduler what function to use to perform a specific task at certain periods of time during runtime. What determines \emph{when} the task is performed depends solely on the \textbf{recurrence rule}. This literally means, when will the task/function recurr in the program via some hard and fast rule. In this case, \texttt{TaskScheduler::Recurrence (user["tsi"])} does just that using \texttt{user["tsi"]} which is specified at runtime. \textbf{SPLIT LOGGER INTO SEPARATE PARAGRAPH}
+	\item Scheduler and logger are pointers that are passed through back into the maraMainLoop in the Mara.cpp file. Main function of scheduler is to put together a list of tasks to be completed at certain points when the code runs. They could include writing checkpoints or saving down time series data to ensure code is running properly and thereby optimizing data retrieval. An example of scheduler is \texttt{scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time\_series");}. \texttt{taskTimeSeries} is a callback lambda which the function takes as input, thereby telling the scheduler what function to use to perform a specific task at certain periods of time during runtime. What determines \emph{when} the task is performed depends solely on the \textbf{recurrence rule}. This literally means, when will the task/function recurr in the program via some hard and fast rule. In this case, \texttt{TaskScheduler::Recurrence (user["tsi"])} does just that using \texttt{user["tsi"]} which is specified at runtime. \textbf{SPLIT LOGGER INTO SEPARATE PARAGRAPH}
 \end{itemize}
 
 
