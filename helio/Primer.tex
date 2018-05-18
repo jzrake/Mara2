@@ -42,34 +42,58 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 \subsection{Architecture: in the context of ThermalConvection.cpp}
 \begin{itemize}
 	\item Mara files are modular, with the physics related files containing numerical scheme implementations, Mesh implementation of different geometries (Cartesian/Spherical), stored in \texttt{./Mara/src/Problems/}. 
+	
 	\item Coded-up sample problems are stored in \texttt{./Mara/src/}
+	
 	\item Convenience or helper functions and general housekeeping code that ensures Mara runs smoothly are written in Cow; source code located in \texttt{./Mara/Cow/src/}, more on that in the next section
+	
 	\item The command-line arguments are passed into mara.cpp main in the usual \texttt{int argc, const char* argv[]} manner
+	
 	\item As mentioned above, the \texttt{program} map parses the command-line, looking for valid program names
+	
 	\item If valid program name found, it runs the program through the run function specified in the individual program files. Example: \texttt{int ThermalConvectionProgram::run (int argc, const char* argv[])} in ThermalConvection.cpp.
-	\item Code contained within program files are particular configurations of a problem. For example, looking at ThermalConvection.cpp, one can specify a particular \texttt{ sourceTermsFunction}, which is a lambda which takes 3 spatial coordinates and an empty 5 component array (1 density, 3 momenta, 1 energy) containing the source terms at each specific cell gridpoint. With source term meaning the RHS of the set of Euler eq:
+
+	\item Problem Customization Settings:
+		
+	\begin{itemize}
+		\item Code contained within program files are particular configurations of a problem. For example, looking at ThermalConvection.cpp, one can specify a particular \texttt{ sourceTermsFunction}, which is a lambda which takes 3 spatial coordinates and an empty 5 component array (1 density, 3 momenta, 1 energy) containing the source terms at each specific cell gridpoint. With source term meaning the RHS of the set of Euler eq:
 	
 	$$\frac{\partial \textbf{(density)}}{\partial t} + \nabla \cdot \textbf{flux} = \textbf{source}$$
 	
 	This allows flexibility to customize simulations on any sources.
 	
-	\item Another important feature is the \texttt{initialData} lambda: the main use is to specific initial conditions. Notice \texttt{const double rho = 1.0;}. The initial profile of the gas is set to 1.0, and uniform across all the grid cells. We can also, customize \texttt{rho} to be any parametrizable function. A good example would be the hydrostatic profile. 
-	
-	\item The program file also assigns a few important pointers to important objects which are later used in the program (specifics of each are discussed in the next section). Generally speaking, pointers to mesh operators, field operators and mesh data (very important) will be assigned.
-	
-	\item A common misconception is to think that program files do all the heavy-lifting computations in one file. Instead, the iterations forward in time is done when the program file returns to Mara.cpp, where computations are advanced until simulations are completed. The time-step integrator can be specified in the individual program files through \texttt{ss=std::make\_shared<MethodOfLinesTVD>} member functions. (\texttt{ss} short for solution scheme). Important \texttt{ss} member function include \texttt{ss->setBoundaryCondition(bc) and ss->setRungeKuttaOrder(2)} for starters. And a few important housekeeping member functions to ensure the correct mesh and field operator are specified \texttt{ss->setMeshOperator(mo); ss->setFieldOperator(fo)}.
+		\item Another important feature is the \texttt{initialData} lambda: the main use is to specify initial conditions. Notice \texttt{const double rho = 1.0;}. The initial profile of the gas is set to 1.0, and uniform across all the grid cells. We can also, customize \texttt{rho} to be any parametrizable function. A good example would be the hydrostatic profile. 
+		
+	\end{itemize}		
 	
 	
+	\item The problem file also assigns a few important pointers to important objects which are later used in the program (specifics of each are discussed in the next section). Generally speaking, pointers to mesh operators (\texttt{mo}), field operators (\texttt{fo}) and mesh data (\texttt{md}) (very important this one!) will be assigned.
+	
+	\item Mesh Customization Settings:
+	\begin{itemize}	
+		\item Perhaps the core of the simulation is the mesh geometry (\texttt{mg})--whether cartesian or spherical is specified. \texttt{mg->setCellsShape} is used to set number of meshpoints in each direction while \texttt{mg->setLowerUpper} is used to set range in each dimension respectively. Pointer to mesh geometry, for example, can be changed to \texttt{auto mg = std::shared\_ptr<MeshGeometry> (new SphericalMeshGeometry)} to accomodate different geometries.
+		
+		\item Boundary cells are taken into account through \texttt{bs = Shape \{\{ 2, 0, 0, 0, 0 \}\}} (\texttt{bs} for boundary shape) for example. This array format will be discussed more in detail. But the main idea is that there are 2 ``ghost cells" in the 1st-direction (x in cartesian) and none for the other 2nd and 3rd direction. Ignore the 4th and 5th 0's for now--they will mean something later. 
+		
+		\item Once boundary cells are set, we can take care of the rest of the boundary conditions through the problem-specific \texttt{apply} method. Each problem contains it's own inherited BC class, \\
+	e.g. \texttt{class ThermalConvectionBoundaryCondition:public BoundaryCondition}. The apply method can override it's parent's \texttt{apply} and can customize BC specifications tailored to the problem. E.g. reflecting/outflow/inflow... boundary conditions at either endpoint (or write one yourself!)   
+		
+		\item This boundary shape array, along with the appropriate number of conserved variables and the geometry are passed into this \textbf{mesh data constructor}: \texttt{auto md = std::make\_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());}, which initializes the mesh on which numerical simulations will be done. It's important for the program to know how many conserved variables there are to allocate the right amount of memory for the mesh/primitive arrays.		
+		
+	\end{itemize}
 	
 	
+	\item scheduler and logger are pointers passed into \texttt{maraMainLoop} in Mara.cpp. Scheduler arranges tasks to be performed in sequence and logger cout's essential output when simulation run. 
 	
-	\item scheduler and logger are pointers that are passed through back into the maraMainLoop in the Mara.cpp file. Main function of scheduler is to put together a list of tasks to be completed at certain points when the code runs. They could include writing checkpoints or saving down time series data to ensure code is running properly and thereby optimizing data retrieval. An example of scheduler is \texttt{scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time\_series");}. \texttt{taskTimeSeries} is a callback lambda which the function takes as input, thereby telling the scheduler what function to use to perform a specific task at certain periods of time during runtime. What determines \emph{when} the task is performed depends solely on the \textbf{recurrence rule}. This literally means, when will the task/function recurr in the program via some hard and fast rule. In this case, \texttt{TaskScheduler::Recurrence (user["tsi"])} does just that using \texttt{user["tsi"]} which is specified at runtime. \textbf{SPLIT LOGGER INTO SEPARATE PARAGRAPH}
+	\item The writer then writes the data before returning maraMainLoop.
 	
-	\item the basic function of the writer is to  
+	\item Logger is for performing \texttt{std::cout} into our console 
 	
 	\item The program file ends with: \texttt{return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger)}, the first 4 arguments are callback lambdas defined above in the program and the last two are dereferenced scheduler and logger pointers which allow allocated memory to persist in between loop.
 	
 	\item \texttt{maraMainLoop} loops over time and advances the simulation forward in time according to \texttt{advance} lambda and exits when \texttt{condition} lambda becomes false.
+	
+	\item \underline{A common misconception} is to think that program files do all the heavy-lifting computations in one file. Instead, the iterations forward in time is done when the program file returns to Mara.cpp, where computations are advanced until simulations are completed. The time-step integrator can be specified in the individual program files through \texttt{ss=std::make\_shared<MethodOfLinesTVD>} member functions. (\texttt{ss} short for solution scheme). Important \texttt{ss} member function include \texttt{ss->setBoundaryCondition(bc) and ss->setRungeKuttaOrder(2)} for starters. And a few important housekeeping member functions to ensure the correct mesh and field operator are specified \texttt{ss->setMeshOperator(mo); ss->setFieldOperator(fo)}.
 
 \end{itemize}
 
@@ -116,6 +140,12 @@ This is a section
 \begin{itemize}
 	\item Mesh operators are operators which Mara performs on the mesh grid itself (just spatial dimensions, doesn't touch primitive/conserved data in each cell). Common member functions include \texttt{divergence} and {curl}. One important one is \texttt{measure}, which returns the 1, 2, or 3 dimensional measure of the given mesh locations: length of edges, area of faces, or volume of cells. \textbf{ Can talk about generate or generate Sourceterms HERE!!!!!!!!!!!}
 \end{itemize}
+
+\subsection{Scheduler}
+\begin{itemize}
+	\item scheduler and logger are pointers that are passed through back into the maraMainLoop in the Mara.cpp file. Main function of scheduler is to put together a list of tasks to be completed at certain points when the code runs. They could include writing checkpoints or saving down time series data to ensure code is running properly and thereby optimizing data retrieval. An example of scheduler is \texttt{scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time\_series");}. \texttt{taskTimeSeries} is a callback lambda which the function takes as input, thereby telling the scheduler what function to use to perform a specific task at certain periods of time during runtime. What determines \emph{when} the task is performed depends solely on the \textbf{recurrence rule}. This literally means, when will the task/function recurr in the program via some hard and fast rule. In this case, \texttt{TaskScheduler::Recurrence (user["tsi"])} does just that using \texttt{user["tsi"]} which is specified at runtime. \textbf{SPLIT LOGGER INTO SEPARATE PARAGRAPH}
+\end{itemize}
+
 
 \subsection{Problems}
 This is a section 
