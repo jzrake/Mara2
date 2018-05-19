@@ -1,5 +1,6 @@
 \documentclass{article}
 \usepackage{graphicx}
+\usepackage{amsmath}
 %\usepackage[legalpaper, margin=1in]{geometry}
 
 
@@ -12,7 +13,7 @@
 
 \section{Introduction and Software Architecture}
 \subsection{Background}
-The objective of this primer is to introduce the main ideas of Mara and its funtionality in a relatively self-contained manner. 
+The objective of this primer is to introduce the main ideas of Mara and its funtionality in a relatively self-contained manner. The goal is to make Mara's structure tractable and to point out the most important modules for basic computation.
 
 Mara is a multidimensional Godunov-type code that solves the equations of
 compressible gasdynamics and magnetohydrodynamics (MHD). (add link in footnotes or cite: https://github.com/jzrake/Mara2). Source code and visualization python modules available for pull request.
@@ -78,7 +79,7 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 		\item Boundary cells are taken into account through \texttt{bs = Shape \{\{ 2, 0, 0, 0, 0 \}\}} (\texttt{bs} for boundary shape) for example. This array format will be discussed more in detail. But the main idea is that there are 2 ``ghost cells" in the 1st-direction (x in cartesian) and none for the other 2nd and 3rd direction. Ignore the 4th and 5th 0's for now--they will mean something later. 
 		
 		\item Once boundary cells are set, we can take care of the rest of the boundary conditions through the problem-specific \texttt{apply} method. Each problem contains it's own inherited BC class, \\
-	e.g. \texttt{class ThermalConvectionBoundaryCondition:public BoundaryCondition}. The apply method can override it's parent's \texttt{apply} and can customize BC specifications tailored to the problem. E.g. reflecting/outflow/inflow... boundary conditions at either endpoint (or write one yourself!)   
+	e.g. \texttt{class ThermalConvectionBoundaryCondition:public BoundaryCondition}. The apply method can override its parent's \texttt{apply} and can customize \texttt{bc} specifications tailored to the problem. E.g. reflecting/outflow/inflow... boundary conditions at either endpoint (or write one yourself!)   
 		
 		\item This boundary shape array, along with the appropriate number of conserved variables and the geometry are passed into this \textbf{mesh data constructor}: \texttt{auto md = std::make\_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());}, which initializes the mesh on which numerical simulations will be done. It's important for the program to know how many conserved variables there are to allocate the right amount of memory for the mesh/primitive arrays.		
 		
@@ -104,64 +105,133 @@ Now that we've covered the basic flow of the program, we can delve deeper into t
 \section{Review on Cow}
 \subsection{Array}
 
-Mara uses a bit of abbrevations when referencing Cow modules which could be hard to keep track of at times. We list the commonly used ones:
+There are a few important \texttt{Cow} classes that will be reviewed in this section. Under each section, important `\texttt{using} statements' are also listed since they sometimes could be hard to remember:
 
 \begin{itemize}
-	\item \texttt{using Shape=std::array<int,5>;
-} 
-	\item \texttt{using Index=std::array<int,5>;}
-	\item \texttt{using using Array=Cow::Array}
+	\item \texttt{Cow::Shape3D}
 	\begin{itemize}
-		\item Array-type constructor can be Shape: using Shape = array<int,5>
-		\item Array constructor takes \texttt{\{n1, n2, n3, n4, n5\}}
-, Cow then computes n1*n2*n3*n4*n5*sizeof(double) and allocates that in memory.
-		\item Important thing to note is if \texttt{Array \{\{100,1,1,5,1\}\}}, then Array.size()=100*1*1*5*1=500, which is how many cells are allocated in memory.
+		\item \texttt{using Shape=std::array<int,5>;} 
+		\item One has to first distinguish between a 5 component array and a 5 dimension array. 5 component array is a 1 dimensional array (vector) that looks like \texttt{\{1,2,3,4,5\}}; on the other hand, a 5 dimension array is something like \texttt{A[][][][][]}
+		\item \texttt{Shape3D} is a helper class to make sure 3 component arrays return 5 component arrays
+		\item \texttt{class Shape3D} is a specific case of the Shape object we discussed. \texttt{Shape3D} contain methods that focus on the first 3 components of a Shape array, which has 5 components. \texttt{Shape3D} literally focuses on axes 0, 1 and 2 which in Cartesian coordinates is x, y and z. 
+		\item Important features of \texttt{Shape3D} include the ability to initialize a 5 component array that represents a 5 dimension array via only passing in the first 3 numbers of a \texttt{Shape} array, which represents the gridpoints of the first 3 dimensions. This is given by the method: \texttt{Shape3D::Shape3D (int n1, int n2, int n3)}
+		\item If you don't want to be lazy, you can put in the whole 5 component \texttt{Shape} array, which is what this method allows: \texttt{Shape3D::Shape3D (Shape S)}. What this method does is the private variable \texttt{S} defined in the \texttt{class Shape3D} is filled with the individual components of the \texttt{Shape S} array passed.	
+		\item \texttt{void Shape3D::deploy(std::function<void(int i,int j,int k)> function) const} is a useful way of filling an array with function(i,j,k) without looping over 3-spatial axes. Shorthand for writing a triple for-loop in C++ and useful when trying to evaluate a function over a 3D grid.
+	\end{itemize}
+	\item \texttt{Cow::Array}
+	\begin{itemize}
+		\item \texttt{using using Array=Cow::Array}
+		\item \texttt{Array} constructors can take in \texttt{Shape}
+		\item \texttt{Array} constructors can take 5 numbers: \texttt{\{n1, n2, n3, n4, n5\}}, each representing the number of points in each dimension of the 5 dimensional array which will be created. Cow then computes \texttt{n1*n2*n3*n4*n5*sizeof(double)} and allocates that in memory.
+		\item Important note: if \texttt{Array \{\{100,1,1,5,1\}\}}, then \texttt{Array.size()}=100*1*1*5*1=500, which is the total number of cells allocated in memory.
 		\item Some useful short-hand: \texttt{P(i,j,k,q,l)} will get direct access to the memory of a 5-dimensional (nested) array at \texttt{P[i][j][k][q][l]}
 		\item if \texttt{P(i,j,k)} then get direct access to \texttt{P(i,j,k,0,0)}
 		\item The notation to initialize \texttt{Cow::Array} is \texttt{\{\{n1,n2,n3,n4,n5\}\}}, where \texttt{n1,n2,n3} are dimenions (of a grid usually) in direction 1,2 and 3 of your system. \texttt{n4} is usually the number of primitives/conserved variables your system has. In classical hydrodynamics, \texttt{n4=5}. \texttt{n5} is the so-called rank, which tells us for each primitive variable at a point on a mesh, how many components that primitive variable has. For Newtonian hydrodynamics rank is 1 since mass density/ total energy density is a scalar function and momentum1 density is also a scalar since we split each direction up into 3 equations, so \texttt{n5=1}. One can contrast that with EM fields where rank=3 since 3 components of EM field is used to describe one primitive locally at one meshpoint.
 		\item Now to apply this idea of a 5 dimensional array, as mentioned above, since numComponent in our hydrodynamic case in \texttt{ThermalConvection.cpp} is 5. If location \texttt{i,j,k} are specified within the grid, then P(i,j,k,0-4,0) contain the 5 primitive variables and is a 5 component 1D array (or a vector) corresponding to the primitive in at cell:i,j,k.
-		\item P[Region] is how one references/retrieves information from an array, where region contains strided region (discussed below).
-		\item Shape3D is a helper class to make sure 3 component arrays return 5 component arrays
-		\item Shape3D(5-dim-Array) => 5 component array
-		\item 5 component array is {1,2,3,4,5}, 5 diminension array is A[][][][][], note the difference
-		\item if you pass 5 component array into Shape3D, private variable S is filled with the components, S is 5 component as well
+		\item \texttt{P[some\_Region]} is how one references/retrieves information from an array, where region contains strided region (discussed below).
 		\item \texttt{begin()} and \texttt{end()} methods works for \texttt{Array}, and gives iterator taking into account strides since region is specified.
+		
+
 	\end{itemize}
-	\item Region
+	\item \texttt{Cow::Region}
 	\begin{itemize}
+		\item \texttt{using Index=std::array<int,5>;}
 		\item Empty region has no stride: lower=0, upper=0, stride=0. lower and upper are respectively the lower and upper index of a region. It can be positive or negative. Positive means it's an absolute region, negative or zero means index from that end (python-like notation when dealing with arrays). 
 		\item A natural region has stride 1: lower=0, upper=0, stride=1.
 		\item A region literally describes a region with lower,upper,stride within an array, that's why this concept is natural. It is also important to consider stride, lower and upper because of how memory is allocated. 
 		\item One useful method in Array class is Array[Region] which returns a reference to the region you specified
 	\end{itemize}
-	\item Range
+	\item \texttt{Cow::Range}
 	\begin{itemize}
 		\item Like a 1-dimensional analog of Region where only concerned with 1 axis within an array
 
 	\end{itemize}
 \end{itemize}
 
-\subsection{Variant}
-This is a section 
-
 \section{Mara}
-This is a section 
+Next we will discuss some useful features of Mara that will help with everyday computation:
 
 \subsection{Mara}
-This is a section 
+We've discussed some important features of the Mara.cpp file, now let's examine the header file which contains all of the useful abstract class definitions and virtual functions ready to be overridden. 
+
+The header file also contains detailed commenting regarding the uses of each class and method. The goal of virtual functions are used here is because we want to establish parent-child relationship to allow for overloading/overriding of methods to ensure maximum flexibility. Some important definition `\texttt{using} statements' will also be included. We'll examine a few important abstract parent classes here:
+
+\begin{itemize}
+	\item \texttt{ConservationLaw}
+	\begin{itemize}
+		\item \texttt{using StateArray = std::array<double, MARA\_NUM\_FIELDS>;}
+		\item \texttt{ConservationLaw::State} is defined here, which is a \texttt{struct} containing arrays like primtive, conserved, flux, eigenvalues. This class will be inherited/expanded by the \texttt{ConservationLaw.cpp}.
+		\item ConservationLaw::Request is also defined here which contains simple data retrieval (get methods) such as getPrimitive or getConserved from a ConservationLaw::State; these are fleshed out in ConservationLaw.cpp
+	\end{itemize}
+	\item \texttt{BoundaryCondition}
+	\begin{itemize}
+		\item \texttt{enum class MeshLocation \{ vert, edge, face, cell \};}
+		\item \texttt{enum class MeshBoundary \{ left, right \};}
+	
+		\item The bread and butter of boundary condition is the \texttt{virtual void apply (Cow::Array\& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const = 0;}.
+	\end{itemize}
+	
+	
+	
+	
+	
+	
+
+\end{itemize}
+
 
 \subsection{MeshData}
 This is a section 
 
 \subsection{BoundaryConditions}
-This is a section 
+\begin{itemize}
+	\item advance takes meshdata and dt from ss
+	\item ss->setboundarycondition sets bc
+	\item each set of the advance process, boundary condition is applied through meshdata applyboundarycondition using applsimple
+	\item applysimple uses apply 
+	\item apply method in TC overrides the virtual method in the parent class
+\end{itemize}
 
 \subsection{ConservationLaws}
-This is a section 
+The \texttt{ConservationLaw.h} file contains different classes tailored to different conservation laws examined. A commonly used one is \texttt{class NewtonianHydro : public ConservationLaw} which you can tell inherits publicly from the parent \texttt{class ConservationLaw} from \texttt{Mara.h}. 
 
+As you can see, this module provides specific implementation of the virtual methods defined in Mara's header file. Examples include \texttt{  int getNumConserved() const override;}, a function to get the number of conserved variables which would vary from 5 to 8 when one goes from Newtonian hydrodynamics to MHD. 
+\begin{itemize}
+\item Moving on to \texttt{ConservationLaw.cpp}, we see right off the bat, primitive names such as \texttt{\#define RHO 0} are set to an array index to facilitate data retrieval later. This is given a fancy name called fieldIndex. Be on the lookout for this in functions like \texttt{std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const}.
+
+\item Remember Conservation::State is defined in Mara.h, where it is a struct containing primitive/conserved arrays? It is used for example in \texttt{ConservationLaw::State NewtonianHydro::fromPrimitive (const Request\& request, const double* P) const}. 
+
+\item The request (see \texttt{ConservationLaw::Request} defined in \texttt{Mara.h}) and a primitive array \texttt{P} are passed into the function. 
+
+\item A \texttt{State S} is generated, and populated with primitives and conserved variables contained within the input array P. First off, we know mass density, 3 components of velocity and Pressure: $\rho$, $v_1$, $v_2$, $v_3$, $P$ comprise the primitive vector (5 component vector). Each one is given an index defined at the top of this file. This function takes these variables and generates conserved ones: $\rho \rightarrow \rho$, $v_1 \rightarrow	\rho v_1$. E.g. in the \texttt{.cpp} file, the \texttt{State S}'s momentum flux in direction 1: \texttt{S.U[S11] = P[RHO] * P[V11]}. Eigenvalues of the characteristics are also stored in this state. For Newtonian hydro, we know there are 3 distinct ones $\{v-c,v,v+c\}$, where c is the speed of sound.
+
+\item An important function here are the diagnostic tools. One can use them to plot time series of mass, total energy to check the code's consistency. One example is the \texttt{ std::vector<double> NewtonianHydro::makeDiagnostics (const State\& state) const}, which you will need to pass a ConservationLaw::State in. The function creates an empty vector (of any size you want since it can contain as many diagnostics as you want), and it populates this vector with conserved variables.
+
+The function is instrumental when trying to compute a time series of a volume-integrated variable. One thing of note is that this function represents the conserved variables within a particular cell, since volume-integrated quantities within a cell (defined as celld in \texttt{FieldOperator.cpp}):
+
+$\texttt{diagnostics}=\int\limits_{\text{cell}} \left[\begin{smallmatrix}
+	\rho \\
+	\rho v_1 \\
+	\rho v_2 \\
+	\rho v_3 \\
+	\frac{1}{2}\rho v^2 + \frac{P}{\gamma - 1}  
+\end{smallmatrix} \right] dV$
+
+ 
+\end{itemize}
+ 
 \subsection{FieldOperator}
 \begin{itemize}
-	\item Field operators on the other hand perform operators on the primitive/conserved variables. This module includes convenience functions like \texttt{getConservationLaw()} which returns a shared pointer to the conservation law used. Other convenience functions include converting primitive variable arrays into conserved variables via \texttt{void generateConserved (Array::Reference P, Array::Reference U) const} which takes an array containing primitives P and puts the conserved variables into an empty array U. Courant timesteps are computed here as well. Perhaps an important diagnostic tool for sanity-checking the evolution of density-like thermodynamic quantities (i.e. entropy or total energy $e_T=e+\frac{1}{2}\rho v^2$, $e$ is the internal energy per unit volume) or momentum density in 3 dimensions $\rho \vec{v}$ in the Euler equations, is the \texttt{std::vector<double> volumeIntegratedDiagnostics (Array::Reference P, Array::Reference V) const} function. This returns volume integral (not volume average) of named diagnostics which are defaulted to `total\_energy' or 'mass' but one can customize this to ensure code is giving sensible results, \textbf{P and V contain primitives and cell volume for individual grid cells respectively throughout the whole mesh.} 
+	\item \texttt{FieldOperator} methods operate on the primitive/conserved variables. This module includes simple convenience functions like \texttt{getConservationLaw()} which returns a shared pointer to the conservation law used. 
+	\item Other convenience functions include converting primitive variable arrays into conserved variables via \texttt{void generateConserved (Array::Reference P, Array::Reference U) const} which takes an array containing primitives P and puts the conserved variables into an empty array U. 
+	\item One of the more important functions is getCourantTimeStep() and is computed here as well. \textbf{generateConserved(), getCourantTimeStep()}
+	\item As mentioned in the previous subsection. An important diagnostic tool for sanity-checking the evolution of density-like thermodynamic quantities (i.e. entropy or total energy $e_T=e+\frac{1}{2}\rho v^2$, $e$ is the internal energy per unit volume) or momentum density in 3 dimensions $\rho \vec{v}$ in the Euler equations, is the \texttt{std::vector<double> volumeIntegratedDiagnostics (Array::Reference P, Array::Reference V) const} function. This returns volume integral (not volume average) of named diagnostics which are defaulted to `total\_energy' or 'mass' but one can customize this to ensure code is giving sensible results, \textbf{P and V contain primitives and cell volume for individual grid cells respectively throughout the whole mesh.} 
+	\item \texttt{auto Treg = P.getRegion().withStride (3, law->getNumConserved())}. \texttt{Treg} is array P's region taking into account the stride. Recall that P is a 5 dimensional array, \texttt{withStride} here takes axes 3 (the number of components in a primitive vector) and sets that number to the number of conserved variables. This is to ensure we're getting the right primitive values.
+	\item \texttt{Preg} is just the P array after taking into account the strided region of consideration.
+	\item \texttt{pit} and \texttt{vit} represent pointer/iterators to these primitive vectors and cell volume of a particular cell; as the iterator is incremented by 1, we move to the next cell.
+	\item  \texttt{celld = law->makeDiagnostics (state)} is what we described in the previous section and is a 5 component vector containing conserved variables at a particular cell location. 
+	\item  This part: \texttt{diagnostics[n] += celld[n] * Vol} is looped over all the cells, hence summing the integrated to find the volume-integrated conserved variable of the whole mesh:
+$$\text{Total diagnostic variable returned =} \sum_{\text{over mesh}} \texttt{diagnostics}$$
 \end{itemize}
 
 \subsection{MeshOperator}
