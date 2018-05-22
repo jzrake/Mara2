@@ -88,7 +88,7 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
                 switch (vectorMode)
                 {
                     case VectorMode::scalars:
-                    {                            
+                    {
                         for (int q = 0; q < nq; ++q)
                         {
                             E (i, j, k, q, 0) = P0[q];
@@ -137,7 +137,7 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
                 switch (vectorMode)
                 {
                     case VectorMode::scalars:
-                    {                            
+                    {
                         for (int q = 0; q < nq; ++q)
                         {
                             B (i, j, k, q, 0) = P0[q];
@@ -271,7 +271,7 @@ Array MeshOperator::linearCellDimension() const
     Array::deploy (L.shape(), [&] (int i, int j, int k)
     {
         auto L3 = std::array<double, 3>
-        {{ 
+        {{
             geometry->cellLength (i, j, k, 0),
             geometry->cellLength (i, j, k, 1),
             geometry->cellLength (i, j, k, 2)
