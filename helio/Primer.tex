@@ -1,11 +1,12 @@
 \documentclass{article}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{amsmath}
 %\usepackage[legalpaper, margin=1in]{geometry}
 
 
 
-\title{Primer on Mara Computational Library}
+\title{Primer on Mara}
 \author{Andrew Liu \and Jonathan Zrake}
 
 \begin{document}
@@ -74,29 +75,35 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 	
 	\item Mesh Customization Settings:
 	\begin{itemize}	
-		\item Perhaps the core of the simulation is the mesh geometry (\texttt{mg})--whether cartesian or spherical is specified. \texttt{mg->setCellsShape} is used to set number of meshpoints in each direction while \texttt{mg->setLowerUpper} is used to set range in each dimension respectively. Pointer to mesh geometry, for example, can be changed to \texttt{auto mg = std::shared\_ptr<MeshGeometry> (new SphericalMeshGeometry)} to accomodate different geometries.
+		\item The core of the simulation is the mesh geometry (\texttt{mg})--whether cartesian or spherical is specified. \texttt{mg->setCellsShape} is used to set number of meshpoints in each direction while \texttt{mg->setLowerUpper} is used to set range in each dimension respectively. Pointer to mesh geometry, for example, can be changed to \texttt{auto mg = std::shared\_ptr<MeshGeometry> (new SphericalMeshGeometry)} to accomodate non-Cartesian geometries.
 		
-		\item Boundary cells are taken into account through \texttt{bs = Shape \{\{ 2, 0, 0, 0, 0 \}\}} (\texttt{bs} for boundary shape) for example. This array format will be discussed more in detail. But the main idea is that there are 2 ``ghost cells" in the 1st-direction (x in cartesian) and none for the other 2nd and 3rd direction. Ignore the 4th and 5th 0's for now--they will mean something later. 
+		\item Boundary cells are taken into account through \texttt{bs = Shape \{\{ 2, 0, 0, 0, 0 \}\}} (\texttt{bs} for boundary shape) for example. This array format will be discussed more in detail. But the main idea is that there are 2 ``ghost cells" in the 1st-direction (x in Cartesian) and none for the 2nd and 3rd direction. Ignore the 4th and 5th 0's for now--they will mean something later. 
 		
 		\item Once boundary cells are set, we can take care of the rest of the boundary conditions through the problem-specific \texttt{apply} method. Each problem contains it's own inherited BC class, \\
 	e.g. \texttt{class ThermalConvectionBoundaryCondition:public BoundaryCondition}. The apply method can override its parent's \texttt{apply} and can customize \texttt{bc} specifications tailored to the problem. E.g. reflecting/outflow/inflow... boundary conditions at either endpoint (or write one yourself!)   
 		
-		\item This boundary shape array, along with the appropriate number of conserved variables and the geometry are passed into this \textbf{mesh data constructor}: \texttt{auto md = std::make\_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());}, which initializes the mesh on which numerical simulations will be done. It's important for the program to know how many conserved variables there are to allocate the right amount of memory for the mesh/primitive arrays.		
+		\item The boundary shape array, number of conserved variables and geometry are all passed into this \textbf{mesh data constructor}: \texttt{auto md = std::make\_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());}, which initializes the mesh where simulations are performed. It's important for the program to know how many conserved variables there are to allocate the right amount of memory for the mesh/primitive arrays.
 		
 	\end{itemize}
 	
+	\item Main Loop Customization Settings:
+	\begin{itemize}
+		\item \texttt{condition} is a lambda which exits the simulation if it is violated (or returns false). Can be customized to put upper limits on walltime for instance.
+		\item \texttt{timestep} is a lambda which returns a timestep size, this can also be customized to something other than the Courant timestep.
+		\item \texttt{advance} is a lambda to advance the solution one timestep. One can guess it must contain a timestep integrator: Runge-Kutta. Again it can be customized to other methods: Forward Euler, Backward Euler, etc. 		
+	\end{itemize}		
 	
-	\item Scheduler and logger are pointers passed into \texttt{maraMainLoop} in Mara.cpp. Scheduler arranges tasks to be performed in sequence and logger cout's essential output when simulation run. 
+	\item After the problem, mesh and main loop are customized, the boundary conditions are applied: \texttt{md->applyBoundaryCondition(BoundaryCondition\& bc)} method uses  \texttt{BoundaryCondition::applySimple} every timestep via the \texttt{SolutionScheme}. (details in MeshData or BoundaryCondition subsection below). 
+	
+	\item Scheduler and logger are pointers passed into \texttt{maraMainLoop} in Mara.cpp. Scheduler arranges tasks to be performed in sequence and logger generates essential output into the console when the simulation runs. 
 	
 	\item The writer then writes the data before returning maraMainLoop.
-	
-	\item Logger is for performing \texttt{std::cout} into our console 
-	
+		
 	\item The program file ends with: \texttt{return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger)}, the first 4 arguments are callback lambdas defined above in the program and the last two are dereferenced scheduler and logger pointers which allow allocated memory to persist in between loop.
 	
-	\item \texttt{maraMainLoop} loops over time and advances the simulation forward in time according to \texttt{advance} lambda and exits when \texttt{condition} lambda becomes false.
+	\item \texttt{maraMainLoop} loops over time and advances the simulation forward in time according to the \texttt{advance} lambda. As we advance the solution forward in time, \texttt{ss->setBoundaryCondition(bc)} applies boundary conditions to the ghostcells with new data. The program exits when \texttt{condition} lambda becomes false.
 	
-	\item \underline{A common misconception} is to think that program files do all the heavy-lifting computations in one file. Instead, the iterations forward in time is done when the program file returns to Mara.cpp, where computations are advanced until simulations are completed. The time-step integrator can be specified in the individual program files through \texttt{ss=std::make\_shared<MethodOfLinesTVD>} member functions. (\texttt{ss} short for solution scheme). Important \texttt{ss} member function include \texttt{ss->setBoundaryCondition(bc) and ss->setRungeKuttaOrder(2)} for starters. And a few important housekeeping member functions to ensure the correct mesh and field operator are specified \texttt{ss->setMeshOperator(mo); ss->setFieldOperator(fo)}.
+	\item \underline{A common misconception} is to think that program files do all the heavy-lifting computations in one file. Instead, the iterations forward in time are done when the program file returns to Mara.cpp, where computations are advanced until simulations are completed. The time-step integrator can be specified in the individual program files through \texttt{ss=std::make\_shared<MethodOfLinesTVD>} member functions. (\texttt{ss} short for solution scheme). Important \texttt{ss} member function include \texttt{ss->setBoundaryCondition(bc) and ss->setRungeKuttaOrder(2)} for starters. And a few important housekeeping member functions to ensure the correct mesh and field operator are specified \texttt{ss->setMeshOperator(mo); ss->setFieldOperator(fo)}. As mentioned above, since BC are applied when \texttt{ss} is called and \texttt{advance} takes \texttt{ss} as an input, everytime \texttt{advance} is called, BC's are applied. 
 
 \end{itemize}
 
@@ -127,7 +134,7 @@ There are a few important \texttt{Cow} classes that will be reviewed in this sec
 		\item Some useful short-hand: \texttt{P(i,j,k,q,l)} will get direct access to the memory of a 5-dimensional (nested) array at \texttt{P[i][j][k][q][l]}
 		\item if \texttt{P(i,j,k)} then get direct access to \texttt{P(i,j,k,0,0)}
 		\item The notation to initialize \texttt{Cow::Array} is \texttt{\{\{n1,n2,n3,n4,n5\}\}}, where \texttt{n1,n2,n3} are dimenions (of a grid usually) in direction 1,2 and 3 of your system. \texttt{n4} is usually the number of primitives/conserved variables your system has. In classical hydrodynamics, \texttt{n4=5}. \texttt{n5} is the so-called rank, which tells us for each primitive variable at a point on a mesh, how many components that primitive variable has. For Newtonian hydrodynamics rank is 1 since mass density/ total energy density is a scalar function and momentum1 density is also a scalar since we split each direction up into 3 equations, so \texttt{n5=1}. One can contrast that with EM fields where rank=3 since 3 components of EM field is used to describe one primitive locally at one meshpoint.
-		\item Now to apply this idea of a 5 dimensional array, as mentioned above, since numComponent in our hydrodynamic case in \texttt{ThermalConvection.cpp} is 5. If location \texttt{i,j,k} are specified within the grid, then P(i,j,k,0-4,0) contain the 5 primitive variables and is a 5 component 1D array (or a vector) corresponding to the primitive in at cell:i,j,k.
+		\item Now to apply this idea of a 5 dimensional array, as mentioned above, since \texttt{numComponent} in our hydrodynamic case in \texttt{ThermalConvection.cpp} is 5. If location \texttt{i,j,k} are specified within the grid, then P(i,j,k,0-4,0) contain the 5 primitive variables and is a 5 component 1D array (or a vector) corresponding to the primitive in at cell:i,j,k.
 		\item \texttt{P[some\_Region]} is how one references/retrieves information from an array, where region contains strided region (discussed below).
 		\item \texttt{begin()} and \texttt{end()} methods works for \texttt{Array}, and gives iterator taking into account strides since region is specified.
 		
@@ -136,15 +143,20 @@ There are a few important \texttt{Cow} classes that will be reviewed in this sec
 	\item \texttt{Cow::Region}
 	\begin{itemize}
 		\item \texttt{using Index=std::array<int,5>;}
-		\item Empty region has no stride: lower=0, upper=0, stride=0. lower and upper are respectively the lower and upper index of a region. It can be positive or negative. Positive means it's an absolute region, negative or zero means index from that end (python-like notation when dealing with arrays). 
-		\item A natural region has stride 1: lower=0, upper=0, stride=1.
-		\item A region literally describes a region with lower,upper,stride within an array, that's why this concept is natural. It is also important to consider stride, lower and upper because of how memory is allocated. 
-		\item One useful method in Array class is Array[Region] which returns a reference to the region you specified
+		\item Similar to \texttt{Range}, \texttt{Region} has \texttt{lower}, \texttt{upper} and \texttt{stride} as public variables. One big difference is these are 5 component arrays while \texttt{Range}'s are ints.
+		\item Empty region has no stride: \texttt{lower[n]=0}, \texttt{upper[n]=0}, \texttt{stride[n]=0}. Lower and upper are respectively the lower and upper index of a region. It can be positive or negative. Positive means it's an absolute region, negative or zero means index from that end (python-like notation when dealing with arrays--more on this in the MeshData subsection). 
+		\item A natural \texttt{Region} has \texttt{stride=1}.
+		\item A \texttt{Region} literally describes a region in an array quantified by the lower index, upper index and stride (increments in the index as we iterate through the elements)--that's why this concept is natural as it tells us how memory is allocated. 
+		\item `\texttt{with}' methods (i.e. \texttt{withStride}, \texttt{withLower}, \texttt{withUpper}) replaces that variable with a new variable along an axis.
+		\item \texttt{Region::shape()} returns the sizes of each axis of the \texttt{Region} as a 5 component \texttt{Shape} array.
+		\item One useful method in \texttt{Array} class is \texttt{Array[Region]} which returns a reference to the \texttt{Region} you specified.
 	\end{itemize}
+	
 	\item \texttt{Cow::Range}
 	\begin{itemize}
-		\item Like a 1-dimensional analog of Region where only concerned with 1 axis within an array
-
+		\item Like a 1-dimensional analog of \texttt{Region}, \texttt{Range} is only along 1 axis within an array
+		\item Like \texttt{Region}, \texttt{Range} has \texttt{lower}, \texttt{upper} and \texttt{stride} which are int's.
+		\item \texttt{Range (int lower, int upper, int stride=1)} constructor defaults to unit stride
 	\end{itemize}
 \end{itemize}
 
@@ -161,35 +173,62 @@ The header file also contains detailed commenting regarding the uses of each cla
 	\begin{itemize}
 		\item \texttt{using StateArray = std::array<double, MARA\_NUM\_FIELDS>;}
 		\item \texttt{ConservationLaw::State} is defined here, which is a \texttt{struct} containing arrays like primtive, conserved, flux, eigenvalues. This class will be inherited/expanded by the \texttt{ConservationLaw.cpp}.
-		\item ConservationLaw::Request is also defined here which contains simple data retrieval (get methods) such as getPrimitive or getConserved from a ConservationLaw::State; these are fleshed out in ConservationLaw.cpp
+		\item \texttt{ConservationLaw::Request} is also defined here which contains simple data retrieval (get methods) such as \texttt{getPrimitive} or \texttt{getConserved} from a \texttt{ConservationLaw::State}; these are fleshed out in \texttt{ConservationLaw.cpp}
 	\end{itemize}
 	\item \texttt{BoundaryCondition}
 	\begin{itemize}
 		\item \texttt{enum class MeshLocation \{ vert, edge, face, cell \};}
 		\item \texttt{enum class MeshBoundary \{ left, right \};}
 	
-		\item The bread and butter of boundary condition is the \texttt{virtual void apply (Cow::Array\& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const = 0;}.
+		\item The bread and butter of boundary condition is the \texttt{virtual void apply (Cow::Array\& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const = 0;}. \texttt{A} is the usually the solution array which you want to place into this function to make sure boundary conditions are met. \texttt{MeshLocation} can be customized to contain verts, edges, faces or cells. \texttt{MeshBoundary} is either left or right of the grid under consideration--which endpoint on the axis. Axis is either 0, 1 or 2: one of the 3 dimensions in space. \texttt{numGuard} are the number of guardcells at each endpoint along the axis.
+		
+		\item \texttt{void applySimple (Cow::Array\& A, Cow::Shape boundaryShape) const} This method uses the children's method \texttt{apply} on both endpoints of each axis (0, 1, 2). If you defined ghost cells, it will take that into acoount. The \texttt{MeshLocation} used is for cells. (details to come in the BoundaryCondition subsection)
 	\end{itemize}
 	
-	
-	
-	
-	
-	
-
 \end{itemize}
 
 
 \subsection{MeshData}
-This is a section 
+\begin{itemize}
+	\item Let's first take a look at the constructor: \texttt{MeshData::MeshData (Shape baseShape, Shape boundaryShape, int numComponents)}. It takes baseShape--a 3 component array which contains the number of gridpoints on each spatial axis, defined in your program file and defines it as \texttt{cellsShape}--a 5 component array of form \texttt{\{n1,n2,n3,1,1\}}.
+	\item \texttt{boundaryShape} is a private variable of the class and is set via the constructor. It represents the number of ghostcells/guardcells in each axis. A simple \texttt{Shape3D getBoundaryShape() const} can be called to retrieve it.
+	\item A loop then runs over the spatial axes incrementing each of axis by \texttt{2*boundaryShape[n]}. This is just to increment the whole grid by the ghostcells on each end of the axis. For example if \texttt{n1=100}, and 2 ghosts are needed at each end, this process makes the new \texttt{n1=104}.
+	\item \texttt{interior} is a private variable of the \texttt{class MeshData}. It is a \texttt{Region} object and we're also setting the lower and upper index of each axis. For example, if we have 2 ghostcells, \texttt{interior.lower[n] =  boundaryShape[n];}, \texttt{interior.upper[n] = -boundaryShape[n];} interior lower index is set to 2 while upper index is set to -2.
+	\item To understand the indexing notation/convention, we need to understand python notation. We we have an array \texttt{array=[0,1,2,3,4]}. If we type \texttt{array[0]} we get 0, if we  type \texttt{array[-1]} we get the last element 4. Now if we type \texttt{array[0:1]}. We get 0 as expected since the range is not inclusive of the upper index. Same thing with \texttt{array[-2:-1]}. We get the number 3. \underline{Mara's indexing convention is intuitively based on python's array indexing.}
+	\item Graphically: 
+	\begin{figure}[H]
+		\includegraphics[scale=0.5]{./gridghost.png}
+		\caption{Illustration of interior vs ghost zone}
+	\end{figure}	
+therefore, we see that if interior's indices run from -2 to 2, it includes all the white non-ghost cells since upper index--like python--is not included in the range.
+	\item Primitive variable array \texttt{P} and magnetic field array \texttt{B} are both defined here as public variables which will be populated during the simulation.
+	\item \texttt{void MeshData::applyBoundaryCondition (BoundaryCondition\& bc)} is also defined here, but it references the \texttt{BoundaryCondition::applySimple} method discussed in the next subsection.
+
+\end{itemize}
+
 
 \subsection{BoundaryConditions}
 \begin{itemize}
-	\item advance takes meshdata and dt from ss
-	\item ss->setboundarycondition sets bc
-	\item each set of the advance process, boundary condition is applied through meshdata applyboundarycondition using applsimple
-	\item applysimple uses apply 
-	\item apply method in TC overrides the virtual method in the parent class
+	
+	\item As previously mentioned in the Mara subsection, \texttt{void BoundaryCondition::applySimple (Cow::Array\& A, Cow::Shape boundaryShape) const} uses \texttt{apply} method to the left and right boundary on axis 0, 1 and 2 respectively. The \texttt{boundaryShape} array is supplied here which tells \texttt{Mara} how many ghostzones to include at each endpoint on the grid. This \texttt{applySimple} method is written such that it can take different flavors of \texttt{apply} methods corresponding to different derived classes. A few examples of them are \texttt{OutflowBoundaryCondition::apply}, or \texttt{ReflectingBoundaryCondition::apply}, each of which will override the virtual method stated in \texttt{Mara.h}. All the \texttt{apply} methods expectedly take identical arguments. We will analyze one of them in detail below for illustrative purposes.
+	\item Let's look at the \texttt{PeriodicBoundaryCondition::apply}. Two things are defined within this method:
+	\begin{enumerate}
+		\item \texttt{auto guardZone = Cow::Region();}
+		\item \texttt{auto validZone = Cow::Region();}
+	\end{enumerate}
+	They are both Region objects which describe specific regions within a multidimensional array. \texttt{guardZone} should be clear, whereas \texttt{validZone} describes the non-guardzone values within the mesh which determine the guardzone's values.
+	\item Just looking at the \texttt{MeshBoundary::left} in the switch case, our intuition from matching periodic boundary conditions in solving wave equations or Schr$\ddot{\text{o}}$dinger's equation would tell us something like this: 
+	
+	\begin{figure}[H]
+		\includegraphics[scale=0.5]{./Wave.png}
+		\caption{Periodic wave}
+	\end{figure}
+	
+	Notice at x=0 and x=10, the wave repeats itself so to think of the periodic boundary condition, we can say $y(x=0)=y(x=10)$. Assume that now we're using 2 ghostcells to implement the BC. Refering back to Figure 1, it must mean that \texttt{A[0]=A[-4]} and \texttt{A[1]=A[-3]} at \texttt{MeshBoundary::Left}. Written more succinctly: \texttt{A[guardZone] = A[validZone];} where the guardzone is the array index range [0,1] and the validzone is the array index range [-4,-3]. 
+	
+	\item \texttt{MeshData} and this class are intricately linked since \texttt{MeshData::applyBoundaryCondition} method takes a \texttt{BoundaryCondition} object and uses the \texttt{applySimple} method. More on this in the MeshData subsection.
+	
+	
 \end{itemize}
 
 \subsection{ConservationLaws}
@@ -199,7 +238,7 @@ As you can see, this module provides specific implementation of the virtual meth
 \begin{itemize}
 \item Moving on to \texttt{ConservationLaw.cpp}, we see right off the bat, primitive names such as \texttt{\#define RHO 0} are set to an array index to facilitate data retrieval later. This is given a fancy name called fieldIndex. Be on the lookout for this in functions like \texttt{std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const}.
 
-\item Remember Conservation::State is defined in Mara.h, where it is a struct containing primitive/conserved arrays? It is used for example in \texttt{ConservationLaw::State NewtonianHydro::fromPrimitive (const Request\& request, const double* P) const}. 
+\item Remember \texttt{Conservation::State} is defined in \texttt{Mara.h}, where it is a struct containing primitive/conserved arrays? It is used for example in \texttt{ConservationLaw::State NewtonianHydro::fromPrimitive (const Request\& request, const double* P) const}. 
 
 \item The request (see \texttt{ConservationLaw::Request} defined in \texttt{Mara.h}) and a primitive array \texttt{P} are passed into the function. 
 

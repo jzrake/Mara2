@@ -82,7 +82,7 @@ public:
               }
               */
 //asserting to see if branch hit in 1D
-//            case 1: assert(false); return reflecting.apply (A, location, boundary, axis, numGuard); //uses the BoundaryCondition::periodic apply method; overloaded method
+              case 1: return periodic.apply (A, location, boundary, axis, numGuard); //uses the BoundaryCondition::periodic apply method; overloaded method
 //            case 2: assert(false); return periodic.apply (A, location, boundary, axis, numGuard); //applies periodic condition to non-r axes
 
           }
@@ -94,7 +94,7 @@ public:
         switch (axis)
         {
             case 0: return false;
-            case 1: return false;
+            case 1: return true;
             case 2: return true;
             default: throw std::logic_error ("ThermalConvectionBoundaryCondition");
         }
@@ -172,12 +172,12 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     {
         //*********************************************************************
         //hard-coded to assume r_0 = 1.0;
-        /* const double alpha = (gamma - 1.0) / gamma;
+        /*const double alpha = (gamma - 1.0) / gamma;
         const double beta = g0 / K * alpha;
         const double v0 = std::pow(rho0,(gamma - 1.0));
         const double c1 = v0 + beta / (2.0* alpha - 1.0);
-        const double rho = std::pow((c1 * std::pow(r,-2.0*alpha) - beta / (2.0* alpha - 1.0) * (1.0 / r) ),(1.0 / (gamma -1.0)));
-        */
+        const double rho = std::pow((c1 * std::pow(r,-2.0*alpha) - beta / (2.0* alpha - 1.0) * (1.0 / r) ),(1.0 / (gamma -1.0)));*/
+
         const double rho = 1.0;
         const double pre = cs2 * rho / gamma;
         return std::vector<double> {rho, 0, 0, 0, pre};
@@ -229,9 +229,9 @@ Gridshape setlowerupper and .... needs to be changed here, scope problems here
     {
     */
     auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
-    bs = Shape {{ 2, 0, 0, 0, 0 }};
-    mg->setCellsShape ({{ user["N"], 1, 1 }});
-    mg->setLowerUpper ({{ 1.0, M_PI*0.5-0.1, 0}}, {{10.0, M_PI*0.5+0.1, 0.1}});
+    bs = Shape {{ 2, 2, 0, 0, 0 }};
+    mg->setCellsShape ({{ user["N"], 60, 1 }});
+    mg->setLowerUpper ({{ 1.0, M_PI*0.5 - M_PI/12.0, 0}}, {{10.0, M_PI*0.5 + M_PI/12.0, 0.1}});
   //  }
 
     if (! user["serial"])
