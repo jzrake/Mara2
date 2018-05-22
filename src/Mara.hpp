@@ -176,7 +176,7 @@ public:
     arguments.
     */
     Coordinate coordinateAtIndex (Cow::Index index) const;
-    
+
     /**
     Derived classes override this to set mesh resolution.
     */
