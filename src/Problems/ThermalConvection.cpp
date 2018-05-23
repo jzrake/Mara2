@@ -69,7 +69,6 @@ public:
 
 
 
-
 // ============================================================================
 int ThermalConvectionProgram::run (int argc, const char* argv[])
 {
@@ -107,8 +106,6 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
 
 
-    // Gravitational source terms, heating, and initial data function
-    // ------------------------------------------------------------------------
     const double g0    = user["g0"];
     const double rho0  = user["rho0"];
     const double h     = user["h"];
@@ -118,6 +115,8 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
 
 
+    // Gravitational source terms, heating, and initial data function
+    // ------------------------------------------------------------------------
     auto sourceTermsFunction = [&] (double r, double q, double p, StateArray P)
     {
         const double dg = P[0];
@@ -136,11 +135,9 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
 
         const double g = g0 * std::pow (r, -2.0);
-        const double rho = P[0];
 
-
-        S[1] += -rho * g;
-        S[4] += -rho * g * vr;
+        S[1] += -dg * g;
+        S[4] += -dg * g * vr;
 
         return S;
     };
@@ -179,10 +176,11 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     auto cl = std::make_shared<NewtonianHydro>();
     auto bs = Shape();
 
+
     // Set up grid shape. In 1D it's z-only. In 2D it's the x-z plane.
     // ------------------------------------------------------------------------
     auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
-    bs = Shape {{ 2, 2, 0, 0, 0 }};
+    bs = Shape {{ 2, int (user["Nt"]) == 1 ? 0 : 2, 0, 0, 0 }};
     mg->setCellsShape ({{ user["Nr"], user["Nt"], 1 }});
     mg->setLowerUpper ({{ 1.0, M_PI * 0.5 - M_PI / 12.0, 0}}, {{10.0, M_PI * 0.5 + M_PI / 12.0, 0.1}});
 
