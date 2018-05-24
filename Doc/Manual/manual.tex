@@ -6,7 +6,7 @@
 
 
 
-\title{Primer on Mara}
+\title{Mara Manual}
 \author{Andrew Liu \and Jonathan Zrake}
 
 \begin{document}
@@ -226,6 +226,11 @@ therefore, we see that if interior's indices run from -2 to 2, it includes all t
 	
 	Notice at x=0 and x=10, the wave repeats itself so to think of the periodic boundary condition, we can say $y(x=0)=y(x=10)$. Assume that now we're using 2 ghostcells to implement the BC. Refering back to Figure 1, it must mean that \texttt{A[0]=A[-4]} and \texttt{A[1]=A[-3]} at \texttt{MeshBoundary::Left}. Written more succinctly: \texttt{A[guardZone] = A[validZone];} where the guardzone is the array index range [0,1] and the validzone is the array index range [-4,-3]. 
 	
+	\item A brief note regarding the implementation of the reflecting boundary condition. Fluid behavior at a wall requires that the normal velocity $u_\perp=0$. Unfortunately, Dirichlet boundary conditions are not easily implemented using Finite-Volume Methods. However, the solution to that problem is to require that:
+	$$\lim_{\Delta x \rightarrow 0}u(x-\Delta x) = -u(x + \Delta x) $$
+	such that: 
+	$$ u(x)|_{\Omega} = -u(x)|_{\Omega}$$ and the only solution is if $u(x) = 0$. In discrete form, that's equivalent to setting \texttt{A[1]=-A[2]} and \texttt{A[0]=-A[3]} on the \texttt{MeshBoundary::Left} in Fig 1.
+		
 	\item \texttt{MeshData} and this class are intricately linked since \texttt{MeshData::applyBoundaryCondition} method takes a \texttt{BoundaryCondition} object and uses the \texttt{applySimple} method. More on this in the MeshData subsection.
 	
 	
