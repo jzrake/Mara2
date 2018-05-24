@@ -7,6 +7,4 @@
 /data
 *.h5
 
-Doc/Manual/manual.aux
-Doc/Manual/manual.log
-Doc/Manual/manual.pdf
+Doc/Manual/!(*.tex)
