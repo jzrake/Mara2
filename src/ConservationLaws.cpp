@@ -319,22 +319,22 @@ std::string NewtonianHydro::getPrimitiveName (int fieldIndex) const
 std::vector<double> NewtonianHydro::makeDiagnostics (const State& state) const
 {
     auto D = std::vector<double> (5);
-    D[0 ] = state.U[RHO];
-    D[1 ] = state.U[S11];
-    D[2 ] = state.U[RHO] * std::log(state.P[PRE] / std::pow(state.U[RHO], 5.0 / 3.0)); //use this to get entropic density; originally state.U[S22]
-    D[3 ] = state.U[S33];
-    D[4 ] = state.U[NRG];
+    D[0] = state.U[RHO];
+    D[1] = state.U[S11];
+    D[2] = state.U[S22];
+    D[3] = state.U[S33];
+    D[4] = state.U[NRG];
     return D;
 }
 
 std::vector<std::string> NewtonianHydro::getDiagnosticNames() const
 {
     auto N = std::vector<std::string>(5);
-    N[0 ] = "mass";
-    N[1 ] = "momentum1";
-    N[2 ] = "total_entropy"; //originally "momentum2"
-    N[3 ] = "momentum3";
-    N[4 ] = "total_energy";
+    N[0] = "mass";
+    N[1] = "momentum1";
+    N[2] = "momentum2";
+    N[3] = "momentum3";
+    N[4] = "total_energy";
     return N;
 }
 
@@ -628,7 +628,8 @@ ConservationLaw::State RelativisticMHD::fromConserved (const Request& request, c
     solver.new_state(U);
     solver.estimate_from_cons();
 
-    if (int error = solver.solve_anton2dzw(P))
+    //if (int error = solver.solve_anton2dzw(P))
+    if (int error = solver.solve_noble1dw(P))
     {
         std::cout << "U = ["
         << U[0] << " "
@@ -839,15 +840,75 @@ std::string RelativisticMHD::getPrimitiveName (int fieldIndex) const
         default: throw std::logic_error ("Invalid field index");
     }
 }
-
 std::vector<double> RelativisticMHD::makeDiagnostics (const State& state) const
 {
-    auto D = std::vector<double> ();
+    const double gm = gammaLawIndex;
+    const double* P = state.P.begin();
+    const double vv = P[V11] * P[V11] + P[V22] * P[V22] + P[V33] * P[V33];
+    const double BB = P[B11] * P[B11] + P[B22] * P[B22] + P[B33] * P[B33];
+    const double Bv = P[B11] * P[V11] + P[B22] * P[V22] + P[B33] * P[V33];
+
+    const double v1 = P[V11];
+    const double v2 = P[V22];
+    const double v3 = P[V33];
+    const double B1 = P[B11];
+    const double B2 = P[B22];
+    const double B3 = P[B33];
+    const double E1 = -(v2 * B3 - v3 * B2);
+    const double E2 = -(v3 * B1 - v1 * B3);
+    const double E3 = -(v1 * B2 - v2 * B1);
+    const double EE = (E1*E1 + E2*E2 + E3*E3);
+    const double g0 = 1.0 / std::sqrt (1 - vv);
+    const double d0 = P[RHO];
+    const double p0 = P[PRE];
+    const double e0 = p0 / d0 / (gm - 1);
+    const double h0 = 1.0 + e0 + p0 / d0;
+    const double cs = std::sqrt (gm * state.P[PRE] / state.P[RHO]);
+    const double ca = std::sqrt (BB / state.P[RHO]);
+    const double s0 = state.P[PRE] / std::pow (state.P[RHO], gm);
+    const double Ms = std::sqrt (vv) / cs;
+    const double Ma = std::sqrt (vv) / ca;
+
+    auto D = std::vector<double> (17);
+    D[0 ] = state.U[RHO];
+    D[1 ] = state.U[S11];
+    D[2 ] = state.U[S22];
+    D[3 ] = state.U[S33];
+    D[4 ] = state.U[NRG];
+    D[5 ] = state.U[B11];
+    D[6 ] = state.U[B22];
+    D[7 ] = state.U[B33];
+    D[8 ] = g0 * (g0 - 1) * d0 * h0;
+    D[9 ] = p0 * (g0 - 1) + d0 * e0 * g0; // internal energy
+    D[10] = 0.5 * (BB + EE);              // magnetic energy
+    D[11] = cs;                           // sound speed
+    D[12] = ca;                           // Alfven speed
+    D[13] = Ms;                           // sonic Mach number
+    D[14] = Ma;                           // Alfven Mach number
+    D[15] = s0;                           // specific entropy
+    D[16] = Bv;                           // cross helicity
     return D;
 }
 
 std::vector<std::string> RelativisticMHD::getDiagnosticNames() const
 {
-    auto N = std::vector<std::string>();
+    auto N = std::vector<std::string>(17);
+    N[0 ] = "mass";
+    N[1 ] = "momentum1";
+    N[2 ] = "momentum2";
+    N[3 ] = "momentum3";
+    N[4 ] = "total_energy";
+    N[5 ] = "magnetic_flux1";
+    N[6 ] = "magnetic_flux2";
+    N[7 ] = "magnetic_flux3";
+    N[8 ] = "kinetic_energy";
+    N[9 ] = "internal_energy";
+    N[10] = "magnetic_energy";
+    N[11] = "sound_speed";
+    N[12] = "alfven_speed";
+    N[13] = "sonic_mach_number";
+    N[14] = "alfven_mach_number";
+    N[15] = "specific_entropy";
+    N[16] = "cross_helicity";
     return N;
 }

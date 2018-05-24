@@ -19,15 +19,18 @@ compressible gasdynamics and magnetohydrodynamics (MHD).
 
 
 
-
 Checking out
 -----------------------------------------------
 
-Use the following command to clone the Mara codebase from github (including
-the Cow submodule) and run a configure script.
+Copy and paste the following commands into a terminal window:
 
-git clone --recursive https://github.com/jzrake/Mara2 Mara; cd Mara/Cow; ./configure; cd ..
-
+git clone --recursive https://github.com/jzrake/Mara2 Mara
+cd Mara
+touch Makefile.in
+cd Cow
+ln -s ../Makefile.in .
+./configure
+cd ..
 
 
 
@@ -37,7 +40,7 @@ Building
 
 1. Make sure you have a working installation of MPI and HDF5.
 
-2. Create a file called Makefile.in, in the Mara root directory, and copy the
+2. Open the file called Makefile.in, in the Mara root directory, and copy the
 following lines into it:
 
     CXX = mpicxx

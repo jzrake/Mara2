@@ -12,6 +12,7 @@
 #include "DebugHelper.hpp"
 
 // Problems
+#include "Problems/AlfvenWaveCollision.hpp"
 #include "Problems/CollisionalHydro.hpp"
 #include "Problems/MagneticBraiding.hpp"
 #include "Problems/UnstablePinch.hpp"
@@ -199,6 +200,7 @@ int main (int argc, const char* argv[])
     programs["wind"]        = std::make_unique<SphericalWind>();
     programs["stitch"]      = std::make_unique<CheckpointStitcherProgram>();
     programs["tovtk"]       = std::make_unique<CheckpointToVtkProgram>();
+    programs["alfven"]      = std::make_unique<AlfvenWaveCollision>();
 
     if (argc == 1)
     {
