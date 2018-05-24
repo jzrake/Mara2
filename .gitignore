@@ -6,5 +6,4 @@
 /mara.dSYM
 /data
 *.h5
-
-Doc/Manual/!(*.tex)
+Doc/Manual/!manual.tex
