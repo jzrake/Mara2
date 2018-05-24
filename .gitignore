@@ -6,4 +6,6 @@
 /mara.dSYM
 /data
 *.h5
-Doc/Manual/!manual.tex
+Doc/Manual/manual.aux
+Doc/Manual/manual.log
+Doc/Manual/manual.synctex.gz

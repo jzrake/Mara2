@@ -6,7 +6,7 @@
 
 
 
-\title{Mara Manual}
+\title{Instruction Manual for Mara}
 \author{Andrew Liu \and Jonathan Zrake}
 
 \begin{document}
@@ -226,11 +226,25 @@ therefore, we see that if interior's indices run from -2 to 2, it includes all t
 	
 	Notice at x=0 and x=10, the wave repeats itself so to think of the periodic boundary condition, we can say $y(x=0)=y(x=10)$. Assume that now we're using 2 ghostcells to implement the BC. Refering back to Figure 1, it must mean that \texttt{A[0]=A[-4]} and \texttt{A[1]=A[-3]} at \texttt{MeshBoundary::Left}. Written more succinctly: \texttt{A[guardZone] = A[validZone];} where the guardzone is the array index range [0,1] and the validzone is the array index range [-4,-3]. 
 	
-	\item A brief note regarding the implementation of the reflecting boundary condition. Fluid behavior at a wall requires that the normal velocity $u_\perp=0$. Unfortunately, Dirichlet boundary conditions are not easily implemented using Finite-Volume Methods. However, the solution to that problem is to require that:
+	\item A brief note regarding the implementation of the reflecting boundary condition. Fluid behavior at a wall requires that the normal velocity: 
+	\begin{equation}
+		u_\perp=0.
+	\end{equation}
+Unfortunately, Dirichlet boundary conditions are not easily implemented using Finite-Volume Methods. However, the solution to that problem is to require that:
 	$$\lim_{\Delta x \rightarrow 0}u(x-\Delta x) = -u(x+\Delta x) $$
 	such that: 
-	$$ u(x)|_{\Omega} = -u(x)|_{\Omega}$$ and the only solution is if $u(x) = 0$. One can treat $x-\Delta x$ as the first 2 ghostcells left of \texttt{MeshBoundary::Left} and $x+\Delta x$ as the first 2 validzone cells. In discrete form, that's equivalent to setting \texttt{A[1]=-A[2]} and \texttt{A[0]=-A[3]} on the \texttt{MeshBoundary::Left} in Fig 1.
-		
+	\begin{equation}
+		u(x)|_{\partial\Omega} = -u(x)|_{\partial\Omega}
+	\end{equation}
+and the only solution is if $u(x) = 0$. One can treat $x-\Delta x$ as the first 2 ghostcells left of \texttt{MeshBoundary::Left} and $x+\Delta x$ as the first 2 validzone cells. In discrete form, that's equivalent to setting \texttt{A[1]=-A[2]} and \texttt{A[0]=-A[3]} on the \texttt{MeshBoundary::Left} in Fig 1.
+	
+	\item For completeness, the outflow boundary condition is simply to impose a zero-gradient condition at the boundary relative to the surface normal:
+	\begin{equation}
+		\mathbf{\hat{n}} \cdot \nabla \mathbf{u} = 0
+	\end{equation}		
+if we imagine a 1D grid like in Fig 1, eq. (3) is equivalent to saying:
+	$$\frac{u_2^n-u_1^n}{\Delta x} = 0 \implies u_2^n = u_1^n$$.
+	\item For example if we have 2 ghostcells, then outflow on \texttt{MeshBoundary::Left} would be equivalent to saying \texttt{A[0]=A[2]} and \texttt{A[1]=A[2]} as given by \texttt{void OutflowBoundaryCondition::apply}
 	\item \texttt{MeshData} and this class are intricately linked since \texttt{MeshData::applyBoundaryCondition} method takes a \texttt{BoundaryCondition} object and uses the \texttt{applySimple} method. More on this in the MeshData subsection.
 	
 	
@@ -269,7 +283,7 @@ $\texttt{diagnostics}=\int\limits_{\text{cell}} \left[\begin{smallmatrix}
 	\item \texttt{FieldOperator} methods operate on the primitive/conserved variables. This module includes simple convenience functions like \texttt{getConservationLaw()} which returns a shared pointer to the conservation law used. 
 	\item Other convenience functions include converting primitive variable arrays into conserved variables via \texttt{void generateConserved (Array::Reference P, Array::Reference U) const} which takes an array containing primitives P and puts the conserved variables into an empty array U. 
 	\item One of the more important functions is getCourantTimeStep() and is computed here as well. \textbf{generateConserved(), getCourantTimeStep()}
-	\item \textbf{TALK ABOUT DIVERGENCE AND GODUNOV METHODS HERE!!!!!}
+	
 	\item As mentioned in the previous subsection. An important diagnostic tool for sanity-checking the evolution of density-like thermodynamic quantities (i.e. entropy or total energy $e_T=e+\frac{1}{2}\rho v^2$, $e$ is the internal energy per unit volume) or momentum density in 3 dimensions $\rho \vec{v}$ in the Euler equations, is the \texttt{std::vector<double> volumeIntegratedDiagnostics (Array::Reference P, Array::Reference V) const} function. This returns volume integral (not volume average) of named diagnostics which are defaulted to `total\_energy' or 'mass' but one can customize this to ensure code is giving sensible results, \textbf{P and V contain primitives and cell volume for individual grid cells respectively throughout the whole mesh.} 
 	\item \texttt{auto Treg = P.getRegion().withStride (3, law->getNumConserved())}. \texttt{Treg} is array P's region taking into account the stride. Recall that P is a 5 dimensional array, \texttt{withStride} here takes axes 3 (the number of components in a primitive vector) and sets that number to the number of conserved variables. This is to ensure we're getting the right primitive values.
 	\item \texttt{Preg} is just the P array after taking into account the strided region of consideration.
@@ -281,7 +295,22 @@ $$\text{Total diagnostic variable returned =} \sum_{\text{over mesh}} \texttt{di
 
 \subsection{MeshOperator}
 \begin{itemize}
-	\item Mesh operators are operators which Mara performs on the mesh grid itself (just spatial dimensions, doesn't touch primitive/conserved data in each cell). Common member functions include \texttt{divergence} and {curl}. One important one is \texttt{measure}, which returns the 1, 2, or 3 dimensional measure of the given mesh locations: length of edges, area of faces, or volume of cells. \textbf{ Can talk about generate or generate Sourceterms HERE!!!!!!!!!!!}
+	\item Mesh operators are operators which Mara performs on the mesh grid itself (just spatial dimensions, doesn't touch primitive/conserved data in each cell). Common member functions include \texttt{divergence} and \texttt{curl}. One important one is \texttt{measure}, which returns the 1, 2, or 3 dimensional measure of the given mesh locations: length of edges, area of faces, or volume of cells.
+	\item \texttt{Array MeshOperator::measure (MeshLocation location) const} can take \texttt{\{edge, face, cell\}}. Looking specifically at the \texttt{cell} switch case. \texttt{auto volumes=Array (geometry->cellsShape());} first creates a multidimensional array. 
+	\item \texttt{Array::deploy (volumes.shape(), [\&] (int i, int j, int k)\{volumes (i, j, k)=geometry->cellVolume(i, j, k);\});} populates that aforementioned array with cell volumes corresponding to the individual index. As a reminder, \texttt{deploy} is a triple for-loop over the indices.
+	\item \textbf{TALK ABOUT DIVERGENCE} 
+	\item \textbf{AND GODUNOV METHODS HERE!!!!!}
+	\item The core of generating a mesh is the function:
+	\texttt{Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, VectorMode vectorMode, Shape3D boundaryShape) const}. \texttt{totalCellsShape} is first defined and is set to the \texttt{cellsShape} (5 component array telling us how many gridcells in each dimension) taking into account ghostcells. So if \texttt{cellsShape = \{\{100,100,100,1,1\}\}}, \texttt{totalCellShape = \{\{104,104,104,1,1\}\}} if 2 ghostcells are present on each boundary.
+	\item In particular, let's closely examine the switch case where \texttt{MeshLocation::cell} and not \texttt{face} or \texttt{edge}. Inside the block, \texttt{auto P = Array (totalCellsShape.withComponents (nq));}, this will become our primitive array. Additionally, \texttt{auto R = Region().withStride (3, nq);} makes sure the axes 3 contains \texttt{nq} number of primitive values (1 density + 3 momentum + 1 energy = 5 variables). 
+	\item This means that \texttt{for (auto it=P[R].begin(); it!=P.end(); ++it) \{...\}} iterates over each cell in the mesh. For example, \texttt{int ic=it.index()[0]-boundaryShape[0]} gets the number of cells from the \underline{actual boundary of the mesh}. For instance, since there are 104 cells in the grid, first 2 being ghostcells, the first 2 validcells are labelled 2 and 3 in memory, but in fact should be labelled 0 and 1, corresponding to the physical location of the cells with respect to the grid.
+	  
+	\item \texttt{auto coord = geometry->coordinateAtIndex (ic, jc, kc)} simply picks out the physical coordinates (either in Cartesian (x,y,z) or spherical $(r,\theta,\phi)$). This is important since the \texttt{InitialDataFunction F} is passed these coordinates and is defined through \texttt{auto P0 = F (coord[0], coord[1], coord[2]);}.
+	
+	\item \texttt{it[q]=P0[q];}. Here, the program is looped through the individual primitives to set each cell with the initial primitive data.
+	
+	\item \texttt{Array MeshOperator::generateSourceTerms (SourceTermsFunction S, const Array\& P, Index start) const} has the basic design as the generate function. The analysis is left to the reader and is quite tractable.
+	
 \end{itemize}
 
 \subsection{Scheduler}
@@ -296,8 +325,12 @@ This is a section
 \subsection{RiemannSolvers}
 This is a section 
 
+\subsection{IntercellFluxSchemes}
+Tie this in with SolutionSchemes and RiemannSolvers
+
 \subsection{SolutionSchemes}
 \begin{itemize}
+	\item \texttt{SolutionSchemes} contain the main tool used for evolving the initial data. This module is dependent on IntercellFluxScheme and the RiemannSolver module mainly in order to advance the solution. 
 	\item \texttt{void MethodOfLinesTVD::advance (MeshData\& solution, double dt) const} is the core method of advancing the solution forward in time. 
 	\item To get a feel for how this method works, we first review what the algorithm is doing: 
 	$$\frac{\partial \mathbf{U}(\mathbf{x},t)}{\partial t} + \nabla \cdot  \mathbf{F}(\mathbf{x},t) = \mathbf{S}$$ where $\mathbf{U}$ is the conserved vector and $\mathbf{F}$ is the conserved flux vector. Using the method of lines, we discretize this PDE in space while keeping ODE's in time. Just writing out the discretized version of this equation for cell $j$ (cell average) after performing an $\int dV$ and converting $\nabla \cdot \mathbf{F}$ into a surface integral:
@@ -306,9 +339,10 @@ This is a section
 	\end{equation}
 where we multiply each cell face area by the flux vector through that face. If we now discretize LHS in time using Runge-Kutta, we recover how \texttt{advance} function works.
 	\item \texttt{auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fieldCT);} is the computed Godunov flux through the cell interfaces. Details in FieldOperator subsection above.
+	\item \texttt{auto Fhat = [\&] (GodunovStencil\& stencil)} is the lambda responsible for using a Riemann Solver to resolve the intercell fluxes. Hence, the cell face data is required here.
 	\item \texttt{auto L = meshOperator->divergence (F, -1.0);} is the divergence (surface integral mentioned above) multiplied by $-1$.
 	\item \texttt{auto S = meshOperator->generateSourceTerms (sourceTermsFunction, solution.P, startIndex);} is denoted as $\mathbf{S}_j$ above. 
-	\item \texttt{L[n] += S[n];} is looped over all gridcells and just represents RHS in eq. (1)
+	\item \texttt{L[n] += S[n];} is looped over all gridcells and just represents RHS in eq. (4)
 	\item \texttt{U[n]=U0[n]*(1-b[rk])+(U[n]+dt*L[n])*b[rk];} is just the RK implementation for the timestep integration.
 	\item And this last part is for generating the primitives again from the conserved and storing it in memory: \texttt{fieldOperator->recoverPrimitive (U[interior], solution.P[interior])}
 \end{itemize}
