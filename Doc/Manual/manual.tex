@@ -38,8 +38,6 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 	\item Run-time parameters can be specified in typical unix command format. For example, to specify the number of gridpoints used in a hydrodynamic simulation, \texttt{PARAMETERS} can include \texttt{N=1000}, representing 1000 gridpoints in the mesh, or \texttt{tfinal=100}, thereby setting the final physical time to 100s.  
 	
 	\item Simulation results will be regularly stored in checkpoints in \texttt{./Mara/data} subdirectory. The interval of saving down checkpoints can be specified in the run-time parameters described above; \texttt{cpi=xxx}. xxx being the physicaltime interval you want between written checkpoints.
-	
-
 \end{itemize}
 
 
@@ -67,7 +65,6 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 	This allows flexibility to customize simulations on any sources.
 	
 		\item Another important feature is the \texttt{initialData} lambda: the main use is to specify initial conditions. Notice \texttt{const double rho = 1.0;}. The initial profile of the gas is set to 1.0, and uniform across all the grid cells. We can also, customize \texttt{rho} to be any parametrizable function. A good example would be the hydrostatic profile. 
-		
 	\end{itemize}		
 	
 	
@@ -83,13 +80,14 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 	e.g. \texttt{class ThermalConvectionBoundaryCondition:public BoundaryCondition}. The apply method can override its parent's \texttt{apply} and can customize \texttt{bc} specifications tailored to the problem. E.g. reflecting/outflow/inflow... boundary conditions at either endpoint (or write one yourself!)   
 		
 		\item The boundary shape array, number of conserved variables and geometry are all passed into this \textbf{mesh data constructor}: \texttt{auto md = std::make\_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());}, which initializes the mesh where simulations are performed. It's important for the program to know how many conserved variables there are to allocate the right amount of memory for the mesh/primitive arrays.
-		
 	\end{itemize}
 	
 	\item Main Loop Customization Settings:
 	\begin{itemize}
 		\item \texttt{condition} is a lambda which exits the simulation if it is violated (or returns false). Can be customized to put upper limits on walltime for instance.
+		
 		\item \texttt{timestep} is a lambda which returns a timestep size, this can also be customized to something other than the Courant timestep.
+		
 		\item \texttt{advance} is a lambda to advance the solution one timestep. One can guess it must contain a timestep integrator: Runge-Kutta. Again it can be customized to other methods: Forward Euler, Backward Euler, etc. 		
 	\end{itemize}		
 	
@@ -104,7 +102,6 @@ Please note \texttt{programs[...]} is a c++ \texttt{std::map} containing unique 
 	\item \texttt{maraMainLoop} loops over time and advances the simulation forward in time according to the \texttt{advance} lambda. As we advance the solution forward in time, \texttt{ss->setBoundaryCondition(bc)} applies boundary conditions to the ghostcells with new data. The program exits when \texttt{condition} lambda becomes false.
 	
 	\item \underline{A common misconception} is to think that program files do all the heavy-lifting computations in one file. Instead, the iterations forward in time are done when the program file returns to Mara.cpp, where computations are advanced until simulations are completed. The time-step integrator can be specified in the individual program files through \texttt{ss=std::make\_shared<MethodOfLinesTVD>} member functions. (\texttt{ss} short for solution scheme). Important \texttt{ss} member function include \texttt{ss->setBoundaryCondition(bc) and ss->setRungeKuttaOrder(2)} for starters. And a few important housekeeping member functions to ensure the correct mesh and field operator are specified \texttt{ss->setMeshOperator(mo); ss->setFieldOperator(fo)}. As mentioned above, since BC are applied when \texttt{ss} is called and \texttt{advance} takes \texttt{ss} as an input, everytime \texttt{advance} is called, BC's are applied. 
-
 \end{itemize}
 
 Now that we've covered the basic flow of the program, we can delve deeper into the details of Cow and Mara modules and its syntax.
@@ -296,16 +293,45 @@ $$\text{Total diagnostic variable returned =} \sum_{\text{over mesh}} \texttt{di
 \subsection{MeshOperator}
 \begin{itemize}
 	\item Mesh operators are operators which Mara performs on the mesh grid itself (just spatial dimensions, doesn't touch primitive/conserved data in each cell). Common member functions include \texttt{divergence} and \texttt{curl}. One important one is \texttt{measure}, which returns the 1, 2, or 3 dimensional measure of the given mesh locations: length of edges, area of faces, or volume of cells.
+	
 	\item \texttt{Array MeshOperator::measure (MeshLocation location) const} can take \texttt{\{edge, face, cell\}}. Looking specifically at the \texttt{cell} switch case. \texttt{auto volumes=Array (geometry->cellsShape());} first creates a multidimensional array. 
-	\item \texttt{Array::deploy (volumes.shape(), [\&] (int i, int j, int k)\{volumes (i, j, k)=geometry->cellVolume(i, j, k);\});} populates that aforementioned array with cell volumes corresponding to the individual index. As a reminder, \texttt{deploy} is a triple for-loop over the indices.
-	\item \textbf{TALK ABOUT DIVERGENCE} 
-	\item \textbf{AND GODUNOV METHODS HERE!!!!!}
+	
+	\item \begin{verbatim}
+	Array::deploy (volumes.shape(), [&] (int i, int j, int k)
+            {
+                volumes (i, j, k) = geometry->cellVolume (i, j, k);
+            });
+	\end{verbatim} 
+populates that aforementioned array with cell volumes corresponding to the individual index. As a reminder, \texttt{deploy} is a triple for-loop over the indices.
+	
+	\item \begin{verbatim}
+		D (0,0,0,q) = factor / vol * (
+                +F (1,0,0,q,0) * A1000
+                -F (0,0,0,q,0) * A0000
+                +F (0,1,0,q,1) * A0101
+                -F (0,0,0,q,1) * A0001
+                +F (0,0,1,q,2) * A0012
+                -F (0,0,0,q,2) * A0002);
+	\end{verbatim}
+Here \texttt{A\_ \_ \_ \_} represents the numbered face of the cell. Notice that there are 6 faces. Of course, \texttt{F\_ \_ \_ \_} represents the fluxes through each face. This \texttt{divergence} method acutally is a surface integral:
+	$$\frac{f}{\Delta V}\oint_{\text{cell}} \nabla \cdot \mathbf{F} dV = \frac{f}{\Delta V}\oint_{\partial \text{cell}} \mathbf{F} \cdot d\mathbf{S} = \frac{f}{\Delta V}\sum_{\text{all faces}}\text{Area} \cdot \text{Flux}$$
+$f$ is the factor we multiply the integral with. 
+		
 	\item The core of generating a mesh is the function:
 	\texttt{Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, VectorMode vectorMode, Shape3D boundaryShape) const}. \texttt{totalCellsShape} is first defined and is set to the \texttt{cellsShape} (5 component array telling us how many gridcells in each dimension) taking into account ghostcells. So if \texttt{cellsShape = \{\{100,100,100,1,1\}\}}, \texttt{totalCellShape = \{\{104,104,104,1,1\}\}} if 2 ghostcells are present on each boundary.
+	
 	\item In particular, let's closely examine the switch case where \texttt{MeshLocation::cell} and not \texttt{face} or \texttt{edge}. Inside the block, \texttt{auto P = Array (totalCellsShape.withComponents (nq));}, this will become our primitive array. Additionally, \texttt{auto R = Region().withStride (3, nq);} makes sure the axes 3 contains \texttt{nq} number of primitive values (1 density + 3 momentum + 1 energy = 5 variables). 
-	\item This means that \texttt{for (auto it=P[R].begin(); it!=P.end(); ++it) \{...\}} iterates over each cell in the mesh. For example, \texttt{int ic=it.index()[0]-boundaryShape[0]} gets the number of cells from the \underline{actual boundary of the mesh}. For instance, since there are 104 cells in the grid, first 2 being ghostcells, the first 2 validcells are labelled 2 and 3 in memory, but in fact should be labelled 0 and 1, corresponding to the physical location of the cells with respect to the grid.
+	
+	\item This means that: 
+	\begin{verbatim}
+	  for (auto it = P[R].begin(); it != P.end(); ++it)
+            {...
+             ...
+             ...} 	
+	\end{verbatim}
+	iterates over each cell in the mesh. For example, \texttt{int ic=it.index()[0]-boundaryShape[0]} gets the number of cells from the \underline{actual boundary of the mesh}. For instance, since there are 104 cells in the grid, first 2 being ghostcells, the first 2 validcells are labelled 2 and 3 in memory, but in fact should be labelled 0 and 1, corresponding to the physical location of the cells with respect to the grid.
 	  
-	\item \texttt{auto coord = geometry->coordinateAtIndex (ic, jc, kc)} simply picks out the physical coordinates (either in Cartesian (x,y,z) or spherical $(r,\theta,\phi)$). This is important since the \texttt{InitialDataFunction F} is passed these coordinates and is defined through \texttt{auto P0 = F (coord[0], coord[1], coord[2]);}.
+	\item \texttt{auto coord = geometry->coordinateAtIndex (ic, jc, kc)} simply picks out the physical coordinates (either in Cartesian $(x,y,z)$ or spherical $(r,\theta,\phi)$). This is important since the \texttt{InitialDataFunction F} is passed these coordinates and is defined through \texttt{auto P0 = F (coord[0], coord[1], coord[2]);}.
 	
 	\item \texttt{it[q]=P0[q];}. Here, the program is looped through the individual primitives to set each cell with the initial primitive data.
 	
@@ -313,17 +339,77 @@ $$\text{Total diagnostic variable returned =} \sum_{\text{over mesh}} \texttt{di
 	
 \end{itemize}
 
-\subsection{Scheduler}
+\subsection{Scheduler and Logger}
 \begin{itemize}
-	\item Scheduler and logger are pointers that are passed through back into the maraMainLoop in the Mara.cpp file. Main function of scheduler is to put together a list of tasks to be completed at certain points when the code runs. They could include writing checkpoints or saving down time series data to ensure code is running properly and thereby optimizing data retrieval. An example of scheduler is \texttt{scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time\_series");}. \texttt{taskTimeSeries} is a callback lambda which the function takes as input, thereby telling the scheduler what function to use to perform a specific task at certain periods of time during runtime. What determines \emph{when} the task is performed depends solely on the \textbf{recurrence rule}. This literally means, when will the task/function recurr in the program via some hard and fast rule. In this case, \texttt{TaskScheduler::Recurrence (user["tsi"])} does just that using \texttt{user["tsi"]} which is specified at runtime. \textbf{SPLIT LOGGER INTO SEPARATE PARAGRAPH}
+	\item Scheduler and logger are pointers that are passed through back into the maraMainLoop in the Mara.cpp file. Main function of scheduler is to put together a list of tasks to be completed at certain points when the code runs. They could include writing checkpoints or saving down time series data to ensure code is running properly and thereby optimizing data retrieval. An example of scheduler is \texttt{scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time\_series");}. \texttt{taskTimeSeries} is a callback lambda which the function takes as input, thereby telling the scheduler what function to use to perform a specific task at certain periods of time during runtime. What determines \emph{when} the task is performed depends solely on the \textbf{recurrence rule}. This literally means, when will the task/function recurr in the program via some hard and fast rule. In this case, \texttt{TaskScheduler::Recurrence (user["tsi"])} does just that using \texttt{user["tsi"]} which is specified at runtime. 
+	\item \textbf{LOGGER HERE}
 \end{itemize}
 
 
 \subsection{Problems}
-This is a section 
+\begin{itemize}
+	\item Problems module contains all the test programs which one can run to check if \texttt{mara} is compiled properly. Simple tests include 
+	\begin{verbatim}
+	./mara regress-1d	
+	\end{verbatim}
+	which generates a 1D hydrodynamic shocktube test.
+	
+	\item Few major characteristics are contained in the problems module to run tests:
+	
+	\begin{enumerate}
+		\item \texttt{struct Hydro1DTestProgram::Problem}
+		\begin{itemize}
+			\item Data structure to hold different problem specifications including boundary conditions, initial data.
+		\end{itemize}
+		\item \texttt{struct Hydro1DTestProgram::Scheme}
+		\begin{itemize}
+			\item Data structure to hold different solution schemes.
+		\end{itemize}
+		\item The respective \texttt{get()} methods for the above \texttt{struct}
+		\begin{itemize}
+			\item For instance, the \texttt{Problem::get()} contains lambdas which assign different primitive data to the initial states. examples include \texttt{ContactWave} and \texttt{DensityWave} each with a different run configuration (boundary conditions and others). The different run configurations are pushed into an \texttt{std::vector} that will be iterated over during runtime.
+			\item A similar structure is observed in the \texttt{Scheme::get()} method where Runge-Kutta order and intercell flux schemes are customized and pushed onto an \texttt{std::vector}
+		\end{itemize}
+		\item \texttt{runProblem}
+		\begin{itemize}
+			\item Code to assign mesh operators, ghostcells, number of meshpoints, what type of Riemann solver, mesh geometry, etc. in order to run the shocktube test. Like the \texttt{ThermalConvection} problem we observed before, the code calls the \texttt{maraMainLoop} function to do the computation.
+		\end{itemize}
+		\item \texttt{run}
+		\begin{itemize}
+			\item Simple method to iterate over/run each item in \texttt{Problem} and \texttt{Scheme} 
+		\end{itemize}
+	\end{enumerate}
+	
+	\item The 1D shocktube problem is for illustrative purposes what tests are available to the user. The shocktube problem has closed form solutions that are derived extensively in good gas dynamics books. 
+\end{itemize}
 
 \subsection{RiemannSolvers}
-This is a section 
+\begin{itemize}
+	\item The \texttt{RiemannSolver} module mainly takes care of solving the Riemann problem between 2 neighboring states (as the name suggests). Since the mesh is decomposed into a series of gridcells, each gridcell has a neighbor which shares an \textbf{intercell wall}. So, we're effectively solving a mini-Riemann problem at each cell. The goal of the Riemann problem is to solve for the \textbf{fluxes and conserved quantities} at the boundary. In literature, the common notation for the interface states are denote $\mathbf{F^*}$ or $\mathbf{U^*}$ (star states).
+	
+	\item  The simplest implementation of a Riemann solver is: \begin{verbatim}
+	State UpwindRiemannSolver::solve (const State& L, const State& R,
+	 AreaElement dA) const
+	\end{verbatim}
+Notice that we simply pass in a left \texttt{State} and right \texttt{State} and the relevant intercell face area to solve the Riemann problem. 
+	
+	\item As we know, in the scalar upwind problem, if the wave $u(x,t)$ propagates to the right at speed $c$ since it solves the scalar advection equation:
+	$$\frac{\partial u}{\partial t}+c\frac{\partial u}{\partial x} = 0$$, where $c > 0$. So to make sure we're using relevant data, we must evolve the solution forward in time using the wave \underline{directly upstream (upwind)} to the direction of propagation. Hence, the if-conditions where \texttt{A[0]} represents the eigenvalue (wave velocity): 
+	\begin{verbatim}
+	  if (L.A[0] > 0 && R.A[0] > 0)
+    {
+        S.F = L.F;
+    }
+    else if (L.A[0] < 0 && R.A[0] < 0)
+    {
+        S.F = R.F;
+    }	
+	\end{verbatim}		
+
+	\item Notice that there are other approximate Riemann solvers contained within this module, i.e. HLLC, HLLE methods. The specific implementations are illustrated in the \texttt{.cpp} file. But the general idea is to understand that this module \textbf{does not} try to solve every cell's Riemann problem at once, it solves 1 every time it is called. This makes the program design more understandable and modular.
+	
+	\item  
+\end{itemize} 
 
 \subsection{IntercellFluxSchemes}
 Tie this in with SolutionSchemes and RiemannSolvers
@@ -331,19 +417,28 @@ Tie this in with SolutionSchemes and RiemannSolvers
 \subsection{SolutionSchemes}
 \begin{itemize}
 	\item \texttt{SolutionSchemes} contain the main tool used for evolving the initial data. This module is dependent on IntercellFluxScheme and the RiemannSolver module mainly in order to advance the solution. 
+	
 	\item \texttt{void MethodOfLinesTVD::advance (MeshData\& solution, double dt) const} is the core method of advancing the solution forward in time. 
+	
 	\item To get a feel for how this method works, we first review what the algorithm is doing: 
 	$$\frac{\partial \mathbf{U}(\mathbf{x},t)}{\partial t} + \nabla \cdot  \mathbf{F}(\mathbf{x},t) = \mathbf{S}$$ where $\mathbf{U}$ is the conserved vector and $\mathbf{F}$ is the conserved flux vector. Using the method of lines, we discretize this PDE in space while keeping ODE's in time. Just writing out the discretized version of this equation for cell $j$ (cell average) after performing an $\int dV$ and converting $\nabla \cdot \mathbf{F}$ into a surface integral:
 	\begin{equation}
 	\frac{d \mathbf{U_j}(t)}{dt} = \mathbf{S}_{j}(t)- \sum_{\text{all faces}} \text{Area} \cdot \text{Flux}
 	\end{equation}
 where we multiply each cell face area by the flux vector through that face. If we now discretize LHS in time using Runge-Kutta, we recover how \texttt{advance} function works.
+
 	\item \texttt{auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fieldCT);} is the computed Godunov flux through the cell interfaces. Details in FieldOperator subsection above.
+	
 	\item \texttt{auto Fhat = [\&] (GodunovStencil\& stencil)} is the lambda responsible for using a Riemann Solver to resolve the intercell fluxes. Hence, the cell face data is required here.
+	
 	\item \texttt{auto L = meshOperator->divergence (F, -1.0);} is the divergence (surface integral mentioned above) multiplied by $-1$.
+	
 	\item \texttt{auto S = meshOperator->generateSourceTerms (sourceTermsFunction, solution.P, startIndex);} is denoted as $\mathbf{S}_j$ above. 
+	
 	\item \texttt{L[n] += S[n];} is looped over all gridcells and just represents RHS in eq. (4)
+	
 	\item \texttt{U[n]=U0[n]*(1-b[rk])+(U[n]+dt*L[n])*b[rk];} is just the RK implementation for the timestep integration.
+	
 	\item And this last part is for generating the primitives again from the conserved and storing it in memory: \texttt{fieldOperator->recoverPrimitive (U[interior], solution.P[interior])}
 \end{itemize}
 
