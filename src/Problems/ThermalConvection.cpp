@@ -46,7 +46,8 @@ public:
         switch (axis)
         {
             case 0: return reflecting.apply (A, location, boundary, axis, numGuard);
-            case 1: return periodic.apply (A, location, boundary, axis, numGuard);
+            // case 1: return periodic.apply (A, location, boundary, axis, numGuard);
+            case 1: return reflecting.apply (A, location, boundary, axis, numGuard);
             default: throw std::logic_error ("ThermalConvectionBoundaryCondition: not yet configured for 3D");
         }
     }
@@ -56,14 +57,15 @@ public:
         switch (axis)
         {
             case 0: return false;
-            case 1: return true;
+            case 1: return false;
             case 2: return true;
             default: throw std::logic_error ("ThermalConvectionBoundaryCondition");
         }
     }
 
     ReflectingBoundaryCondition reflecting;
-    PeriodicBoundaryCondition periodic;
+    // PeriodicBoundaryCondition periodic;
+    OutflowBoundaryCondition outflow;
 };
 
 
@@ -174,13 +176,12 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
     auto cl = std::make_shared<NewtonianHydro>();
-    auto bs = Shape();
 
 
     // Set up grid shape. In 1D it's z-only. In 2D it's the x-z plane.
     // ------------------------------------------------------------------------
     auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
-    bs = Shape {{ 2, int (user["Nt"]) == 1 ? 0 : 2, 0, 0, 0 }};
+    auto bs = Shape {{ 2, int (user["Nt"]) == 1 ? 0 : 2, 0, 0, 0 }};
     mg->setCellsShape ({{ user["Nr"], user["Nt"], 1 }});
     mg->setLowerUpper ({{ 1.0, M_PI * 0.5 - M_PI / 12.0, 0}}, {{10.0, M_PI * 0.5 + M_PI / 12.0, 0.1}});
 
@@ -191,6 +192,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         mg = bd->decompose();
         bc = bd->createBoundaryCondition (bc);
     }
+
     tseries->setLogger (logger);
     scheduler->setLogger (logger);
 

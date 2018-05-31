@@ -145,7 +145,6 @@ void ReflectingBoundaryCondition::apply (
                 break;
             }
         }
-
         A[guardZone] = reflect (A[validZone], axis);
     }
 };
