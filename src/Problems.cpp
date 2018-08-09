@@ -662,7 +662,7 @@ void NewtonianMHD2DTestProgram::runProblem (const Problem& problem, const Scheme
        auto A = mo->generate (problem.ivp, MeshLocation::face, MeshOperator::VectorMode::scalars, bs);
        auto F = ct->vectorPotentialToFluxes (A);
        auto G = ct->generateGodunovFluxes (F, 0);
-       auto Bcell = mo->divergence (G);
+       auto Bcell = mo->divergence (G, 1.0, {});
        md->assignMagneticField (Bcell, MeshLocation::cell, MeshData::includeGuard);
    }
    md->applyBoundaryCondition (*bc);

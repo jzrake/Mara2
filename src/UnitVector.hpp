@@ -33,6 +33,13 @@ public:
     */
     UnitVector (double pitchAngleMu, double azimuthalAnglePhi);
 
+
+    /**
+    Construct a unit vector that points from the origin to x, y, z in
+    cartesian coordinates.
+    */
+    UnitVector (double x, double y, double z);
+
     /**
     Return the cartesian components of this unit vector.
     */

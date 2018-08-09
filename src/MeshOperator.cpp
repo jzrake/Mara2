@@ -232,9 +232,9 @@ Array MeshOperator::measure (MeshLocation location) const
 
             Array::deploy (lengths.shape(), [&] (int i, int j, int k)
             {
-                lengths (i, j, k, 0) = geometry->edgeLength (i, j, k, 0);
-                lengths (i, j, k, 1) = geometry->edgeLength (i, j, k, 1);
-                lengths (i, j, k, 2) = geometry->edgeLength (i, j, k, 2);
+                lengths (i, j, k, 0, 0) = geometry->edgeLength (i, j, k, 0);
+                lengths (i, j, k, 0, 1) = geometry->edgeLength (i, j, k, 1);
+                lengths (i, j, k, 0, 2) = geometry->edgeLength (i, j, k, 2);
             });
             return lengths;
         }
@@ -244,9 +244,9 @@ Array MeshOperator::measure (MeshLocation location) const
 
             Array::deploy (areas.shape(), [&] (int i, int j, int k)
             {
-                areas (i, j, k, 0) = geometry->faceArea (i, j, k, 0);
-                areas (i, j, k, 1) = geometry->faceArea (i, j, k, 1);
-                areas (i, j, k, 2) = geometry->faceArea (i, j, k, 2);
+                areas (i, j, k, 0, 0) = geometry->faceArea (i, j, k, 0);
+                areas (i, j, k, 0, 1) = geometry->faceArea (i, j, k, 1);
+                areas (i, j, k, 0, 2) = geometry->faceArea (i, j, k, 2);
             });
             return areas;
         }

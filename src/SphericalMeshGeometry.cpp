@@ -38,8 +38,6 @@ void SphericalMeshGeometry::setLowerUpper (Coordinate L, Coordinate U)
 {
     lower = L;
     upper = U;
-
-    std::cout << "upper: " << " " << U[0] << " " << U[1] << " " << U[2] << std::endl;
 }
 
 Cow::Shape SphericalMeshGeometry::cellsShape() const

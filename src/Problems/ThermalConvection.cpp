@@ -46,8 +46,7 @@ public:
         switch (axis)
         {
             case 0: return reflecting.apply (A, location, boundary, axis, numGuard);
-            // case 1: return periodic.apply (A, location, boundary, axis, numGuard);
-            case 1: return reflecting.apply (A, location, boundary, axis, numGuard);
+            case 1: return periodic.apply (A, location, boundary, axis, numGuard);
             default: throw std::logic_error ("ThermalConvectionBoundaryCondition: not yet configured for 3D");
         }
     }
@@ -64,7 +63,7 @@ public:
     }
 
     ReflectingBoundaryCondition reflecting;
-    // PeriodicBoundaryCondition periodic;
+    PeriodicBoundaryCondition periodic;
     OutflowBoundaryCondition outflow;
 };
 
@@ -92,7 +91,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     user["rho0"]    = 1.0; // inner density
     user["h"]       = 0.5; // pressure scale height, tweak to get strong/weak gravity
     user["K"]       = 1.0; // entropy
-    user["uniform"] = false; // 
+    user["uniform"] = false;
 
 
 
@@ -181,6 +180,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     // Set up grid shape. In 1D it's z-only. In 2D it's the x-z plane.
     // ------------------------------------------------------------------------
     auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
+    //auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto bs = Shape {{ 2, int (user["Nt"]) == 1 ? 0 : 2, 0, 0, 0 }};
     mg->setCellsShape ({{ user["Nr"], user["Nt"], 1 }});
     mg->setLowerUpper ({{ 1.0, M_PI * 0.5 - M_PI / 12.0, 0}}, {{10.0, M_PI * 0.5 + M_PI / 12.0, 0.1}});
@@ -211,7 +211,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     ss->setFieldOperator (fo);
     ss->setBoundaryCondition (bc);
     ss->setRungeKuttaOrder (2);
-    ss->setDisableFieldCT (false);
+    ss->setDisableFieldCT (true);
     ss->setIntercellFluxScheme (fs);
 
     md->setVelocityIndex (cl->getIndexFor (ConservationLaw::VariableType::velocity));
