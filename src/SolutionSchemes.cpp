@@ -162,7 +162,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
     for (int rk = 0; rk < rungeKuttaOrder; ++rk)
     {
         auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fieldCT);
-        auto L = meshOperator->divergence (F, -1.0);
+        auto L = meshOperator->divergence (F, -1.0, startIndex);
 
         cl->addSourceTerms (solution.P, L);
 
