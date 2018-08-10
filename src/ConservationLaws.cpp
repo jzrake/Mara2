@@ -628,22 +628,28 @@ ConservationLaw::State RelativisticMHD::fromConserved (const Request& request, c
     solver.new_state(U);
     solver.estimate_from_cons();
 
-    //if (int error = solver.solve_anton2dzw(P))
-    if (int error = solver.solve_noble1dw(P))
+    int error;
+    
+    if ((error = solver.solve_anton2dzw (P)) == 0)
     {
-        std::cout << "U = ["
-        << U[0] << " "
-        << U[1] << " "
-        << U[2] << " "
-        << U[3] << " "
-        << U[4] << " "
-        << U[5] << " "
-        << U[6] << " "
-        << U[7] << "]\n";
-
-        throw std::runtime_error (solver.get_error (error));
+        return fromPrimitive (request, P);
     }
-    return fromPrimitive (request, P);
+    if ((error = solver.solve_noble1dw (P)) == 0)
+    {
+        return fromPrimitive (request, P);        
+    }
+
+    std::cout << "U = ["
+    << U[0] << " "
+    << U[1] << " "
+    << U[2] << " "
+    << U[3] << " "
+    << U[4] << " "
+    << U[5] << " "
+    << U[6] << " "
+    << U[7] << "]\n";
+
+    throw std::runtime_error (solver.get_error (error));
 }
 
 ConservationLaw::State RelativisticMHD::fromPrimitive (const Request& request, const double* P) const
@@ -726,6 +732,22 @@ ConservationLaw::State RelativisticMHD::fromPrimitive (const Request& request, c
     const double v2 = vn * vn;
     const double v3 = vn * v2;
     const double v4 = vn * v3;
+
+    if (BB == 0.0) // Use the SRHD eigenvalues
+    {
+        const double K = std::sqrt (cs2 * (1 - vv) * (1 - vv * cs2 - v2 * (1 - cs2)));
+
+        S.A[0] = (vn * (1 - cs2) - K) / (1 - vv * cs2);
+        S.A[1] = vn;
+        S.A[2] = vn;
+        S.A[3] = vn;
+        S.A[4] = vn;
+        S.A[5] = vn;
+        S.A[6] = vn;
+        S.A[7] = (vn * (1 - cs2) + K) / (1 - vv * cs2);
+
+        return S;
+    }
 
     const double K  =  W4 * (P[RHO] * h0 * (1. / cs2 - 1.));
     const double L  = -W2 * (P[RHO] * h0 + bb / cs2);

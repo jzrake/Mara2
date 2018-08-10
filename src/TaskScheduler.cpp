@@ -14,7 +14,15 @@ iterationInterval (iterationInterval)
 	nextWallTime = 0.0;
 	nextIteration = 0;
 	repetition = 0;
+    log = false;
     skip = false;
+}
+
+TaskScheduler::Recurrence TaskScheduler::Recurrence::logarithmic() const
+{
+    auto T = *this;
+    T.log = true;
+    return T;
 }
 
 char TaskScheduler::Recurrence::isDue (SimulationStatus status, const Cow::Timer& timer) const
@@ -32,7 +40,7 @@ void TaskScheduler::Recurrence::update (char reason)
 
 	switch (reason)
 	{
-		case 'P': nextPhysTime += physTimeInterval; break;
+		case 'P': nextPhysTime += physTimeInterval * (log ? (nextPhysTime + 1.0) : 1.0); break;
 		case 'W': nextWallTime += wallTimeInterval; break;
 		case 'I': nextIteration += iterationInterval; break;
 	}

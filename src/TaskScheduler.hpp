@@ -17,6 +17,13 @@ public:
 	{
 	public:
 		Recurrence (double physTimeInterval, double wallTimeInterval=0.0, int iterationInterval=0);
+
+        /**
+        Set whether to use logarithmic spacing in time for tasks based on the physical
+        time.
+        */
+        Recurrence logarithmic() const;
+
 	private:
 		friend class TaskScheduler;
 		char isDue (SimulationStatus status, const Cow::Timer& timer) const;
@@ -28,6 +35,7 @@ public:
 		double nextWallTime;
 		int nextIteration;
 		int repetition;
+        bool log;
         bool skip;
 	};
 

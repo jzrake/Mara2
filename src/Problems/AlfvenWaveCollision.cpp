@@ -229,10 +229,10 @@ int AlfvenWaveCollision::run (int argc, const char* argv[])
             const double d0 = 1.0 / double (user["sigma"]);
             const double p0 = 1.0 / double (user["sigma"]);
             const double Bz = 1.0;
-            const double mu = 4. * p0 / d0;
-            const double sg = Bz * Bz / d0;
-            const double h0 = 1.0 + mu + sg;
-            const double va = Bz / std::sqrt (d0 * h0);
+            // const double mu = 4. * p0 / d0;
+            // const double sg = Bz * Bz / d0;
+            // const double h0 = 1.0 + mu + sg;
+            // const double va = Bz / std::sqrt (d0 * h0);
             const double phi = M_PI / 180 * double (user["phi"]);
 
             const double zp = 0.25;
