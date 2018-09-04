@@ -85,6 +85,12 @@ int SphericalWind::run (int argc, const char* argv[])
     user["Nr"]      = 128;
     user["Nt"]      = 1;
     user["router"]  = 1e3;
+    user["qtor"]    = 0.0;
+    user["dtor"]    = 1e2;
+    user["dind"]    = 3.0;
+    user["u0"]      = 1e-1;
+    user["peng"]    = 20;
+
 
 
     // Geometrical source terms
@@ -120,15 +126,14 @@ int SphericalWind::run (int argc, const char* argv[])
 
     auto initialData = [&] (double r, double q, double p) -> std::vector<double>
     {
-        double qtor = 0.2;
-        double rtor = 1e1;
-        double dtor = 1e2 * std::exp (-r / rtor);
-        double peng = 10.0;
+        double qtor = user["qtor"];
+        double dtor = user["dtor"];
+        double peng = user["peng"];
 
-        double rhor = std::pow (r, -3);
-        double rhoq = rhor * (1 + dtor * std::exp (-std::pow ((q - M_PI_2) / qtor, 2)));
+        double rhor = std::pow (r, -double (user["dind"]));
+        double rhoq = rhor * (qtor == 0.0 ? 1.0 : std::exp (-r) * (1 + dtor * std::exp (-std::pow ((q - M_PI_2) / qtor, 2))));
         double pre = std::pow (rhor, 4. / 3) * 1e-3 + peng * std::exp (-r);
-        double ur = r * 1e-2;
+        double ur = r * double (user["u0"]);
         double vr = ur / std::sqrt (1 + ur * ur);
 
         return std::vector<double> {rhoq, vr, 0, 0, pre, 0, 0, 0};

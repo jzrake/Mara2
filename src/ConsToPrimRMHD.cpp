@@ -123,7 +123,7 @@ int ConsToPrimRMHD::reconstruct_prim (double Z, double W, double *Pout)
 
     if (P[pre] <= 0.0 && PressureFloor > 0.0)
     {
-        P[pre] = PressureFloor;
+        P[pre] = P[rho] * PressureFloor;
         AppliedPressureFloor = 1;
     }
     else
