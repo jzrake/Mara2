@@ -45,7 +45,17 @@ public:
     {
         switch (axis)
         {
-            case 0: return reflecting.apply (A, location, boundary, axis, numGuard);
+            case 0:
+            {
+                if (boundary == MeshBoundary::left)
+                {
+                    return reflecting.apply (A, location, boundary, axis, numGuard);
+                }
+                if (boundary == MeshBoundary::right)
+                {
+                    return outflow.apply (A, location, boundary, axis, numGuard);
+                }
+            }
             case 1: return periodic.apply (A, location, boundary, axis, numGuard);
             default: throw std::logic_error ("ThermalConvectionBoundaryCondition: not yet configured for 3D");
         }
@@ -112,13 +122,13 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     const double h     = user["h"];
     const double gamma = user["gamma"];
     const double K     = user["K"];
-    const double cs2   = g0 == 0.0 ? 1.0 : h * g0;
+    const double q0    = user["q0"];
 
 
 
     // Gravitational source terms, heating, and initial data function
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [&] (double r, double q, double p, StateArray P)
+    auto sourceTermsFunction = [g0, rho0, h, gamma, K, q0] (double r, double q, double p, StateArray P)
     {
         const double dg = P[0];
         const double vr = P[1];
@@ -136,29 +146,37 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
 
         const double g = g0 * std::pow (r, -2.0);
-
         S[1] += -dg * g;
         S[4] += -dg * g * vr;
+
+
+        // exponential heating
+        S[4] += q0 * std::exp (-1.0 * r / h);
+
 
         return S;
     };
 
-    auto initialData = [&] (double r, double q, double p) -> std::vector<double>
+    auto initialData = [&user, g0, rho0, gamma, K] (double r, double q, double p) -> std::vector<double>
     {
+        using std::pow;
+
+        double delta = 0.0; // 1e-1 * rand() / RAND_MAX;
+
         if (! user["uniform"])
         {
-            const double alpha = (gamma - 1.0) / gamma;
-            const double beta = g0 / K * alpha;
-            const double v0 = std::pow (rho0, gamma - 1.0);
-            const double c1 = v0 + beta / (2.0 * alpha - 1.0);
-            const double rho = std::pow ((c1 * std::pow (r, -2.0 * alpha) - beta / (2.0 * alpha - 1.0) * (1.0 / r)), (1.0 / (gamma - 1.0)));
-            const double pre = cs2 * rho / gamma;
-            return std::vector<double> {rho, 0, 0, 0, pre};
+            auto r0 = 1.0;
+            auto a = (gamma - 1.0) / gamma;
+            auto d0 = rho0;
+            auto c = pow(d0, gamma - 1) - g0 * a / K / r0;
+            auto d = pow(g0 * a / K / r + c, 1. / (gamma - 1.));
+            auto pre = K * pow(d, gamma);
+            return {d * (1 + delta), 0, 0, 0, pre};
         }
         else
         {
             const double rho = 1.0;
-            const double pre = cs2 * rho / gamma;
+            const double pre = 1.0;
             return std::vector<double> {rho, 0, 0, 0, pre};
         }
     };
