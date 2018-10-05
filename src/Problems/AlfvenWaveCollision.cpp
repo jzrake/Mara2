@@ -249,10 +249,10 @@ int AlfvenWaveCollision::run (int argc, const char* argv[])
             const double Bx = Bp + std::cos (phi) * Bm;
             const double By = 0  + std::sin (phi) * Bm;
 
-            const double g0 = std::sqrt (1.0 + (vx * vx + vy * vy + vz * vz));
-            vx /= g0;
-            vy /= g0;
-            vz /= g0;
+            // const double g0 = std::sqrt (1.0 + (vx * vx + vy * vy + vz * vz));
+            // vx /= g0;
+            // vy /= g0;
+            // vz /= g0;
 
             return std::vector<double> {d0, vx, vy, vz, p0, Bx, By, Bz};
             // return std::vector<double> {d0, vx, 0.0, vz, p0, Bx, 0.0, Bz};

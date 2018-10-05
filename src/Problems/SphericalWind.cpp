@@ -131,6 +131,7 @@ int SphericalWind::run (int argc, const char* argv[])
     user["router"]  = 1e3;
     user["qtor"]    = 0.0;
     user["dtor"]    = 1e2;
+    user["d0"]      = 1.0;
     user["dind"]    = 3.0;
     user["u0"]      = 1e-1;
     user["peng"]    = 20;
@@ -174,9 +175,10 @@ int SphericalWind::run (int argc, const char* argv[])
 
     auto initialData = [&] (double r, double q, double p) -> std::vector<double>
     {
+        double d0   = user["d0"];
         double dind = user["dind"];
-        double rho  = std::pow (r, -dind);
-        double pre  = std::pow (rho, 4. / 3) * 1e-3;
+        double rho  = d0 * std::pow (r, -dind);
+        double pre  = std::pow (rho, 4. / 3) * 1e-2;
         double ur   = r * double (user["u0"]);
         double vr   = ur / std::sqrt (1 + ur * ur);
         return std::vector<double> {rho, vr, 0, 0, pre, 0, 0, 0};
@@ -244,7 +246,7 @@ int SphericalWind::run (int argc, const char* argv[])
     auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());
 
     cl->setGammaLawIndex (4. / 3);
-    cl->setPressureFloor (1e-12);
+    cl->setPressureFloor (1e-2);
     fs->setPlmTheta (double (user["plm"]));
     fs->setRiemannSolver (rs);
     fo->setConservationLaw (cl);
