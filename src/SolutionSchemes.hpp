@@ -50,6 +50,7 @@ class MethodOfLinesTVD : public GenericSolutionScheme
 {
 public:
     MethodOfLinesTVD();
+    virtual ~MethodOfLinesTVD() {}
     void setRungeKuttaOrder (int rungeKuttaOrderToUse);
     void setDisableFieldCT (bool shouldDisableFieldCT);
     void advance (MeshData& solution, double dt) const override;

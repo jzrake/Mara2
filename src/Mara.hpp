@@ -78,6 +78,7 @@ enum class MeshBoundary { left, right };
 class SubProgram
 {
 public:
+    virtual ~SubProgram() {}
     virtual int run (int argc, const char* argv[]) = 0;
 };
 
@@ -277,6 +278,8 @@ public MayUseMeshGeometry,
 public MayUseConservationLaw
 {
 public:
+    virtual ~BoundaryCondition() {}
+
     /**
     This is the only method that needs to be implemented by BoundaryCondition
     derived classes.
@@ -309,7 +312,6 @@ public:
         MeshBoundary boundary,
         int axis,
         int numGuard) const = 0;
-
 
     /**
     A convenience function that calls the derived class's apply on both sides

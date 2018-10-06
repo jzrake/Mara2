@@ -17,6 +17,8 @@ public:
 
     }
 
+    virtual ~BlockDecomposedBC() {}
+
     void apply (
         Cow::Array& A,
         MeshLocation location,
