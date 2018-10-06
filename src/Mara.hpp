@@ -330,6 +330,8 @@ public:
     whether it would be correct to apply physics BC's on a given patch.
     */
     virtual bool isAxisPeriodic (int axis) { return false; }
+
+    virtual void setSimulationTime (double newSimulationTime) {}
 };
 
 

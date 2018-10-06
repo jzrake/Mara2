@@ -80,6 +80,95 @@ public:
 
 
 
+/**
+Boundary conditions for a vertical atmosphere with sound-wave driving at the
+inner boundary.
+*/
+class AcousticDriverBoundaryCondition : public BoundaryCondition
+{
+public:
+    AcousticDriverBoundaryCondition()
+    {
+        reflecting.setConservationLaw (std::make_shared<NewtonianHydro>()   );
+    }
+
+    void setSimulationTime (double newSimulationTime) override
+    {
+        simulationTime = newSimulationTime;
+    }
+
+    void setBoundaryValueFunction (InitialDataFunction initialDataFunctionToUse) override
+    {
+        initialDataFunction = initialDataFunctionToUse;
+    }
+
+    void setMeshGeometry (std::shared_ptr<MeshGeometry> mg) override
+    {
+        meshGeometry = mg;
+    }
+
+    void apply (Cow::Array& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const override
+    {
+        if (axis != 0)
+        {
+            throw std::logic_error ("AcousticDriverBoundaryCondition: only configured for 1D");
+        }
+        if (boundary == MeshBoundary::left)
+        {
+            reflecting.apply (A, location, boundary, axis, numGuard);
+            return applyInflowAtInnerBoundary (A, numGuard);
+        }
+        return outflow.apply (A, location, boundary, axis, numGuard);
+    }
+
+    void applyInflowAtInnerBoundary (Cow::Array& P, int numGuard) const
+    {
+        double omega = 2.0;
+        double mach = 0.01;
+
+        for (int i = 0; i < numGuard; ++i)
+        {
+            auto r = meshGeometry->coordinateAtIndex (i - numGuard, 0, 0)[0];
+
+            auto P0 = initialDataFunction (r, 0, 0);
+            auto u0 = 0.0;
+            auto d0 = P[0];
+            auto p0 = P[4];
+            auto cs = std::sqrt (5. / 3 * p0 / d0);
+
+            auto u1 = cs * mach;
+            //auto d1 = d0 * mach;
+            //auto p1 = d0 * cs * cs;
+
+            //P(i, 0, 0, 0) = d0 + d1 * std::sin (omega * simulationTime);
+            P(i, 0, 0, 1) = u0 + u1 * std::sin (omega * simulationTime);
+            //P(i, 0, 0, 2) = 0.0;
+            //P(i, 0, 0, 3) = 0.0;
+            //P(i, 0, 0, 4) = p0 + p1 * std::sin (omega * simulationTime);
+        }
+    }
+
+    bool isAxisPeriodic (int axis) override
+    {
+        switch (axis)
+        {
+            case 0: return false;
+            case 1: return false;
+            case 2: return true;
+            default: throw std::logic_error ("AcousticDriverBoundaryCondition");
+        }
+    }
+
+    double simulationTime = 0.0;
+    OutflowBoundaryCondition outflow;
+    ReflectingBoundaryCondition reflecting;
+    InitialDataFunction initialDataFunction = nullptr;
+    std::shared_ptr<MeshGeometry> meshGeometry;
+};
+
+
+
+
 // ============================================================================
 int ThermalConvectionProgram::run (int argc, const char* argv[])
 {
@@ -99,10 +188,10 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     user["gamma"]   = 5. / 3;
     user["g0"]      = 0.2; // g0 = G*M
     user["rho0"]    = 1.0; // inner density
-    user["h"]       = 0.5; // pressure scale height, tweak to get strong/weak gravity
-    user["K"]       = 1.0; // entropy
+    // user["h"]       = 0.5; // pressure scale height, tweak to get strong/weak gravity
+    // user["K"]       = 1.0; // entropy
     user["uniform"] = false;
-
+    user["q0"]      = 1.0;
 
 
     auto clineUser = Variant::fromCommandLine (argc, argv);
@@ -116,19 +205,18 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     Variant::update (user, clineUser);
 
 
-
+    const double gm    = 5. / 3;
     const double g0    = user["g0"];
-    const double rho0  = user["rho0"];
-    const double h     = user["h"];
+    const double d0    = user["rho0"];
     const double gamma = user["gamma"];
-    const double K     = user["K"];
     const double q0    = user["q0"];
-
+    const double r0    = 1.0;
+    const double K     = r0 * g0 * (gm - 1) / gm / std::pow (d0, gm - 1);
 
 
     // Gravitational source terms, heating, and initial data function
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [g0, rho0, h, gamma, K, q0] (double r, double q, double p, StateArray P)
+    auto sourceTermsFunction = [g0, d0, gamma, K, q0] (double r, double q, double p, StateArray P)
     {
         const double dg = P[0];
         const double vr = P[1];
@@ -151,32 +239,24 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
 
         // exponential heating
-        S[4] += q0 * std::exp (-1.0 * r / h);
+        S[4] += q0 * std::exp (-r);
 
 
         return S;
     };
 
-    auto initialData = [&user, g0, rho0, gamma, K] (double r, double q, double p) -> std::vector<double>
+    auto initialData = [&user, g0, d0, gamma, K] (double r, double q, double p) -> std::vector<double>
     {
-        using std::pow;
-
-        double delta = 0.0; // 1e-1 * rand() / RAND_MAX;
-
         if (! user["uniform"])
         {
-            auto r0 = 1.0;
-            auto a = (gamma - 1.0) / gamma;
-            auto d0 = rho0;
-            auto c = pow(d0, gamma - 1) - g0 * a / K / r0;
-            auto d = pow(g0 * a / K / r + c, 1. / (gamma - 1.));
-            auto pre = K * pow(d, gamma);
-            return {d * (1 + delta), 0, 0, 0, pre};
+            auto d = d0 * std::pow (r, -1.5); // NOTE: for gamma=5/3 only
+            auto pre = K * std::pow (d, gamma);
+            return {d, 0, 0, 0, pre};
         }
         else
         {
-            const double rho = 1.0;
-            const double pre = 1.0;
+            const double rho = d0;
+            const double pre = d0;
             return std::vector<double> {rho, 0, 0, 0, pre};
         }
     };
@@ -189,7 +269,8 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     double timestepSize = 0.0;
 
     auto bd = std::shared_ptr<BlockDecomposition>();
-    auto bc = std::shared_ptr<BoundaryCondition> (new ThermalConvectionBoundaryCondition);
+    // auto bc = std::shared_ptr<BoundaryCondition> (new ThermalConvectionBoundaryCondition);
+    auto bc = std::shared_ptr<BoundaryCondition> (new AcousticDriverBoundaryCondition);
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
     auto cl = std::make_shared<NewtonianHydro>();
@@ -201,7 +282,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     //auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto bs = Shape {{ 2, int (user["Nt"]) == 1 ? 0 : 2, 0, 0, 0 }};
     mg->setCellsShape ({{ user["Nr"], user["Nt"], 1 }});
-    mg->setLowerUpper ({{ 1.0, M_PI * 0.5 - M_PI / 12.0, 0}}, {{10.0, M_PI * 0.5 + M_PI / 12.0, 0.1}});
+    mg->setLowerUpper ({{ 1.0, M_PI * 0.5 - M_PI / 12.0, 0}}, {{100.0, M_PI * 0.5 + M_PI / 12.0, 0.1}});
 
     if (! user["serial"])
     {
@@ -235,6 +316,8 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     md->setVelocityIndex (cl->getIndexFor (ConservationLaw::VariableType::velocity));
     bc->setMeshGeometry (mg);
     bc->setConservationLaw (cl);
+    bc->setBoundaryValueFunction (initialData);
+    bc->setMeshGeometry (mg);
 
     auto L         = mo->linearCellDimension();
     auto V         = mo->measure (MeshLocation::cell);
@@ -282,9 +365,15 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         tseries->append (status, entry);
     };
 
+    auto taskSetBCSimulationTime = [bc] (SimulationStatus status, int rep)
+    {
+        bc->setSimulationTime (status.simulationTime);
+    };
+
     scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time_series");
     scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]), "checkpoint");
     scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 16), "compute_dt");
+    scheduler->schedule (taskSetBCSimulationTime, TaskScheduler::Recurrence (0.0, 0.0, 1), "set_bc_time");
 
     writer->setMeshDecomposition (bd);
     writer->setTimeSeriesManager (tseries);

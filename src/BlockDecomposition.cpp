@@ -81,6 +81,7 @@ public:
     void setBoundaryValueFunction (InitialDataFunction bf) override { physicalBC->setBoundaryValueFunction (bf); }
     void setConservationLaw (std::shared_ptr<ConservationLaw> cl) override { physicalBC->setConservationLaw (cl); };
     void setMeshGeometry (std::shared_ptr<MeshGeometry> mg) override { physicalBC->setMeshGeometry (mg); }
+    void setSimulationTime (double t) override { physicalBC->setSimulationTime (t); }
 
 private:
     const BlockDecomposition& block;
