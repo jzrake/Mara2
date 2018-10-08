@@ -12,6 +12,8 @@ class BlockDecomposition : public MeshDecomposition
 public:
     BlockDecomposition() { }
 
+    virtual ~BlockDecomposition() {}
+
     /**
     Constructor, initializes an MPI cartesian communicator. The logger is not held, but used
     to report on the configuration.

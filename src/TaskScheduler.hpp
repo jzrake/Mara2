@@ -42,6 +42,7 @@ public:
 	class Task
 	{
 	public:
+        virtual ~Task() {}
 		virtual void run (SimulationStatus status, int repetition) = 0;
 	};
 

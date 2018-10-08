@@ -13,6 +13,7 @@ Simple periodic boundary condition to be used in single-core jobs. Works in
 class PeriodicBoundaryCondition : public BoundaryCondition
 {
 public:
+    virtual ~PeriodicBoundaryCondition() {}
     void apply (
         Cow::Array& A,
         MeshLocation location,
@@ -31,6 +32,7 @@ A simple outflow boundary condition, zero-gradient is imposed on all variables.
 class OutflowBoundaryCondition : public BoundaryCondition
 {
 public:
+    virtual ~OutflowBoundaryCondition() {}
     void apply (
         Cow::Array& A,
         MeshLocation location,
@@ -50,6 +52,7 @@ boundary surface.
 class ReflectingBoundaryCondition : public BoundaryCondition
 {
 public:
+    virtual ~ReflectingBoundaryCondition() {}
     void apply (
         Cow::Array& A,
         MeshLocation location,
@@ -75,6 +78,7 @@ class DrivenMHDBoundary : public BoundaryCondition
 {
 public:
     DrivenMHDBoundary();
+    virtual ~DrivenMHDBoundary() {}
     void setBoundaryValueFunction (InitialDataFunction) override;
     void setConservationLaw (std::shared_ptr<ConservationLaw>) override;
     void setMeshGeometry (std::shared_ptr<MeshGeometry>) override;

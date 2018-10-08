@@ -12,6 +12,7 @@ public:
     CartesianMeshGeometry();
     CartesianMeshGeometry (Cow::Shape shape);
     CartesianMeshGeometry (int ni, int nj, int nk);
+    virtual ~CartesianMeshGeometry() {}
     void setCellsShape (Cow::Shape S) override;
     void setLowerUpper (Coordinate L, Coordinate U) override;
     Cow::Shape cellsShape() const override;

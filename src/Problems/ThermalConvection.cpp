@@ -216,7 +216,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
     // Gravitational source terms, heating, and initial data function
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [g0, d0, gamma, K, q0] (double r, double q, double p, StateArray P)
+    auto sourceTermsFunction = [g0, q0] (double r, double q, double p, StateArray P)
     {
         const double dg = P[0];
         const double vr = P[1];

@@ -29,6 +29,7 @@ class CollisionalHydroScheme : public GenericSolutionScheme
 {
 public:
     CollisionalHydroScheme();
+    virtual ~CollisionalHydroScheme() {}
     void advance (MeshData& solution, double dt) const override;
     void advance (MeshData& solution, ParticleData& pd, double dt) const override;
     double getCollisionTime (const MeshData& solution, const ParticleData& pd) const;
