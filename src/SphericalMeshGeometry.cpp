@@ -27,6 +27,11 @@ SphericalMeshGeometry::SphericalMeshGeometry (int ni, int nj, int nk)
     upper = {{ 10.0, M_PI, 2 * M_PI }};
 }
 
+void SphericalMeshGeometry::setUseLogarithmicRadialBinning (bool shouldUseLogarithmicRadialBinning)
+{
+    logarithmic = shouldUseLogarithmicRadialBinning;
+}
+
 void SphericalMeshGeometry::setCellsShape (Cow::Shape S)
 {
     shape[0] = S[0];
@@ -67,8 +72,11 @@ unsigned long SphericalMeshGeometry::totalCellsInMesh() const
 
 double SphericalMeshGeometry::cellLength (int i, int j, int k, int axis) const
 {
-    const double ri = std::sqrt (getEdge (i, 0) * getEdge (i + 1, 0));
-    const double qi = 0.5 *     (getEdge (j, 1) + getEdge (j + 1, 1));
+    const double ri = logarithmic
+    ? std::sqrt (getEdge (i, 0) * getEdge (i + 1, 0))
+    : 0.5     * (getEdge (i, 0) + getEdge (i + 1, 1));
+
+    const double qi = 0.5 * (getEdge (j, 1) + getEdge (j + 1, 1));
 
     switch (axis)
     {
@@ -176,14 +184,20 @@ std::shared_ptr<MeshGeometry> SphericalMeshGeometry::duplicate() const
 
 std::string SphericalMeshGeometry::getType() const
 {
-    return "cartesian";
+    return "spherical";
 }
 
 double SphericalMeshGeometry::getEdge (double n, int axis) const
 {
     switch (axis)
     {
-        case 0: return lower[0] * std::pow (upper[0] / lower[0], n / shape[0]);
+        case 0:
+        {
+            if (logarithmic)
+                return lower[0] * std::pow (upper[0] / lower[0], n / shape[0]);
+            else
+                return lower[0] + (upper[0] - lower[0]) * n / shape[0];
+        }
         case 1: return lower[1] + (upper[1] - lower[1]) * n / shape[1];
         case 2: return lower[2] + (upper[2] - lower[2]) * n / shape[2];
         default: assert (false);

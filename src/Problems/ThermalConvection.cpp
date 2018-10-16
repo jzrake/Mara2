@@ -5,7 +5,7 @@
 #include "../BoundaryConditions.hpp"
 #include "../BlockDecomposition.hpp"
 #include "../CartesianMeshGeometry.hpp"
-#include "../SphericalMeshGeometry.hpp" //include spherical mesh geometry
+#include "../SphericalMeshGeometry.hpp"
 #include "../CellCenteredFieldCT.hpp"
 #include "../Checkpoint.hpp"
 #include "../ConservationLaws.hpp"
@@ -123,7 +123,7 @@ public:
 
     void applyInflowAtInnerBoundary (Cow::Array& P, int numGuard) const
     {
-        double omega = 2.0;
+        double omega = 0.5;
         double mach = 0.01;
 
         for (int i = 0; i < numGuard; ++i)
@@ -188,9 +188,8 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     user["gamma"]   = 5. / 3;
     user["g0"]      = 0.2; // g0 = G*M
     user["rho0"]    = 1.0; // inner density
-    // user["h"]       = 0.5; // pressure scale height, tweak to get strong/weak gravity
-    // user["K"]       = 1.0; // entropy
     user["uniform"] = false;
+    user["log"]     = true; // logarithmic radial binning
     user["q0"]      = 1.0;
 
 
@@ -279,10 +278,10 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     // Set up grid shape. In 1D it's z-only. In 2D it's the x-z plane.
     // ------------------------------------------------------------------------
     auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
-    //auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto bs = Shape {{ 2, int (user["Nt"]) == 1 ? 0 : 2, 0, 0, 0 }};
     mg->setCellsShape ({{ user["Nr"], user["Nt"], 1 }});
     mg->setLowerUpper ({{ 1.0, M_PI * 0.5 - M_PI / 12.0, 0}}, {{100.0, M_PI * 0.5 + M_PI / 12.0, 0.1}});
+    dynamic_cast<SphericalMeshGeometry&>(*mg).setUseLogarithmicRadialBinning (user["log"]);
 
     if (! user["serial"])
     {
@@ -338,10 +337,8 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     };
 
-    //lambda for computing primitives averaged over cell, rep is repetition
     auto taskTimeSeries = [&] (SimulationStatus, int rep)
     {
-        //bd defined, volumeAverageOverPatches returned, skips val forloop
         auto volumeAverageOverPatches = [&] (std::vector<double> vals)
         {
             if (bd)

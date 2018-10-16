@@ -12,6 +12,7 @@ public:
     SphericalMeshGeometry (Cow::Shape shape);
     SphericalMeshGeometry (int ni, int nj, int nk);
     virtual ~SphericalMeshGeometry() {}
+    void setUseLogarithmicRadialBinning (bool shouldUseLogarithmicRadialBinning);
     void setCellsShape (Cow::Shape S) override;
     void setLowerUpper (Coordinate L, Coordinate U) override;
     Cow::Shape cellsShape() const override;
@@ -33,4 +34,5 @@ private:
     Coordinate lower;
     Coordinate upper;
     Shape shape;
+    bool logarithmic = true;
 };
