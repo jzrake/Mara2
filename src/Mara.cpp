@@ -53,7 +53,7 @@ int maraMainLoop (
 
         double kzps = 1e-3 * status.totalCellsInMesh / stepTimer.age();
         logger.log() << "["     << std::setfill ('0') << std::setw (6) << status.simulationIter << "] ";
-        logger.log() << "t="    << std::setprecision (4) << std::fixed << status.simulationTime << " ";
+        logger.log() << "t="    << std::setprecision (6) << std::fixed << status.simulationTime << " ";
         logger.log() << "dt="   << std::setprecision (4) << std::scientific << dt << " ";
         logger.log() << "kzps=" << std::setprecision (2) << std::fixed << kzps << std::endl;
 

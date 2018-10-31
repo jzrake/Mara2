@@ -639,17 +639,19 @@ ConservationLaw::State RelativisticMHD::fromConserved (const Request& request, c
         return fromPrimitive (request, P);        
     }
 
-    std::cout << "U = ["
-    << U[0] << " "
-    << U[1] << " "
-    << U[2] << " "
-    << U[3] << " "
-    << U[4] << " "
-    << U[5] << " "
-    << U[6] << " "
-    << U[7] << "]\n";
 
-    throw std::runtime_error (solver.get_error (error));
+    // ------------------------------------------------------------------------
+    // Bad state handling
+    // ------------------------------------------------------------------------
+    auto S = State();
+    S.numFields = getNumConserved();
+
+    for (int q = 0; q < getNumConserved(); ++q)
+    {
+        S.U[q] = U[q];
+        S.P[q] = P[q];
+    }
+    throw ConservationLaw::StateFailure (S);
 }
 
 ConservationLaw::State RelativisticMHD::fromPrimitive (const Request& request, const double* P) const
@@ -676,6 +678,11 @@ ConservationLaw::State RelativisticMHD::fromPrimitive (const Request& request, c
     const double ps = p0 + 0.5 * bb;
     const double h0 = 1.0 + e0 + p0 / P[RHO];
     const double hs = 1.0 + es + ps / P[RHO];
+
+    if (vv >= 1)
+    {
+        throw std::runtime_error ("got superluminal velocity");
+    }
 
     auto S = State();
     S.numFields = getNumConserved();

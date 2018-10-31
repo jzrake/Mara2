@@ -1,3 +1,4 @@
+#include <cmath>
 #include "CellCenteredFieldCT.hpp"
 #include "FieldOperator.hpp"
 #include "IntercellFluxSchemes.hpp"

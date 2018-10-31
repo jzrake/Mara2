@@ -1,4 +1,5 @@
 #include <cmath>
+#include <iomanip>
 #include "SphericalWind.hpp"
 #include "../Mara.hpp"
 #include "../BoundaryConditions.hpp"
@@ -23,6 +24,40 @@
 #define cot(x) std::tan (M_PI_2 - x)
 
 using namespace Cow;
+
+
+
+
+// ============================================================================
+#define nR(r) ((r) < rbreak ? 3.0 : 4.5)
+#define nZ(r) ((r) < rbreak ? 1.0 : 3.0)
+
+
+static double lambda               = 60;
+static double lightSpeed           = 2.99e10;                       // cm/s
+static double rinner               = 5e6;                           // cm
+static double rbreak               = 4.0e7 * std::pow (lambda,  1); // cm
+static double dbreakR              = 1.0e8 * std::pow (lambda, -3); // g/cm^3
+static double dbreakZ              = 1.4e7 * std::pow (lambda, -3); // g/cm^3
+static double cloudMass            = ( // g (from rinner to rbreak, when nR = 3 and nZ = 1)
+    4.0 * M_PI / 3.0 * std::pow (rbreak, 3) * (
+    0.5 * dbreakZ * (1 - std::pow (rinner / rbreak, 2)) +
+    2.0 * dbreakR * (0 - std::log (rinner / rbreak))));
+static const double engineDuration = 0.5;                                       // s
+static const double engineEnergy   = 1.0 * cloudMass * lightSpeed * lightSpeed; // erg
+static const double enginePower    = engineEnergy / engineDuration;             // erg/s
+static const double cavityDensity  = dbreakR;
+static const double cavityRadius   = 5 * rinner;
+
+
+
+
+// ============================================================================
+static const double CentimetersPerSecond = 1.0 / lightSpeed;
+static const double Seconds = 1.0;
+static const double Centimeters = CentimetersPerSecond * Seconds;
+static const double Grams = 1 / 1e30;
+static const double GramsPerCC = Grams * std::pow (Centimeters, -3);
 
 
 
@@ -61,20 +96,19 @@ public:
 
     void applyInflowAtInnerBoundary (Cow::Array& P, int numGuard) const
     {
+        auto p = [] (auto x, auto n) { return std::pow (x, n); };
+
         for (int i = 0; i < numGuard; ++i)
         {
             for (int j = numGuard; j < P.size(1) - numGuard; ++j)
             {
                 const double q = meshGeometry->coordinateAtIndex (i - numGuard, j - numGuard, 0)[1];
-
                 const double alpha  = structureExponent;
                 const double qjet   = jetOpeningAngle;
                 const double w0     = jetEnthalpy;
-                const double fjet   = std::exp (-std::pow (q / qjet, alpha));
-                const double gamma0 = 1.0 + jetGamma * fjet;
-
+                const double gamma0 = jetGamma * (1 + std::exp (-std::pow (q / qjet, alpha)));
                 const double vr = std::sqrt (1.0 - 1.0 / (gamma0 * gamma0));
-                const double rho = 1.0;
+                const double rho = enginePower / (4 * M_PI * p(rinner, 2) * p(lightSpeed, 3) * p(gamma0, 2)) * GramsPerCC;
                 const double pre = rho * w0 / 4;
 
                 P(i, j, 0, 0) = rho;
@@ -104,10 +138,10 @@ public:
     ReflectingBoundaryCondition reflecting;
 };
 
-double JetLaunchingBoundaryCondition::structureExponent = 1.5;
-double JetLaunchingBoundaryCondition::jetOpeningAngle   = 0.2;
-double JetLaunchingBoundaryCondition::jetGamma          = 5.0;
-double JetLaunchingBoundaryCondition::jetEnthalpy       = 5.0;
+double JetLaunchingBoundaryCondition::structureExponent =  1.5;
+double JetLaunchingBoundaryCondition::jetOpeningAngle   =  0.2;
+double JetLaunchingBoundaryCondition::jetGamma          = 10.0;
+double JetLaunchingBoundaryCondition::jetEnthalpy       =  0.1;
 
 
 
@@ -137,8 +171,8 @@ int SphericalWind::run (int argc, const char* argv[])
     user["peng"]    = 20;
     user["alpha"]   = 1.5;
     user["theta0"]  = 0.2;
-    user["gamma0"]  = 5.0;
-    user["w0"]      = 5.0;
+    user["gamma0"]  = 10.0;
+    user["w0"]      = 0.1;
 
 
 
@@ -175,11 +209,19 @@ int SphericalWind::run (int argc, const char* argv[])
 
     auto initialData = [&] (double r, double q, double p) -> std::vector<double>
     {
-        double d0   = user["d0"];
-        double dind = user["dind"];
-        double rho  = d0 * std::pow (r, -dind);
+        r /= Centimeters;
+
+        double rho = (
+            std::pow (std::sin (q), 2) * dbreakR * std::pow (r / rbreak, -nR(r)) +
+            std::pow (std::cos (q), 2) * dbreakZ * std::pow (r / rbreak, -nZ(r))) * GramsPerCC;
+
+        if (r < cavityRadius)
+        {
+            rho = cavityDensity * GramsPerCC;
+        }
+
         double pre  = std::pow (rho, 4. / 3) * 1e-2;
-        double ur   = r * double (user["u0"]);
+        double ur   = (r / rbreak) * double (user["u0"]);
         double vr   = ur / std::sqrt (1 + ur * ur);
         return std::vector<double> {rho, vr, 0, 0, pre, 0, 0, 0};
     };
@@ -209,7 +251,7 @@ int SphericalWind::run (int argc, const char* argv[])
     auto bd = std::shared_ptr<BlockDecomposition>();
     auto mg = std::shared_ptr<MeshGeometry> (new SphericalMeshGeometry);
     auto rs = std::shared_ptr<RiemannSolver> (new HlleRiemannSolver);
-    auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
+    auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLines);
     auto bc = std::shared_ptr<BoundaryCondition>(new JetLaunchingBoundaryCondition);
     auto cl = std::make_shared<RelativisticMHD>();
 
@@ -223,9 +265,13 @@ int SphericalWind::run (int argc, const char* argv[])
     mg->setCellsShape (cs);
 
     if (Nt == 1)
-        mg->setLowerUpper ({{1.0, M_PI_2 - 0.1, 0.0}}, {{user["router"], M_PI_2 + 0.1, 0.1}});
+        mg->setLowerUpper (
+            {{rinner * Centimeters, M_PI_2 - 0.1, 0.0}},
+            {{rinner * Centimeters * double (user["router"]), M_PI_2 + 0.1, 0.1}});
     else
-        mg->setLowerUpper ({{1.0, 0.0, 0.0}}, {{user["router"], M_PI_2, 0.1}});
+        mg->setLowerUpper (
+            {{rinner * Centimeters, 0.0, 0.0}},
+            {{rinner * Centimeters * double (user["router"]), M_PI_2, 0.1}});
 
     if (! user["serial"])
     {
@@ -246,7 +292,7 @@ int SphericalWind::run (int argc, const char* argv[])
     auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());
 
     cl->setGammaLawIndex (4. / 3);
-    cl->setPressureFloor (1e-2);
+    // cl->setPressureFloor (1e-2);
     fs->setPlmTheta (double (user["plm"]));
     fs->setRiemannSolver (rs);
     fo->setConservationLaw (cl);
@@ -256,7 +302,7 @@ int SphericalWind::run (int argc, const char* argv[])
     ss->setFieldOperator (fo);
     ss->setBoundaryCondition (bc);
     ss->setRungeKuttaOrder (2);
-    ss->setDisableFieldCT (false);
+    ss->setDisableFieldCT (true);
     ss->setIntercellFluxScheme (fs);
 
     md->setVelocityIndex (cl->getIndexFor (ConservationLaw::VariableType::velocity));
@@ -308,6 +354,10 @@ int SphericalWind::run (int argc, const char* argv[])
     taskRecomputeDt (status, 0);
 
     logger->log() << std::endl << user << std::endl;
+    logger->log() << "Cloud mass: " << cloudMass    << " g" << std::endl;
+    logger->log() << "Eiso      : " << engineEnergy << " erg" << std::endl;
+    logger->log() << "dbreakR   : " << dbreakR      << " g/cc" << std::endl;
+    logger->log() << "dbreakZ   : " << dbreakZ      << " g/cc" << std::endl;
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  
 }
 
@@ -329,4 +379,20 @@ int SphericalWind::run (int argc, const char* argv[])
 //     double ur = r * double (user["u0"]);
 //     double vr = ur / std::sqrt (1 + ur * ur);
 //     return std::vector<double> {rhoq, vr, 0, 0, pre, 0, 0, 0};
+// };
+
+
+
+
+// Initial conditions used until 10-31-18:
+
+// auto initialData0 = [&] (double r, double q, double p) -> std::vector<double>
+// {
+//     double d0   = user["d0"];
+//     double dind = user["dind"];
+//     double rho  = d0 * std::pow (r, -dind);
+//     double pre  = std::pow (rho, 4. / 3) * 1e-2;
+//     double ur   = r * double (user["u0"]);
+//     double vr   = ur / std::sqrt (1 + ur * ur);
+//     return std::vector<double> {rho, vr, 0, 0, pre, 0, 0, 0};
 // };
