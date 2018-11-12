@@ -18,6 +18,7 @@
 #include "Problems/UnstablePinch.hpp"
 #include "Problems/ThermalConvection.hpp"
 #include "Problems/SphericalWind.hpp"
+#include "Problems/BinaryTorque.hpp"
 
 using namespace Cow;
 
@@ -201,6 +202,7 @@ int main (int argc, const char* argv[])
     programs["stitch"]      = std::make_unique<CheckpointStitcherProgram>();
     programs["tovtk"]       = std::make_unique<CheckpointToVtkProgram>();
     programs["alfven"]      = std::make_unique<AlfvenWaveCollision>();
+    programs["binary"]      = std::make_unique<BinaryTorque>();
 
     if (argc == 1)
     {
