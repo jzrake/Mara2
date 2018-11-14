@@ -494,7 +494,7 @@ Array MeshOperator::godunov (
 
     if (fluxCorrection)
     {
-        fluxCorrection (result);
+        fluxCorrection (cellData, result);
     }
     return result;
 }

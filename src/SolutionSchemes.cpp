@@ -86,6 +86,11 @@ void MethodOfLinesTVD::setDisableFieldCT (bool shouldDisableFieldCT)
     disableFieldCT = shouldDisableFieldCT;
 }
 
+void MethodOfLinesTVD::setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&)> viscousFluxToUse)
+{
+    viscousFlux = viscousFluxToUse;
+}
+
 void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
 {
     if (! fieldOperator)     throw std::logic_error ("No FieldOperator instance");
@@ -128,7 +133,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         }
     };
 
-    auto fieldCT = [&] (Array& fluxes)
+    auto fluxCorrection = [&] (const Array& P, Array& fluxes)
     {
         auto ib = cl->getIndexFor (ConservationLaw::VariableType::magnetic);
 
@@ -136,6 +141,11 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
         {
             auto ct = CellCenteredFieldCT();
             ct.correctGodunovFluxes (fluxes, ib);
+        }
+
+        if (viscousFlux)
+        {
+            viscousFlux (P, fluxes);
         }
     };
 
@@ -162,7 +172,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
 
     for (int rk = 0; rk < rungeKuttaOrder; ++rk)
     {
-        auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fieldCT);
+        auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fluxCorrection);
         auto L = meshOperator->divergence (F, -1.0, startIndex);
 
         cl->addSourceTerms (solution.P, L);

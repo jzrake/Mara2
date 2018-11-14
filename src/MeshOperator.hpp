@@ -31,7 +31,7 @@ public:
     using Index = Cow::Index;
     using Shape = Cow::Shape;
     using Shape3D = Cow::Shape3D;
-    using FluxCorrection = std::function<void (Array&)>;
+    using FluxCorrection = std::function<void (const Array&, Array&)>; // args are (P, Fhat)
     enum class VectorMode { scalars, fluxish, emflike };
 
     MeshOperator (std::shared_ptr<MeshGeometry> geometry=nullptr);

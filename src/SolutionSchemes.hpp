@@ -53,10 +53,12 @@ public:
     virtual ~MethodOfLinesTVD() {}
     void setRungeKuttaOrder (int rungeKuttaOrderToUse);
     void setDisableFieldCT (bool shouldDisableFieldCT);
+    void setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&)> viscousFluxToUse);
     void advance (MeshData& solution, double dt) const override;
 private:
     int rungeKuttaOrder;
     bool disableFieldCT;
+    std::function<void(const Cow::Array&, Cow::Array&)> viscousFlux = nullptr;
 };
 
 

@@ -38,6 +38,125 @@ static const double ViscousAlpha     =  0.1;  // Alpha viscosity parameter
 
 
 // ============================================================================
+static void computeViscousFluxes1D (const Array& P, double nu, double dx, Array& Fhat)
+{
+    for (int i = 0; i < P.shape()[0] - 1; ++i)
+    {
+        const double dgL = P(i + 0, 0, 0, 0);
+        const double uyL = P(i + 0, 0, 0, 2);
+        const double dgR = P(i + 1, 0, 0, 0);
+        const double uyR = P(i + 1, 0, 0, 2);
+        const double dxuy = (uyR - uyL) / dx;
+        const double mu = 0.5 * (dgL + dgR) * nu;
+        const double tauxy = mu * dxuy;
+
+        Fhat(i + 1, 0, 0, 0, 0) -= 0.0;   // mass flux
+        Fhat(i + 1, 0, 0, 1, 0) -= 0.0;   // px flux
+        Fhat(i + 1, 0, 0, 2, 0) -= tauxy; // py flux
+        Fhat(i + 1, 0, 0, 3, 0) -= 0.0;   // pz flux
+        Fhat(i + 1, 0, 0, 4, 0) -= 0.0;   // E flux (neglected)
+    }
+}
+
+
+static void computeViscousFluxes2D (const Array& P, double nu, double dx, double dy, Array& Fhat)
+{
+    for (int i = 0; i < P.shape()[0] - 1; ++i)
+    {
+        for (int j = 1; j < P.shape()[1] - 1; ++j)
+        {
+            const double dgL = P(i + 0, j, 0, 0);
+            const double dgR = P(i + 1, j, 0, 0);
+            const double mu  = 0.5 * (dgL + dgR) * nu;
+
+            const double uxL0 = P(i + 0, j - 1, 0, 1);
+            // const double uxL1 = P(i + 0, j - 1, 0, 1);
+            const double uxL2 = P(i + 0, j + 0, 0, 1);
+            const double uxR0 = P(i + 1, j + 0, 0, 1);
+            // const double uxR1 = P(i + 1, j + 1, 0, 1);
+            const double uxR2 = P(i + 1, j + 1, 0, 1);
+            // const double uyL0 = P(i + 0, j - 1, 0, 2);
+            const double uyL1 = P(i + 0, j - 1, 0, 2);
+            // const double uyL2 = P(i + 0, j + 0, 0, 2);
+            // const double uyR0 = P(i + 1, j + 0, 0, 2);
+            const double uyR1 = P(i + 1, j + 1, 0, 2);
+            // const double uyR2 = P(i + 1, j + 1, 0, 2);
+
+            // const double dxux = (uxR1 - uxL1) / dx;
+            const double dxuy = (uyR1 - uyL1) / dx;
+            const double dyux = (uxR2 - uxR0 + uxL2 - uxL0) / (4 * dy);
+            // const double dyuy = (uyR2 - uyR0 + uyL2 - uyL0) / (4 * dy);
+
+            // To be checked...
+            const double tauxx = 0.0;
+            const double tauxy = mu * (dxuy + dyux);
+
+            Fhat(i + 1, j, 0, 0, 0) -= 0.0;   // mass flux
+            Fhat(i + 1, j, 0, 1, 0) -= tauxx; // px flux
+            Fhat(i + 1, j, 0, 2, 0) -= tauxy; // py flux
+            Fhat(i + 1, j, 0, 3, 0) -= 0.0;   // pz flux
+            Fhat(i + 1, j, 0, 4, 0) -= 0.0;   // E flux (neglected)
+        }
+    }
+
+    for (int i = 1; i < P.shape()[0] - 1; ++i)
+    {
+        for (int j = 0; j < P.shape()[1] - 1; ++j)
+        {
+            const double dgL = P(i, j + 0, 0, 0);
+            const double dgR = P(i, j + 1, 0, 0);
+            const double mu  = 0.5 * (dgL + dgR) * nu;
+
+            // const double uxL0 = P(i - 1, j + 0, 0, 1);
+            const double uxL1 = P(i - 1, j + 0, 0, 1);
+            // const double uxL2 = P(i + 0, j + 0, 0, 1);
+            // const double uxR0 = P(i + 0, j + 1, 0, 1);
+            const double uxR1 = P(i + 1, j + 1, 0, 1);
+            // const double uxR2 = P(i + 1, j + 1, 0, 1);
+            const double uyL0 = P(i - 1, j + 0, 0, 2);
+            // const double uyL1 = P(i - 1, j + 0, 0, 2);
+            const double uyL2 = P(i + 0, j + 0, 0, 2);
+            const double uyR0 = P(i + 0, j + 1, 0, 2);
+            // const double uyR1 = P(i + 1, j + 1, 0, 2);
+            const double uyR2 = P(i + 1, j + 1, 0, 2);
+
+            const double dyux = (uxR1 - uxL1) / dy;
+            // const double dyuy = (uyR1 - uyL1) / dy;
+            // const double dxux = (uxR2 - uxR0 + uxL2 - uxL0) / (4 * dx);
+            const double dxuy = (uyR2 - uyR0 + uyL2 - uyL0) / (4 * dx);
+
+            // To be checked...
+            const double tauyx = mu * (dyux + dxuy);
+            const double tauyy = 0.0;
+
+            Fhat(i, j + 1, 0, 0, 1) -= 0.0;   // mass flux
+            Fhat(i, j + 1, 0, 1, 1) -= tauyx; // px flux
+            Fhat(i, j + 1, 0, 2, 1) -= tauyy; // py flux
+            Fhat(i, j + 1, 0, 3, 1) -= 0.0;   // pz flux
+            Fhat(i, j + 1, 0, 4, 1) -= 0.0;   // E flux (neglected)
+        }
+    }
+}
+
+static auto makeViscousFluxCorrection (double dx, double dy, double nu)
+{
+    return [dx,dy,nu] (const Cow::Array& P, Cow::Array& F)
+    {
+        if (P.shape()[1] == 1)
+        {
+            computeViscousFluxes1D (P, nu, dx, F);
+        }
+        else
+        {
+            computeViscousFluxes2D (P, nu, dx, dy, F);
+        }
+    };
+}
+
+
+
+
+// ============================================================================
 int BinaryTorque::run (int argc, const char* argv[])
 {
     auto status = SimulationStatus();
@@ -56,6 +175,21 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto cl = std::make_shared<NewtonianHydro>();
 
 
+    // Initial data function for testing
+    // ------------------------------------------------------------------------
+    auto initialDataLinearShear = [&] (double x, double y, double z) -> std::vector<double>
+    {
+        const double theta = 0;
+        const double nx = std::cos (theta);
+        const double ny = std::sin (theta);
+        const double r = x * nx + y * ny;
+        const double nu = 0.1;
+        const double t0 = 1.0 / nu;
+        const double ur = std::exp (-r * r / (4 * nu * t0));
+        return std::vector<double> {1.0, -ur * ny, ur * nx, 0.0, 1.0};
+    };
+
+
     auto initialData = [&] (double x, double y, double z) -> std::vector<double>
     {
         const double GM = 1.0;
@@ -66,7 +200,6 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double vq = std::sqrt (GM * r / (r2 + SofteningEpsilon));
         const double qhX = -y / r;
         const double qhY =  x / r;
-
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre};
     };
 
@@ -158,16 +291,20 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
-    auto bc = std::shared_ptr<BoundaryCondition>(new PeriodicBoundaryCondition);
+    // auto bc = std::shared_ptr<BoundaryCondition>(new PeriodicBoundaryCondition);
+    auto bc = std::shared_ptr<BoundaryCondition>(new OutflowBoundaryCondition);
 
     // Set up grid shape.
     // ------------------------------------------------------------------------
     int N = int (user["N"]);
-    auto cs = Shape {{ N, N, 1, 1, 1 }};
-    auto bs = Shape {{ 2, 2, 0, 0, 0 }};
+    // auto cs = Shape {{ N, N, 1, 1, 1 }};
+    // auto bs = Shape {{ 2, 2, 0, 0, 0 }};
+    auto cs = Shape {{ N, 1, 1, 1, 1 }};
+    auto bs = Shape {{ 2, 0, 0, 0, 0 }};
 
     mg->setCellsShape (cs);
-    mg->setLowerUpper ({{-10, -10, 0.0}}, {{10, 10, 1.0}});
+    // mg->setLowerUpper ({{-10, -10, 0.0}}, {{10, 10, 1.0}});
+    mg->setLowerUpper ({{-10, 0.0, 0.0}}, {{10, 1.0, 1.0}});
 
     if (! user["serial"])
     {
@@ -187,19 +324,26 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto fo = std::make_shared<FieldOperator>();
     auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());
 
+
+    double dx = mg->cellLength (0, 0, 0, 0);
+    double dy = mg->cellLength (0, 0, 0, 1);
+    double nu = ViscousAlpha; // TODO: pass alpha, not nu to viscous flux function
+
+
     cl->setGammaLawIndex (4. / 3);
     // cl->setPressureFloor (1e-2);
     fs->setPlmTheta (double (user["plm"]));
     fs->setRiemannSolver (rs);
     fo->setConservationLaw (cl);
     mo->setMeshGeometry (mg);
-    ss->setSourceTermsFunction (sourceTermsFunction);
+    // ss->setSourceTermsFunction (sourceTermsFunction);
     ss->setMeshOperator (mo);
     ss->setFieldOperator (fo);
     ss->setBoundaryCondition (bc);
     ss->setRungeKuttaOrder (2);
     ss->setDisableFieldCT (true);
     ss->setIntercellFluxScheme (fs);
+    ss->setViscousFluxFunction (makeViscousFluxCorrection (dx, dy, nu));
 
     md->setVelocityIndex (cl->getIndexFor (ConservationLaw::VariableType::velocity));
     bc->setMeshGeometry (mg);
@@ -223,7 +367,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     };
 
-    scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]).logarithmic(), "checkpoint");
+    scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]), "checkpoint");
     scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 16), "compute_dt");
 
     writer->setMeshDecomposition (bd);
@@ -244,7 +388,8 @@ int BinaryTorque::run (int argc, const char* argv[])
     }
     else
     {
-        md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
+        // md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
+        md->assignPrimitive (mo->generate (initialDataLinearShear, MeshLocation::cell));
     }
     md->applyBoundaryCondition (*bc);
     taskRecomputeDt (status, 0);

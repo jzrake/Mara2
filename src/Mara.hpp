@@ -383,6 +383,7 @@ public:
         bool getConserved;
         bool getFluxes;
         bool getEigenvalues;
+        double position[3];
         AreaElement areaElement;
     };
 
