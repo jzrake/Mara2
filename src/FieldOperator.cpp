@@ -31,7 +31,6 @@ void FieldOperator::InversionFailure::updateWhatMessage()
 // ============================================================================
 FieldOperator::FieldOperator (std::shared_ptr<ConservationLaw> law) : law (law)
 {
-
 }
 
 void FieldOperator::setConservationLaw (std::shared_ptr<ConservationLaw> cl)

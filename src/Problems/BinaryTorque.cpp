@@ -28,26 +28,249 @@ using namespace Cow;
 
 
 
+// Indexes to primitive quanitites P
+#define RHO 0
+#define V11 1
+#define V22 2
+#define V33 3
+#define PRE 4
+#define RAD 5
+
+// Indexes to conserved quanitites U
+#define DDD 0
+#define S11 1
+#define S22 2
+#define S33 3
+#define NRG 4
+
+
+
+
 // ============================================================================
 static const double SofteningEpsilon =  0.1;  // r0^2, where Fg = G M m / (r^2 + r0^2)
 static const double BetaBuffer       = 0.01;  // Orbital periods over which to relax to IC in outer buffer
 static const double BufferRadius     = 10.0;  // Radius beyond which solution is driven toward IC
-static const double ViscousAlpha     =  0.1;  // Alpha viscosity parameter
+static const double ViscousAlpha     = 5e-2;  // Alpha viscosity parameter
+static const double MachNumber       = 20.0;  // 1/M = h/r
 
 
 
 
 // ============================================================================
-static void computeViscousFluxes1D (const Array& P, double nu, double dx, Array& Fhat)
+class ThinDiskNewtonianHydro : public ConservationLaw
+{
+public:
+    ThinDiskNewtonianHydro();
+    State fromConserved (const Request& request, const double* U) const override;
+    State fromPrimitive (const Request& request, const double* P) const override;
+    int getNumConserved() const override;
+    int getIndexFor (VariableType type) const override;
+    std::string getPrimitiveName (int fieldIndex) const override;
+    std::vector<double> makeDiagnostics (const State& state) const override;
+    std::vector<std::string> getDiagnosticNames() const override;
+    double getSoundSpeedSquared (const double *P) const;
+};
+
+
+
+
+// ============================================================================
+ThinDiskNewtonianHydro::ThinDiskNewtonianHydro()
+{
+}
+
+ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& request, const double* U) const
+{
+    double P[6];
+
+    P[RHO] = U[DDD];
+    P[PRE] = U[DDD] * getSoundSpeedSquared (P);
+    P[V11] = U[S11] / U[DDD];
+    P[V22] = U[S22] / U[DDD];
+    P[V33] = U[S33] / U[DDD];
+    P[RAD] = U[RAD];
+
+    return fromPrimitive (request, P);
+}
+
+ConservationLaw::State ThinDiskNewtonianHydro::fromPrimitive (const Request& request, const double* P) const
+{
+    const auto dAA = request.areaElement;
+    const double cs = std::sqrt (getSoundSpeedSquared (P));
+    const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
+
+    auto S = State();
+    S.numFields = 6;
+
+    S.P[RHO] = P[RHO];
+    S.P[V11] = P[V11];
+    S.P[V22] = P[V22];
+    S.P[V33] = P[V33];
+    S.P[PRE] = P[PRE];
+    S.P[RAD] = P[RAD];
+
+    S.U[DDD] = P[RHO];
+    S.U[S11] = P[RHO] * P[V11];
+    S.U[S22] = P[RHO] * P[V22];
+    S.U[S33] = P[RHO] * P[V33];
+    S.U[NRG] = 0.0;
+    S.U[RAD] = P[RAD];
+
+    S.F[DDD] = vn * S.U[DDD];
+    S.F[S11] = vn * S.U[S11] + P[PRE] * dAA[0];
+    S.F[S22] = vn * S.U[S22] + P[PRE] * dAA[1];
+    S.F[S33] = vn * S.U[S33] + P[PRE] * dAA[2];
+    S.F[NRG] = 0.0;
+    S.F[RAD] = 0.0;
+
+    S.A[0] = vn - cs;
+    S.A[1] = vn;
+    S.A[2] = vn;
+    S.A[3] = vn;
+    S.A[4] = vn + cs;
+    S.A[5] = 0.0;
+
+    return S;
+}
+
+int ThinDiskNewtonianHydro::getNumConserved() const
+{
+    return 6;
+}
+
+int ThinDiskNewtonianHydro::getIndexFor (VariableType type) const
+{
+    switch (type)
+    {
+        case VariableType::density: return 0;
+        case VariableType::velocity: return 1;
+        case VariableType::pressure: return 4;
+        default: return -1;
+    }
+}
+
+std::string ThinDiskNewtonianHydro::getPrimitiveName (int fieldIndex) const
+{
+    switch (fieldIndex)
+    {
+        case RHO: return "density";
+        case V11: return "velocity1";
+        case V22: return "velocity2";
+        case V33: return "velocity3";
+        case PRE: return "pressure";
+        case RAD: return "radius";
+        default: return "";
+    }
+}
+
+std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state) const
+{
+    auto D = std::vector<double> (5);
+    D[0] = state.U[RHO];
+    D[1] = state.U[S11];
+    D[2] = state.U[S22];
+    D[3] = state.U[S33];
+    D[4] = state.U[NRG];
+    return D;
+}
+
+std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
+{
+    auto N = std::vector<std::string>(5);
+    N[0] = "mass";
+    N[1] = "momentum1";
+    N[2] = "momentum2";
+    N[3] = "momentum3";
+    N[4] = "total_energy";
+    return N;
+}
+
+double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P) const
+{
+    return P[PRE] / P[DDD];
+}
+
+
+
+
+// ============================================================================
+class ThinDiskBoundaryCondition : public BoundaryCondition
+{
+public:
+    ThinDiskBoundaryCondition()
+    {
+    }
+
+    void setConservationLaw (std::shared_ptr<ConservationLaw> cl) override
+    {
+    }
+
+    void setMeshGeometry (std::shared_ptr<MeshGeometry> mg) override
+    {
+        meshGeometry = mg;
+    }
+
+    void apply (Cow::Array& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const override
+    {
+        resetPressureToIsothermal(A);
+        outflow.apply (A, location, boundary, axis, numGuard);
+    }
+
+    bool isAxisPeriodic (int axis) override
+    {
+        return outflow.isAxisPeriodic (axis);
+    }
+
+    void resetPressureToIsothermal (Cow::Array& P) const
+    {
+        for (int i = 0; i < P.shape()[0]; ++i)
+        {
+            for (int j = 0; j < P.shape()[1]; ++j)
+            {
+                // WARNING: if other than 2 guard zones, do something!
+                auto position = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
+
+                const double r = std::sqrt (std::pow (position[0], 2) + std::pow (position[1], 2));
+                const double GM = 1.0;
+                const double cs2 = std::pow (MachNumber, -2) * GM / r;
+                const double sigma = P(i, j, 0, RHO);
+                P(i, j, 0, PRE) = cs2 * sigma;
+                P(i, j, 0, RAD) = r;
+            }
+        }
+    }
+
+    std::shared_ptr<MeshGeometry> meshGeometry;
+    OutflowBoundaryCondition outflow;
+};
+
+
+
+
+// ============================================================================
+static void computeViscousFluxes1D (const Array& P, double dx, Array& Fhat)
 {
     for (int i = 0; i < P.shape()[0] - 1; ++i)
     {
-        const double dgL = P(i + 0, 0, 0, 0);
-        const double uyL = P(i + 0, 0, 0, 2);
-        const double dgR = P(i + 1, 0, 0, 0);
-        const double uyR = P(i + 1, 0, 0, 2);
+        const double dgL = P(i + 0, 0, 0, RHO);
+        const double dgR = P(i + 1, 0, 0, RHO);
+        const double pgL = P(i + 0, 0, 0, PRE);
+        const double pgR = P(i + 1, 0, 0, PRE);
+        const double rcL = P(i + 0, 0, 0, RAD);
+        const double rcR = P(i + 1, 0, 0, RAD);
+        const double uyL = P(i + 0, 0, 0, V22);
+        const double uyR = P(i + 1, 0, 0, V22);
+
+        const double csL = std::sqrt (pgL / dgL);
+        const double csR = std::sqrt (pgR / dgR);
+        const double rc = 0.5 * (rcL + rcR);
+        const double cs = 0.5 * (csL + csR);
+        const double dg = 0.5 * (dgL + dgR);
+        const double h0 = rc / MachNumber;
+        const double nu = ViscousAlpha * cs * h0;
+        const double mu = dg * nu;
+
         const double dxuy = (uyR - uyL) / dx;
-        const double mu = 0.5 * (dgL + dgR) * nu;
         const double tauxy = mu * dxuy;
 
         Fhat(i + 1, 0, 0, 0, 0) -= 0.0;   // mass flux
@@ -59,33 +282,36 @@ static void computeViscousFluxes1D (const Array& P, double nu, double dx, Array&
 }
 
 
-static void computeViscousFluxes2D (const Array& P, double nu, double dx, double dy, Array& Fhat)
+static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array& Fhat)
 {
     for (int i = 0; i < P.shape()[0] - 1; ++i)
     {
         for (int j = 1; j < P.shape()[1] - 1; ++j)
         {
-            const double dgL = P(i + 0, j, 0, 0);
-            const double dgR = P(i + 1, j, 0, 0);
-            const double mu  = 0.5 * (dgL + dgR) * nu;
+            const double dgL = P(i + 0, j, 0, RHO);
+            const double dgR = P(i + 1, j, 0, RHO);
+            const double pgL = P(i + 0, j, 0, PRE);
+            const double pgR = P(i + 1, j, 0, PRE);
+            const double rcL = P(i + 0, j, 0, RAD);
+            const double rcR = P(i + 1, j, 0, RAD);
+            const double uxL0 = P(i + 0, j - 1, 0, V11);
+            const double uxL2 = P(i + 0, j + 0, 0, V11);
+            const double uxR0 = P(i + 1, j + 0, 0, V11);
+            const double uxR2 = P(i + 1, j + 1, 0, V11);
+            const double uyL1 = P(i + 0, j - 1, 0, V22);
+            const double uyR1 = P(i + 1, j + 1, 0, V22);
 
-            const double uxL0 = P(i + 0, j - 1, 0, 1);
-            // const double uxL1 = P(i + 0, j - 1, 0, 1);
-            const double uxL2 = P(i + 0, j + 0, 0, 1);
-            const double uxR0 = P(i + 1, j + 0, 0, 1);
-            // const double uxR1 = P(i + 1, j + 1, 0, 1);
-            const double uxR2 = P(i + 1, j + 1, 0, 1);
-            // const double uyL0 = P(i + 0, j - 1, 0, 2);
-            const double uyL1 = P(i + 0, j - 1, 0, 2);
-            // const double uyL2 = P(i + 0, j + 0, 0, 2);
-            // const double uyR0 = P(i + 1, j + 0, 0, 2);
-            const double uyR1 = P(i + 1, j + 1, 0, 2);
-            // const double uyR2 = P(i + 1, j + 1, 0, 2);
+            const double csL = std::sqrt (pgL / dgL);
+            const double csR = std::sqrt (pgR / dgR);
+            const double rc = 0.5 * (rcL + rcR);
+            const double cs = 0.5 * (csL + csR);
+            const double dg = 0.5 * (dgL + dgR);
+            const double h0 = rc / MachNumber;
+            const double nu = ViscousAlpha * cs * h0;
+            const double mu = dg * nu;
 
-            // const double dxux = (uxR1 - uxL1) / dx;
             const double dxuy = (uyR1 - uyL1) / dx;
             const double dyux = (uxR2 - uxR0 + uxL2 - uxL0) / (4 * dy);
-            // const double dyuy = (uyR2 - uyR0 + uyL2 - uyL0) / (4 * dy);
 
             // To be checked...
             const double tauxx = 0.0;
@@ -103,26 +329,29 @@ static void computeViscousFluxes2D (const Array& P, double nu, double dx, double
     {
         for (int j = 0; j < P.shape()[1] - 1; ++j)
         {
-            const double dgL = P(i, j + 0, 0, 0);
-            const double dgR = P(i, j + 1, 0, 0);
-            const double mu  = 0.5 * (dgL + dgR) * nu;
+            const double dgL = P(i, j + 0, 0, RHO);
+            const double dgR = P(i, j + 1, 0, RHO);
+            const double pgL = P(i, j + 0, 0, PRE);
+            const double pgR = P(i, j + 1, 0, PRE);
+            const double rcL = P(i, j + 0, 0, RAD);
+            const double rcR = P(i, j + 1, 0, RAD);
+            const double uyL0 = P(i - 1, j + 0, 0, V22);
+            const double uyL2 = P(i + 0, j + 0, 0, V22);
+            const double uyR0 = P(i + 0, j + 1, 0, V22);
+            const double uyR2 = P(i + 1, j + 1, 0, V22);
+            const double uxL1 = P(i - 1, j + 0, 0, V11);
+            const double uxR1 = P(i + 1, j + 1, 0, V11);
 
-            // const double uxL0 = P(i - 1, j + 0, 0, 1);
-            const double uxL1 = P(i - 1, j + 0, 0, 1);
-            // const double uxL2 = P(i + 0, j + 0, 0, 1);
-            // const double uxR0 = P(i + 0, j + 1, 0, 1);
-            const double uxR1 = P(i + 1, j + 1, 0, 1);
-            // const double uxR2 = P(i + 1, j + 1, 0, 1);
-            const double uyL0 = P(i - 1, j + 0, 0, 2);
-            // const double uyL1 = P(i - 1, j + 0, 0, 2);
-            const double uyL2 = P(i + 0, j + 0, 0, 2);
-            const double uyR0 = P(i + 0, j + 1, 0, 2);
-            // const double uyR1 = P(i + 1, j + 1, 0, 2);
-            const double uyR2 = P(i + 1, j + 1, 0, 2);
+            const double csL = std::sqrt (pgL / dgL);
+            const double csR = std::sqrt (pgR / dgR);
+            const double rc = 0.5 * (rcL + rcR);
+            const double cs = 0.5 * (csL + csR);
+            const double dg = 0.5 * (dgL + dgR);
+            const double h0 = rc / MachNumber;
+            const double nu = ViscousAlpha * cs * h0;
+            const double mu = dg * nu;
 
             const double dyux = (uxR1 - uxL1) / dy;
-            // const double dyuy = (uyR1 - uyL1) / dy;
-            // const double dxux = (uxR2 - uxR0 + uxL2 - uxL0) / (4 * dx);
             const double dxuy = (uyR2 - uyR0 + uyL2 - uyL0) / (4 * dx);
 
             // To be checked...
@@ -138,17 +367,17 @@ static void computeViscousFluxes2D (const Array& P, double nu, double dx, double
     }
 }
 
-static auto makeViscousFluxCorrection (double dx, double dy, double nu)
+static auto makeViscousFluxCorrection (double dx, double dy)
 {
-    return [dx,dy,nu] (const Cow::Array& P, Cow::Array& F)
+    return [dx,dy] (const Cow::Array& P, Cow::Array& F)
     {
         if (P.shape()[1] == 1)
         {
-            computeViscousFluxes1D (P, nu, dx, F);
+            computeViscousFluxes1D (P, dx, F);
         }
         else
         {
-            computeViscousFluxes2D (P, nu, dx, dy, F);
+            computeViscousFluxes2D (P, dx, dy, F);
         }
     };
 }
@@ -171,22 +400,23 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["cfl"]     = 0.5;
     user["plm"]     = 1.8;
     user["N"]       = 128;
+    user["theta"]   = 0.0; // angle of shear layer (in degrees)
 
-    auto cl = std::make_shared<NewtonianHydro>();
+    auto cl = std::make_shared<ThinDiskNewtonianHydro>();
 
 
     // Initial data function for testing
     // ------------------------------------------------------------------------
     auto initialDataLinearShear = [&] (double x, double y, double z) -> std::vector<double>
     {
-        const double theta = 0;
+        const double theta = double (user["theta"]) * M_PI / 180.0;
         const double nx = std::cos (theta);
         const double ny = std::sin (theta);
         const double r = x * nx + y * ny;
         const double nu = 0.1;
         const double t0 = 1.0 / nu;
         const double ur = std::exp (-r * r / (4 * nu * t0));
-        return std::vector<double> {1.0, -ur * ny, ur * nx, 0.0, 1.0};
+        return std::vector<double> {1.0, -ur * ny, ur * nx, 0.0, 1.0, 0.0};
     };
 
 
@@ -195,12 +425,12 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double GM = 1.0;
         const double r2 = x * x + y * y;
         const double r  = std::sqrt (r2);
-        const double rho = 1;
+        const double rho = 0.1 + std::exp (-std::pow (r - 4, 2));
         const double pre = 1;
         const double vq = std::sqrt (GM * r / (r2 + SofteningEpsilon));
         const double qhX = -y / r;
         const double qhY =  x / r;
-        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre};
+        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
     };
 
 
@@ -223,13 +453,14 @@ int BinaryTorque::run (int argc, const char* argv[])
 
         // Gravitational source term
         // ====================================================================
-        S[0] = 0.0;
-        S[1] = fg * xh;
-        S[2] = fg * yh;
-        S[3] = 0.0;
-        S[4] = fg * vr;
+        S[DDD] = 0.0;
+        S[S11] = fg * xh;
+        S[S22] = fg * yh;
+        S[S33] = 0.0;
+        S[NRG] = fg * vr;
+        S[RAD] = 0.0;
 
-        NewtonianHydro::Request request;
+        ConservationLaw::Request request;
         request.getPrimitive = true;
         request.getConserved = true;
         request.getFluxes = false;
@@ -290,21 +521,21 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto bd = std::shared_ptr<BlockDecomposition>();
     auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
+    // auto rs = std::shared_ptr<RiemannSolver> (new HlleRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
-    // auto bc = std::shared_ptr<BoundaryCondition>(new PeriodicBoundaryCondition);
-    auto bc = std::shared_ptr<BoundaryCondition>(new OutflowBoundaryCondition);
+    auto bc = std::shared_ptr<BoundaryCondition>(new ThinDiskBoundaryCondition);
 
     // Set up grid shape.
     // ------------------------------------------------------------------------
     int N = int (user["N"]);
-    // auto cs = Shape {{ N, N, 1, 1, 1 }};
-    // auto bs = Shape {{ 2, 2, 0, 0, 0 }};
-    auto cs = Shape {{ N, 1, 1, 1, 1 }};
-    auto bs = Shape {{ 2, 0, 0, 0, 0 }};
+    auto cs = Shape {{ N, N, 1, 1, 1 }};
+    auto bs = Shape {{ 2, 2, 0, 0, 0 }};
+    // auto cs = Shape {{ N, 1, 1, 1, 1 }};
+    // auto bs = Shape {{ 2, 0, 0, 0, 0 }};
 
     mg->setCellsShape (cs);
-    // mg->setLowerUpper ({{-10, -10, 0.0}}, {{10, 10, 1.0}});
-    mg->setLowerUpper ({{-10, 0.0, 0.0}}, {{10, 1.0, 1.0}});
+    mg->setLowerUpper ({{-10, -10, 0.0}}, {{10, 10, 1.0}});
+    // mg->setLowerUpper ({{-10, 0.0, 0.0}}, {{10, 1.0, 1.0}});
 
     if (! user["serial"])
     {
@@ -327,8 +558,6 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     double dx = mg->cellLength (0, 0, 0, 0);
     double dy = mg->cellLength (0, 0, 0, 1);
-    double nu = ViscousAlpha; // TODO: pass alpha, not nu to viscous flux function
-
 
     cl->setGammaLawIndex (4. / 3);
     // cl->setPressureFloor (1e-2);
@@ -336,14 +565,14 @@ int BinaryTorque::run (int argc, const char* argv[])
     fs->setRiemannSolver (rs);
     fo->setConservationLaw (cl);
     mo->setMeshGeometry (mg);
-    // ss->setSourceTermsFunction (sourceTermsFunction);
+    ss->setSourceTermsFunction (sourceTermsFunction);
     ss->setMeshOperator (mo);
     ss->setFieldOperator (fo);
     ss->setBoundaryCondition (bc);
     ss->setRungeKuttaOrder (2);
     ss->setDisableFieldCT (true);
     ss->setIntercellFluxScheme (fs);
-    ss->setViscousFluxFunction (makeViscousFluxCorrection (dx, dy, nu));
+    ss->setViscousFluxFunction (makeViscousFluxCorrection (dx, dy));
 
     md->setVelocityIndex (cl->getIndexFor (ConservationLaw::VariableType::velocity));
     bc->setMeshGeometry (mg);
@@ -388,8 +617,8 @@ int BinaryTorque::run (int argc, const char* argv[])
     }
     else
     {
-        // md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
-        md->assignPrimitive (mo->generate (initialDataLinearShear, MeshLocation::cell));
+        md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
+        // md->assignPrimitive (mo->generate (initialDataLinearShear, MeshLocation::cell));
     }
     md->applyBoundaryCondition (*bc);
     taskRecomputeDt (status, 0);

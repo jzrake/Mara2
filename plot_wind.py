@@ -24,33 +24,35 @@ def rtheta_mesh(fig, filename):
     X = np.log10(R) * np.cos(Q)
     Y = np.log10(R) * np.sin(Q)
 
-    ax = fig.add_subplot(1, 1, 1)
-    div = make_axes_locatable(ax)
-    cax = div.append_axes('right', size='5%', pad=0.05)
+    ax1 = fig.add_subplot(1, 2, 1)
+    ax2 = fig.add_subplot(1, 2, 2)
+    div1 = make_axes_locatable(ax1)
+    div2 = make_axes_locatable(ax2)
+    cax1 = div1.append_axes('right', size='5%', pad=0.05)
+    cax2 = div2.append_axes('right', size='5%', pad=0.05)
 
-    #im = ax.pcolormesh(Y, X, np.log10(d), edgecolor='none')#, vmin=-1.0, vmax=1.4)
+    im1 = ax1.pcolormesh(Y, X, np.log10(d), edgecolor='none')
+    im2 = ax2.pcolormesh(Y, X, u1, edgecolor='none')
 
-    im = ax.pcolormesh(Y, X, u1, edgecolor='none')#, vmin=-1.0, vmax=1.4)
+    fig.suptitle(r"$t = {:0.2f} ms$".format(1e3 * h5f['status']['simulationTime'].value))
+    fig.colorbar(im1, cax=cax1, orientation='vertical')
+    fig.colorbar(im2, cax=cax2, orientation='vertical')
+    fig.subplots_adjust(left=0.08, right=0.96, top=1.0, bottom=0.00, wspace=0.25)
 
-    alpha = h5f['user']['alpha'].value
-    theta0 = h5f['user']['theta0'].value
+    ax1.set_aspect('equal')
+    ax1.set_title(r"$\log_{10} \rho$")
+    ax1.set_xlabel(r'$\log_{10} (x/50 \rm{km})$')
+    ax1.set_ylabel(r'$\log_{10} (y/50 \rm{km})$')
 
-    q = np.linspace(0, np.pi / 2, 128)
-    R = np.exp(-(q / theta0)**alpha)
-    ax.plot(R * np.sin(q), R * np.cos(q), c='k', lw=2, ls='--')
-
-    fig.suptitle(r"$\log_{{10}} u_r$, $t = {:0.1f} \ r_0/c$".format(h5f['status']['simulationTime'].value))
-    fig.colorbar(im, cax=cax, orientation='vertical')
-    fig.subplots_adjust(top=0.98, bottom=0.02)
-
-    ax.set_aspect('equal')
-    ax.set_xlabel(r'$\log_{10} x / r_0$')
-    ax.set_ylabel(r'$\log_{10} y / r_0$')
+    ax2.set_aspect('equal')
+    ax2.set_title(r"$u_r$")
+    ax2.set_xlabel(r'$\log_{10} (x/50 \rm{km})$')
+    ax2.set_ylabel(r'$\log_{10} (y/50 \rm{km})$')
 
 
 
 def rtheta_mesh_plot(args):
-    fig = plt.figure(figsize=[8,8])
+    fig = plt.figure(figsize=[10,6])
     rtheta_mesh(fig, args.filenames[0])
     plt.show()
 
@@ -59,7 +61,7 @@ def rtheta_mesh_plot(args):
 def rtheta_mesh_movie(args):
 
     writer = FFMpegWriter(fps=15)
-    fig = plt.figure(figsize=[8,8])
+    fig = plt.figure(figsize=[10,6])
     dpi = 200
 
     with writer.saving(fig, "out.mp4", dpi):

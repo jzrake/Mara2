@@ -65,7 +65,6 @@ protected:
 using StateArray = std::array<double, MARA_NUM_FIELDS>;
 using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
 using SourceTermsFunction = std::function<StateArray (double x, double y, double z, StateArray primitive)>;
-// using SourceTermsGeometry = std::function<StateArray (std::array<std::array<double, 2>, 3>, StateArray primitive)>;
 
 using AreaElement = std::array<double, 3>;
 using Coordinate = std::array<double, 3>;
@@ -383,7 +382,7 @@ public:
         bool getConserved;
         bool getFluxes;
         bool getEigenvalues;
-        double position[3];
+        std::array<double, 3> position;
         AreaElement areaElement;
     };
 
@@ -402,6 +401,7 @@ public:
 
     using StateVector = std::vector<State>;
 
+    virtual ~ConservationLaw() {}
     virtual void setPressureFloor (double) {}
     virtual void setGammaLawIndex (double) {}
     virtual void setCoolingRate (double) {}

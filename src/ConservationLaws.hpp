@@ -9,7 +9,6 @@ class ScalarAdvection : public ConservationLaw
 {
 public:
     ScalarAdvection();
-    virtual ~ScalarAdvection() {}
     void setAdvectionSpeed (double u, double v, double w) override { waveSpeed = u; }
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
@@ -27,7 +26,6 @@ class NewtonianHydro : public ConservationLaw
 {
 public:
     NewtonianHydro();
-    virtual ~NewtonianHydro() {}
     void setGammaLawIndex (double gm) override { gammaLawIndex = gm; }
     State fromConserved (const Request& request, const double* U) const override;
     State fromPrimitive (const Request& request, const double* P) const override;
@@ -47,7 +45,6 @@ class NewtonianMHD : public ConservationLaw
 {
 public:
     NewtonianMHD();
-    virtual ~NewtonianMHD() {}
     void setCoolingRate (double) override;
     void setGammaLawIndex (double) override;
 
@@ -80,7 +77,6 @@ class RelativisticMHD : public ConservationLaw
 {
 public:
     RelativisticMHD();
-    virtual ~RelativisticMHD() {}
     void setGammaLawIndex (double) override;
 
     /**
