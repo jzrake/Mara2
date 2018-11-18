@@ -47,11 +47,82 @@ using namespace Cow;
 
 
 // ============================================================================
-static const double SofteningEpsilon =  0.1;  // r0^2, where Fg = G M m / (r^2 + r0^2)
+static const double SofteningRadius2 =  0.1;  // r0^2, where Fg = G M m / (r^2 + r0^2)
 static const double BetaBuffer       = 0.01;  // Orbital periods over which to relax to IC in outer buffer
 static const double BufferRadius     = 10.0;  // Radius beyond which solution is driven toward IC
 static const double ViscousAlpha     = 5e-2;  // Alpha viscosity parameter
 static const double MachNumber       = 20.0;  // 1/M = h/r
+static const double GM               = 1.0;   // Newton G * mass
+static const int    NumHoles         = 2;     // Number of Black holes 1 or 2
+static const double aBin             = 1.0;
+static const double OmegaBin         = 1.0;
+static SimulationStatus status;
+
+
+
+
+// ============================================================================
+static double GravitationalPotential (double x, double y, double t)
+{
+    const double phi1 = 0.0;
+    const double phi2 = M_PI;
+
+    if (NumHoles == 1)
+    {
+        const double r = std::sqrt (x * x + y * y);
+        return -GM / std::sqrt (r*r + SofteningRadius2);
+    } 
+    else if (NumHoles == 2)
+    {
+        const double x1 = 0.5 * aBin * std::cos(OmegaBin * t + phi1);
+        const double y1 = 0.5 * aBin * std::sin(OmegaBin * t + phi1);
+        const double x2 = 0.5 * aBin * std::cos(OmegaBin * t + phi2);
+        const double y2 = 0.5 * aBin * std::sin(OmegaBin * t + phi2);
+        const double r1s = std::sqrt((x-x1)*(x-x1) + (y-y1)*(y-y1) + SofteningRadius2);
+        const double r2s = std::sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2) + SofteningRadius2);
+        return -(GM / r1s + GM / r2s);
+    }
+    else
+    {
+       assert (false);
+    }
+}
+
+static std::array<double, 2> GravitationalAcceleration (double x, double y, double t)
+{
+    const double phi1 = 0.0;
+    const double phi2 = M_PI;
+
+    if (NumHoles == 1)
+    {
+        const double r = std::sqrt (x * x + y * y);
+        const double xhat  = x / r;
+        const double yhat  = y / r;
+        return {-xhat * GM / (r * r + SofteningRadius2), -yhat * GM / (r * r + SofteningRadius2)};
+    } 
+    else if (NumHoles == 2)
+    {
+        const double x1 = 0.5 * aBin * std::cos(OmegaBin * t + phi1);
+        const double y1 = 0.5 * aBin * std::sin(OmegaBin * t + phi1);
+        const double x2 = 0.5 * aBin * std::cos(OmegaBin * t + phi2);
+        const double y2 = 0.5 * aBin * std::sin(OmegaBin * t + phi2);
+        const double r1 = std::sqrt((x-x1) * (x-x1) + (y-y1) * (y-y1));
+        const double r2 = std::sqrt((x-x2) * (x-x2) + (y-y2) * (y-y2));
+        const double r1s = std::sqrt((x-x1) * (x-x1) + (y-y1) * (y-y1) + SofteningRadius2);
+        const double r2s = std::sqrt((x-x2) * (x-x2) + (y-y2) * (y-y2) + SofteningRadius2);
+        const double xhat1 = x1 / r1;
+        const double yhat1 = y1 / r1;
+        const double xhat2 = x2 / r2;
+        const double yhat2 = y2 / r2;
+        const std::array<double, 2> F1 = {-xhat1 * GM / (r1s * r1s), -yhat1 * GM / (r1s * r1s)};
+        const std::array<double, 2> F2 = {-xhat2 * GM / (r2s * r2s), -yhat2 * GM / (r2s * r2s)};
+        return {F1[0] + F2[0], F1[1] + F2[1]};
+    }
+    else
+    {
+       assert (false);
+    }
+}
 
 
 
@@ -223,16 +294,17 @@ public:
 
     void resetPressureToIsothermal (Cow::Array& P) const
     {
+        const double t = status.simulationTime;
+
         for (int i = 0; i < P.shape()[0]; ++i)
         {
             for (int j = 0; j < P.shape()[1]; ++j)
             {
                 // WARNING: if other than 2 guard zones, do something!
-                auto position = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
-
-                const double r = std::sqrt (std::pow (position[0], 2) + std::pow (position[1], 2));
-                const double GM = 1.0;
-                const double cs2 = std::pow (MachNumber, -2) * GM / r;
+                const auto X = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
+                const double r = std::sqrt (X[0] * X[0] + X[1] * X[1]);
+                const double phi = GravitationalPotential (X[0], X[1], t);
+                const double cs2 = std::pow (MachNumber, -2) * phi;
                 const double sigma = P(i, j, 0, RHO);
                 P(i, j, 0, PRE) = cs2 * sigma;
                 P(i, j, 0, RAD) = r;
@@ -388,7 +460,6 @@ static auto makeViscousFluxCorrection (double dx, double dy)
 // ============================================================================
 int BinaryTorque::run (int argc, const char* argv[])
 {
-    auto status = SimulationStatus();
     auto user = Variant::NamedValues();
     user["outdir"]  = "data";
     user["restart"] = "";
@@ -422,13 +493,13 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     auto initialData = [&] (double x, double y, double z) -> std::vector<double>
     {
-        const double GM = 1.0;
+        const double t = status.simulationTime;
         const double r2 = x * x + y * y;
         const double r  = std::sqrt (r2);
         const double rho = 0.1 + std::exp (-std::pow (r - 4, 2));
-        const double pre = 1;
-        const double vq = std::sqrt (GM * r / (r2 + SofteningEpsilon));
-        const double qhX = -y / r;
+        const double vq = std::sqrt (-GravitationalPotential (x, y, t));
+        const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
+        const double qhX = -y / r;     
         const double qhY =  x / r;
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
     };
@@ -438,26 +509,22 @@ int BinaryTorque::run (int argc, const char* argv[])
     // ------------------------------------------------------------------------
     auto sourceTermsFunction = [&] (double x, double y, double z, StateArray P)
     {
-        const double GM = 1.0;
+        const double t = status.simulationTime;
         const double dg = P[0];
         const double vx = P[1];
         const double vy = P[2];
-        const double r2 = x * x + y * y;
-        const double r  = std::sqrt (r2);
-        const double xh = x / r;
-        const double yh = y / r;
-        const double vr = vx * xh + vy * yh;
-        const double fg = -GM * dg / (r2 + SofteningEpsilon);
+        const double r = std::sqrt (x * x + y * y);
+        const auto ag = GravitationalAcceleration (x, y, t);
 
         auto S = StateArray();
 
         // Gravitational source term
         // ====================================================================
         S[DDD] = 0.0;
-        S[S11] = fg * xh;
-        S[S22] = fg * yh;
+        S[S11] = dg * ag[0];
+        S[S22] = dg * ag[1];
         S[S33] = 0.0;
-        S[NRG] = fg * vr;
+        S[NRG] = dg * (ag[0] * vx + ag[1] * vy);
         S[RAD] = 0.0;
 
         ConservationLaw::Request request;
@@ -472,7 +539,8 @@ int BinaryTorque::run (int argc, const char* argv[])
         auto state0 = cl->fromPrimitive (request, &initialData (x, y, z)[0]);
         auto state1 = cl->fromPrimitive (request, &P[0]);
 
-        const double torb = 2.0 * M_PI / std::sqrt (GM / r / (r2 + SofteningEpsilon));
+        const double vk   = std::sqrt (-GravitationalPotential (x, y, t));
+        const double torb = 2.0 * M_PI * r / vk;
         const double env  = 2.0 / (1 + std::tanh (r - BufferRadius));
         const double tau  = BetaBuffer * env * torb;
 
