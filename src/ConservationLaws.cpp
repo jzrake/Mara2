@@ -50,7 +50,7 @@ void ConservationLaw::StateFailure::setZoneIndex (Cow::Index I)
 
 void ConservationLaw::StateFailure::updateWhatMessage()
 {
-    auto stream = std::ostringstream();
+    std::stringstream stream;
     stream << "at zone index [" << zoneIndex[0] << " " << zoneIndex[1] << " " << zoneIndex[2] << "]\n";
     stream << "P = {";
 

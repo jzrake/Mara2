@@ -108,15 +108,14 @@ void CheckpointWriter::writeCheckpoint (
         auto meshGroup       = file.createGroup ("mesh");
 
 
-        // Write misc data like date and run script
+        // Write misc data like date and run script (disabled because put_time is C++14)
         // --------------------------------------------------------------------
-        auto t = std::time (nullptr);
-        auto tm = *std::localtime (&t);
-        auto oss = std::ostringstream();
-        oss << std::put_time (&tm, "%m-%d-%Y %H:%M:%S");
+        // auto t = std::time (nullptr);
+        // auto tm = *std::localtime (&t);
+        // oss << std::put_time (&tm, "%m-%d-%Y %H:%M:%S");
 
         file.writeString ("run_name", "Mara");
-        file.writeString ("date", oss.str());
+        // file.writeString ("date", oss.str());
 
 
         // Create data sets for the primitive and diagnostic data
@@ -393,7 +392,7 @@ void CheckpointToVtkProgram::doFile (std::string filename) const
     auto primitive = file.getGroup ("primitive");
     auto diagnostic = file.getGroup ("diagnostic");
 
-    auto vtkStream = std::ofstream (vtkFilename);
+    std::ofstream vtkStream (vtkFilename);
     auto vtkMesh = VTK::RectilinearGrid (cellsShape);
     vtkMesh.setTitle (file.readString ("run_name"));
     vtkMesh.setUseBinaryFormat (true);

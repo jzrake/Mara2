@@ -3,6 +3,9 @@
 #include <sys/stat.h>
 #include "FileSystem.hpp"
 
+
+
+
 std::vector<std::string> FileSystem::splitPath (std::string pathName)
 {
     auto remaining = pathName;
@@ -64,7 +67,7 @@ std::string FileSystem::makeFilename (
     int number,
     int rank)
 {
-    auto filenameStream = std::ostringstream();
+    std::stringstream filenameStream;
     filenameStream << directory << "/" << base;
 
     if (number >= 0)

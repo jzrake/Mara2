@@ -96,7 +96,7 @@ public:
 
     void applyInflowAtInnerBoundary (Cow::Array& P, int numGuard) const
     {
-        auto p = [] (auto x, auto n) { return std::pow (x, n); };
+        auto p = [] (double x, double n) { return std::pow (x, n); };
 
         for (int i = 0; i < numGuard; ++i)
         {

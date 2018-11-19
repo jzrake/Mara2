@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cassert>
 #include <iomanip>
 #include "BinaryTorque.hpp"
 #include "../Mara.hpp"
