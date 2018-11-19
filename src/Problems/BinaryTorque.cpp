@@ -503,6 +503,45 @@ int BinaryTorque::run (int argc, const char* argv[])
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
     };
 
+      auto initialDataFarris14 = [&] (double x, double y, double z) -> std::vector<double>
+    {
+        // Initial conditions from Farris+ (2014) ApJ 783, 134
+        // MISSING: radial drift velocity, pressure gradient for omega
+        const double rs = 10.0 * aBin; 
+        const double delta = 3.0;
+        const double xsi = 2.0;       
+        const double sigma0 = 1.0;       
+        const double r2 = x * x + y * y;
+        const double r  = std::sqrt (r2);
+        const double rho = sigma0 * std::pow ((r/rs), -delta) * std::exp (-std::pow (r/rs, -xsi));
+        const double omegak2 = GM/(r*r2); // squared Keplerian for total M at center, is M total mass of binary?
+        const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
+        const double vq = r * std::sqrt (omega2);
+        const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
+        const double qhX = -y / r;     
+        const double qhY =  x / r;
+        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
+    };
+
+
+      auto initialDataTang17 = [&] (double x, double y, double z) -> std::vector<double>
+    {
+        // Initial conditions from Tang+ (2017) MNRAS 469, 4258
+        // MISSING?: radial drift velocity, pressure gradient for omegak2
+        // Check Yike/Chris Disco setup 
+        const double r0 = 2.5 * aBin;        
+        const double sigma0 = 1.0;       
+        const double r2 = x * x + y * y;
+        const double r  = std::sqrt (r2);
+        const double rho = sigma0 * std::pow (r, -0.5) * std::exp (-std::pow (r/r0, -10.0));
+        const double omegak2 = GM/(r*r2); // squared Keplerian for total M at center, is M total mass of binary?
+        const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
+        const double vq = r * std::sqrt (omega2);
+        const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
+        const double qhX = -y / r;     
+        const double qhY =  x / r;
+        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
+    };    
 
     // Source terms
     // ------------------------------------------------------------------------
