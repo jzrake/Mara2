@@ -42,10 +42,10 @@ def make_binary_plot(fig, filename):
     cax3 = div3.append_axes('bottom', size='5%', pad=0.05)
     cax4 = div4.append_axes('bottom', size='5%', pad=0.05)
 
-    im1 = ax1.imshow(d)
-    im2 = ax2.imshow(p)
-    im3 = ax3.imshow(vq)
-    im4 = ax4.imshow(vr, vmin=0.0, vmax=0.02)
+    im1 = ax1.imshow(d, extent=[-10, 10, -10, 10])
+    im2 = ax2.imshow(p, extent=[-10, 10, -10, 10])
+    im3 = ax3.imshow(vq, extent=[-10, 10, -10, 10])
+    im4 = ax4.imshow(vr, extent=[-10, 10, -10, 10])#, vmin=0.0, vmax=0.02)
 
     fig.colorbar(im1, cax=cax1, orientation='horizontal')
     fig.colorbar(im2, cax=cax2, orientation='horizontal')
@@ -56,6 +56,11 @@ def make_binary_plot(fig, filename):
     ax2.set_title(r"$p$")
     ax3.set_title(r"$\mathcal{M} = v_\theta / c_s$")
     ax4.set_title(r"$v_r$")
+
+    t = np.linspace(0, 2 * np.pi, 300)
+    x = 8 * np.cos(t)
+    y = 8 * np.sin(t)
+    ax4.plot(x, y, '--')
 
     for ax in [ax1, ax2, ax3, ax4]:
         ax.set_xticks([])

@@ -23,6 +23,7 @@
 #include "Timer.hpp"
 #include "Logger.hpp"
 #define cot(x) std::tan (M_PI_2 - x)
+#define HUGE_TIME_SCALE 1e20
 
 using namespace Cow;
 
@@ -43,23 +44,22 @@ using namespace Cow;
 #define S22 2
 #define S33 3
 #define NRG 4
+#define DensityFloor 1e-8
 
 
 
 
 // ============================================================================
-static const double SofteningRadius2 =  0.1;  // r0^2, where Fg = G M m / (r^2 + r0^2)
-static const double BetaBuffer       = 0.01;  // Orbital periods over which to relax to IC in outer buffer
-static const double BufferRadius     = 10.0;  // Radius beyond which solution is driven toward IC
-static const double ViscousAlpha     = 5e-2;  // Alpha viscosity parameter
-static const double MachNumber       = 20.0;  // 1/M = h/r
-static const int    NumHoles         = 2;     // Number of Black holes 1 or 2
-static const double GM               = 1.0;   // Newton G * mass
-static const double aBin             = 1.0;   // Binary separation (always = 1.0)
-static const double OmegaBin         = std::sqrt(2.0*GM/(aBin*aBin*aBin));
-static const double phi1             = 0.0;   // initial orbital phase of black hole 1
-static const double phi2             = M_PI;  // initial orbital phase of black hole 2
-static const double SinkRadius       = 0.1;   // sink radius in units of aBin 
+static double SofteningRadius  =  0.2;  // r0^2, where Fg = G M m / (r^2 + r0^2)
+static double BetaBuffer       =  1.0;  // Orbital periods over which to relax to IC in outer buffer
+static double BufferRadius     = 10.0;  // Radius beyond which solution is driven toward IC
+static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
+static double MachNumber       = 10.0;  // 1/M = h/r
+static int    NumHoles         = 1;     // Number of Black holes 1 or 2
+static double GM               = 1.0;   // Newton G * mass
+static double aBin             = 1.0;   // Binary separation
+static double SinkRadius       = 0.1;   // Sink radius
+static std::string InitialDataString = "Ring";
 
 static SimulationStatus status;
 
@@ -67,61 +67,94 @@ static SimulationStatus status;
 
 
 // ============================================================================
-static double GravitationalPotential (double x, double y, double t)
+struct SinkGeometry
+{
+    double x;
+    double y;
+    double r;
+    double xhat;
+    double yhat;
+};
+
+static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
 {
     if (NumHoles == 1)
     {
-        const double r = std::sqrt (x * x + y * y);
-        return -GM / std::sqrt (r*r + SofteningRadius2);
-    } 
-    else if (NumHoles == 2)
-    {
-        const double x1 = 0.5 * aBin * std::cos(OmegaBin * t + phi1);
-        const double y1 = 0.5 * aBin * std::sin(OmegaBin * t + phi1);
-        const double x2 = 0.5 * aBin * std::cos(OmegaBin * t + phi2);
-        const double y2 = 0.5 * aBin * std::sin(OmegaBin * t + phi2);
-        const double r1s = std::sqrt((x-x1)*(x-x1) + (y-y1)*(y-y1) + SofteningRadius2);
-        const double r2s = std::sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2) + SofteningRadius2);
-        return -(GM / r1s + GM / r2s);
+        SinkGeometry g;
+        g.x = x;
+        g.y = y;
+        g.r = std::sqrt (x * x + y * y);
+        g.xhat = g.x / g.r;
+        g.yhat = g.y / g.r;
+        return {g};
     }
-    else
+    if (NumHoles == 2)
     {
-       assert (false);
+        const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (2.0 * GM / (aBin * aBin * aBin));
+        SinkGeometry g1, g2;
+        g1.x = 0.5 * aBin * std::cos (omegaBin * t);
+        g1.y = 0.5 * aBin * std::sin (omegaBin * t);
+        g2.x = 0.5 * aBin * std::cos (omegaBin * t + M_PI);
+        g2.y = 0.5 * aBin * std::sin (omegaBin * t + M_PI);
+        g1.r = std::sqrt ((x - g1.x) * (x - g1.x) + (y - g1.y) * (y - g1.y));
+        g2.r = std::sqrt ((x - g2.x) * (x - g2.x) + (y - g2.y) * (y - g2.y));
+        g1.xhat = (x - g1.x) / g1.r;
+        g1.yhat = (y - g1.y) / g1.r;
+        g2.xhat = (x - g2.x) / g2.r;
+        g2.yhat = (y - g2.y) / g2.r;
+        return {g1, g2};
     }
+    return {};
+}
+
+static double GravitationalPotential (double x, double y, double t)
+{
+    const double rs = SofteningRadius;
+    double phi = 0.0;
+
+    for (const auto& g : SinkGeometries (x, y, t))
+    {
+        phi += -GM / (g.r + rs);
+    }
+    return phi;
 }
 
 static std::array<double, 2> GravitationalAcceleration (double x, double y, double t)
 {
+    const double rs = SofteningRadius;
+    std::array<double, 2> a = {{0.0, 0.0}};
 
-    if (NumHoles == 1)
+    for (const auto& g : SinkGeometries (x, y, t))
     {
-        const double r = std::sqrt (x * x + y * y);
-        const double xhat  = x / r;
-        const double yhat  = y / r;
-        return {-xhat * GM / (r * r + SofteningRadius2), -yhat * GM / (r * r + SofteningRadius2)};
-    } 
-    else if (NumHoles == 2)
-    {
-        const double x1 = 0.5 * aBin * std::cos(OmegaBin * t + phi1);
-        const double y1 = 0.5 * aBin * std::sin(OmegaBin * t + phi1);
-        const double x2 = 0.5 * aBin * std::cos(OmegaBin * t + phi2);
-        const double y2 = 0.5 * aBin * std::sin(OmegaBin * t + phi2);
-        const double r1 = std::sqrt((x-x1) * (x-x1) + (y-y1) * (y-y1));
-        const double r2 = std::sqrt((x-x2) * (x-x2) + (y-y2) * (y-y2));
-        const double r1s = std::sqrt((x-x1) * (x-x1) + (y-y1) * (y-y1) + SofteningRadius2);
-        const double r2s = std::sqrt((x-x2) * (x-x2) + (y-y2) * (y-y2) + SofteningRadius2);
-        const double xhat1 = x1 / r1;
-        const double yhat1 = y1 / r1;
-        const double xhat2 = x2 / r2;
-        const double yhat2 = y2 / r2;
-        const std::array<double, 2> F1 = {-xhat1 * GM / (r1s * r1s), -yhat1 * GM / (r1s * r1s)};
-        const std::array<double, 2> F2 = {-xhat2 * GM / (r2s * r2s), -yhat2 * GM / (r2s * r2s)};
-        return {F1[0] + F2[0], F1[1] + F2[1]};
+        a[0] += -g.xhat * GM / std::pow (g.r + rs, 2);
+        a[1] += -g.yhat * GM / std::pow (g.r + rs, 2);
     }
-    else
+    return a;
+}
+
+static double SinkKernel (double r)
+{
+    const double viscousTimeScale = 2 * M_PI / std::sqrt (SinkRadius * SinkRadius * SinkRadius / GM) / ViscousAlpha;
+    return r < SinkRadius ? viscousTimeScale : HUGE_TIME_SCALE;
+}
+
+static double SinkTime (double x, double y, double t)
+{
+    double tmin = HUGE_TIME_SCALE;
+
+    for (const auto& g : SinkGeometries (x, y, t))
     {
-       assert (false);
+        if (SinkKernel (g.r) < tmin)
+        {
+            tmin = SinkKernel (g.r);
+        }
     }
+    return tmin;
+}
+
+static double bufferZoneProfile (double r)
+{
+    return 1 + std::tanh (r - BufferRadius);
 }
 
 
@@ -154,6 +187,11 @@ ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& req
 {
     double P[6];
 
+    // if (U[DDD] < 0.0 && DensityFloor > 0.0)
+    // {
+    //     const_cast<double*>(U)[DDD] = DensityFloor;
+    // }
+
     P[RHO] = U[DDD];
     P[PRE] = U[DDD] * getSoundSpeedSquared (P);
     P[V11] = U[S11] / U[DDD];
@@ -161,6 +199,18 @@ ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& req
     P[V33] = U[S33] / U[DDD];
     P[RAD] = U[RAD];
 
+    if (P[PRE] < 0.0 || P[RHO] < 0.0 || U[DDD] < 0.0)
+    {
+        auto S = State();
+        S.numFields = getNumConserved();
+
+        for (int q = 0; q < getNumConserved(); ++q)
+        {
+            S.U[q] = U[q];
+            S.P[q] = P[q];
+        }
+        throw ConservationLaw::StateFailure (S);
+    }
     return fromPrimitive (request, P);
 }
 
@@ -289,7 +339,7 @@ public:
 
     bool isAxisPeriodic (int axis) override
     {
-        return outflow.isAxisPeriodic (axis);
+        return false;
     }
 
     void resetPressureToIsothermal (Cow::Array& P) const
@@ -304,7 +354,7 @@ public:
                 const auto X = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
                 const double r = std::sqrt (X[0] * X[0] + X[1] * X[1]);
                 const double phi = GravitationalPotential (X[0], X[1], t);
-                const double cs2 = std::pow (MachNumber, -2) * phi;
+                const double cs2 = std::pow (MachNumber, -2) * -phi;
                 const double sigma = P(i, j, 0, RHO);
                 P(i, j, 0, PRE) = cs2 * sigma;
                 P(i, j, 0, RAD) = r;
@@ -353,7 +403,6 @@ static void computeViscousFluxes1D (const Array& P, double dx, Array& Fhat)
     }
 }
 
-
 static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array& Fhat)
 {
     for (int i = 0; i < P.shape()[0] - 1; ++i)
@@ -379,7 +428,7 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
             const double h0 = rc / MachNumber;
-            const double nu = ViscousAlpha * cs * h0;
+            const double nu = ViscousAlpha * cs * h0 * (rc < 8.0 ? 1.0 : 0.0);
             const double mu = dg * nu;
 
             const double dxuy = (uyR1 - uyL1) / dx;
@@ -420,7 +469,7 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
             const double h0 = rc / MachNumber;
-            const double nu = ViscousAlpha * cs * h0;
+            const double nu = ViscousAlpha * cs * h0 * (rc < 8.0 ? 1.0 : 0.0);
             const double mu = dg * nu;
 
             const double dyux = (uxR1 - uxL1) / dy;
@@ -461,6 +510,7 @@ static auto makeViscousFluxCorrection (double dx, double dy)
 int BinaryTorque::run (int argc, const char* argv[])
 {
     auto user = Variant::NamedValues();
+
     user["outdir"]  = "data";
     user["restart"] = "";
     user["tfinal"]  = 16.0;
@@ -471,16 +521,27 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["cfl"]     = 0.5;
     user["plm"]     = 1.8;
     user["N"]       = 128;
-    user["theta"]   = 0.0; // angle of shear layer (in degrees)
+
+    user["SofteningRadius"] = SofteningRadius;
+    user["BetaBuffer"]       = BetaBuffer;
+    user["BufferRadius"]     = BufferRadius;
+    user["ViscousAlpha"]     = ViscousAlpha;
+    user["MachNumber"]       = MachNumber;
+    user["NumHoles"]         = NumHoles;
+    user["aBin"]             = aBin;
+    user["SinkRadius"]       = SinkRadius;
+    user["InitialData"]      = InitialDataString;
 
     auto cl = std::make_shared<ThinDiskNewtonianHydro>();
+    auto initialData = std::function<std::vector<double>(double x, double y, double z)>();
+    double timestepSize = 0.0;
 
 
     // Initial data function for testing
     // ------------------------------------------------------------------------
     auto initialDataLinearShear = [&] (double x, double y, double z) -> std::vector<double>
     {
-        const double theta = double (user["theta"]) * M_PI / 180.0;
+        const double theta = 0.0;
         const double nx = std::cos (theta);
         const double ny = std::sin (theta);
         const double r = x * nx + y * ny;
@@ -490,8 +551,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         return std::vector<double> {1.0, -ur * ny, ur * nx, 0.0, 1.0, 0.0};
     };
 
-
-    auto initialData = [&] (double x, double y, double z) -> std::vector<double>
+    auto initialDataRing = [&] (double x, double y, double z) -> std::vector<double>
     {
         const double t = status.simulationTime;
         const double r2 = x * x + y * y;
@@ -499,19 +559,19 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double rho = 0.1 + std::exp (-std::pow (r - 4, 2));
         const double vq = std::sqrt (-GravitationalPotential (x, y, t));
         const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
-        const double qhX = -y / r;     
+        const double qhX = -y / r;
         const double qhY =  x / r;
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
     };
 
-      auto initialDataFarris14 = [&] (double x, double y, double z) -> std::vector<double>
+    auto initialDataFarris14 = [&] (double x, double y, double z) -> std::vector<double>
     {
         // Initial conditions from Farris+ (2014) ApJ 783, 134
         // MISSING: radial drift velocity, pressure gradient for omega
-        const double rs = 10.0 * aBin; 
+        const double rs = 10.0 * aBin;
         const double delta = 3.0;
-        const double xsi = 2.0;       
-        const double sigma0 = 1.0;       
+        const double xsi = 2.0;
+        const double sigma0 = 1.0;
         const double r2 = x * x + y * y;
         const double r  = std::sqrt (r2);
         const double rho = sigma0 * std::pow ((r/rs), -delta) * std::exp (-std::pow (r/rs, -xsi));
@@ -519,19 +579,18 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
         const double vq = r * std::sqrt (omega2);
         const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
-        const double qhX = -y / r;     
+        const double qhX = -y / r;
         const double qhY =  x / r;
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
     };
 
-
-      auto initialDataTang17 = [&] (double x, double y, double z) -> std::vector<double>
+    auto initialDataTang17 = [&] (double x, double y, double z) -> std::vector<double>
     {
         // Initial conditions from Tang+ (2017) MNRAS 469, 4258
         // MISSING?: radial drift velocity, pressure gradient for omegak2
-        // Check Yike/Chris Disco setup 
-        const double r0 = 2.5 * aBin;        
-        const double sigma0 = 1.0;       
+        // Check Yike/Chris Disco setup
+        const double r0 = 2.5 * aBin;
+        const double sigma0 = 1.0;
         const double r2 = x * x + y * y;
         const double r  = std::sqrt (r2);
         const double rho = sigma0 * std::pow (r, -0.5) * std::exp (-std::pow (r/r0, -10.0));
@@ -539,10 +598,11 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
         const double vq = r * std::sqrt (omega2);
         const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
-        const double qhX = -y / r;     
+        const double qhX = -y / r;
         const double qhY =  x / r;
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
-    };    
+    };
+
 
     // Source terms
     // ------------------------------------------------------------------------
@@ -578,15 +638,14 @@ int BinaryTorque::run (int argc, const char* argv[])
         auto state0 = cl->fromPrimitive (request, &initialData (x, y, z)[0]);
         auto state1 = cl->fromPrimitive (request, &P[0]);
 
-        const double vk   = std::sqrt (-GravitationalPotential (x, y, t));
-        const double torb = 2.0 * M_PI * r / vk;
-        const double env  = 2.0 / (1 + std::tanh (r - BufferRadius));
-        const double tau  = BetaBuffer * env * torb;
-
         // Outer buffer
         // ====================================================================
         if (r > 0.5 * BufferRadius)
         {
+            const double vk       = std::sqrt (-GravitationalPotential (x, y, t));
+            const double torb     = 2.0 * M_PI * r / vk;
+            const double tau      = torb * BetaBuffer / bufferZoneProfile (r);
+
             S[0] -= (state1.U[0] - state0.U[0]) / tau;
             S[1] -= (state1.U[1] - state0.U[1]) / tau;
             S[2] -= (state1.U[2] - state0.U[2]) / tau;
@@ -594,37 +653,14 @@ int BinaryTorque::run (int argc, const char* argv[])
             S[4] -= (state1.U[4] - state0.U[4]) / tau;
         }
 
-        // Sink radii
+        // Sink
         // ====================================================================
-         if (NumHoles == 1) 
-         {
-            if (r < SinkRadius)
-            {
-                S[0] -= state1.U[0] / (torb / ViscousAlpha);
-                S[1] -= state1.U[1] / (torb / ViscousAlpha);
-                S[2] -= state1.U[2] / (torb / ViscousAlpha);
-                S[3] -= state1.U[3] / (torb / ViscousAlpha);
-                S[4] -= state1.U[4] / (torb / ViscousAlpha);
-            }
-        }
-        else if (NumHoles == 2)
-        {
-            const double x1 = 0.5 * aBin * std::cos(OmegaBin * t + phi1);
-            const double y1 = 0.5 * aBin * std::sin(OmegaBin * t + phi1);
-            const double x2 = 0.5 * aBin * std::cos(OmegaBin * t + phi2);
-            const double y2 = 0.5 * aBin * std::sin(OmegaBin * t + phi2);
-            const double r1 = std::sqrt((x-x1)*(x-x1) + (y-y1)*(y-y1));
-            const double r2 = std::sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2));
-
-            if (r1 < SinkRadius || r2 < SinkRadius)
-            {   
-                S[0] -= state1.U[0] / (torb / ViscousAlpha);
-                S[1] -= state1.U[1] / (torb / ViscousAlpha);
-                S[2] -= state1.U[2] / (torb / ViscousAlpha);
-                S[3] -= state1.U[3] / (torb / ViscousAlpha);
-                S[4] -= state1.U[4] / (torb / ViscousAlpha);
-            }
-        }   
+        const double tsink = SinkTime (x, y, t);
+        S[0] -= state1.U[0] / tsink;
+        S[1] -= state1.U[1] / tsink;
+        S[2] -= state1.U[2] / tsink;
+        S[3] -= state1.U[3] / tsink;
+        S[4] -= state1.U[4] / tsink;
 
         return S;
     };
@@ -639,12 +675,30 @@ int BinaryTorque::run (int argc, const char* argv[])
     Variant::update (user, chkptUser);
     Variant::update (user, clineUser);
 
+    if (MpiCommunicator::world().isThisMaster())
+    {
+        std::cout << user << std::endl;
+    }
+
+    SofteningRadius  = user["SofteningRadius"];
+    BetaBuffer        = user["BetaBuffer"];
+    BufferRadius      = user["BufferRadius"];
+    ViscousAlpha      = user["ViscousAlpha"];
+    MachNumber        = user["MachNumber"];
+    NumHoles          = user["NumHoles"];
+    aBin              = user["aBin"];
+    SinkRadius        = user["SinkRadius"];
+    InitialDataString = std::string (user["InitialData"]);
+
+    if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
+    if (InitialDataString == "Ring")        initialData = initialDataRing;
+    if (InitialDataString == "Farris14")    initialData = initialDataFarris14;
+    if (InitialDataString == "Tang17")      initialData = initialDataTang17;
+
     auto logger    = std::make_shared<Logger>();
     auto writer    = std::make_shared<CheckpointWriter>();
     auto tseries   = std::make_shared<TimeSeriesManager>();
     auto scheduler = std::make_shared<TaskScheduler>();
-
-    double timestepSize = 0.0;
 
     auto bd = std::shared_ptr<BlockDecomposition>();
     auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
@@ -725,7 +779,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     };
 
     scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]), "checkpoint");
-    scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 16), "compute_dt");
+    scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 1), "compute_dt"); // re-computing every time step
 
     writer->setMeshDecomposition (bd);
     writer->setTimeSeriesManager (tseries);
@@ -746,10 +800,9 @@ int BinaryTorque::run (int argc, const char* argv[])
     else
     {
         md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
-        // md->assignPrimitive (mo->generate (initialDataLinearShear, MeshLocation::cell));
     }
     md->applyBoundaryCondition (*bc);
     taskRecomputeDt (status, 0);
 
-    return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);  
+    return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
 }
