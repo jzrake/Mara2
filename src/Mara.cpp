@@ -24,6 +24,8 @@ using namespace Cow;
 
 
 
+
+#if __cplusplus == 201103L
 namespace std
 {
   template<typename T, typename... Args>
@@ -31,6 +33,7 @@ namespace std
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
   }
 }
+#endif
 
 
 
