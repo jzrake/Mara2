@@ -1119,7 +1119,7 @@ SCENARIO ("Mesh operator should run flux sweeps", "[MeshOperator]")
 
         auto footprint = Shape {{ 2, 2, 2 }};
         auto start = Shape {{ -1, 0, +1 }}; // choose an arbitrary start location
-        auto godunovFlux = mo->godunov (gd, cellData, faceData, footprint, start);
+        auto godunovFlux = mo->godunov (gd, cellData, faceData, footprint, start, nullptr);
 
         THEN ("Godunov fluxes have the expected shape")
         {

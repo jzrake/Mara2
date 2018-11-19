@@ -272,7 +272,7 @@ void CollisionalHydroScheme::advance (MeshData& md, ParticleData& pd, double dt)
     auto U0 = fieldOperator->generateConserved (md.P);
     auto U = U0;
 
-    auto F = meshOperator->godunov (Fhat, md.P, md.B, footprint, startIndex);
+    auto F = meshOperator->godunov (Fhat, md.P, md.B, footprint, startIndex, nullptr);
     auto L = meshOperator->divergence (F, -1.0);
     auto S = Array (L.shape());
 

@@ -54,12 +54,11 @@ static const double ViscousAlpha     = 5e-2;  // Alpha viscosity parameter
 static const double MachNumber       = 20.0;  // 1/M = h/r
 static const int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static const double GM               = 1.0;   // Newton G * mass
-static const double aBin             = 1.0;
+static const double aBin             = 1.0;   // Binary separation (always = 1.0)
 static const double OmegaBin         = std::sqrt(2.0*GM/(aBin*aBin*aBin));
 static const double phi1             = 0.0;   // initial orbital phase of black hole 1
 static const double phi2             = M_PI;  // initial orbital phase of black hole 2
-static const double rsink            = 0.1;   // sink radius in units of aBin 
-
+static const double SinkRadius       = 0.1;   // sink radius in units of aBin 
 
 static SimulationStatus status;
 
@@ -559,7 +558,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         // ====================================================================
          if (NumHoles == 1) 
          {
-            if (r < rsink)
+            if (r < SinkRadius)
             {
                 S[0] -= state1.U[0] / (torb / ViscousAlpha);
                 S[1] -= state1.U[1] / (torb / ViscousAlpha);
@@ -576,8 +575,8 @@ int BinaryTorque::run (int argc, const char* argv[])
             const double y2 = 0.5 * aBin * std::sin(OmegaBin * t + phi2);
             const double r1 = std::sqrt((x-x1)*(x-x1) + (y-y1)*(y-y1));
             const double r2 = std::sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2));
-                
-            if ((r1 < rsink) || (r2 < rsink))
+
+            if (r1 < SinkRadius || r2 < SinkRadius)
             {   
                 S[0] -= state1.U[0] / (torb / ViscousAlpha);
                 S[1] -= state1.U[1] / (torb / ViscousAlpha);
