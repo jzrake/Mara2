@@ -52,10 +52,15 @@ static const double BetaBuffer       = 0.01;  // Orbital periods over which to r
 static const double BufferRadius     = 10.0;  // Radius beyond which solution is driven toward IC
 static const double ViscousAlpha     = 5e-2;  // Alpha viscosity parameter
 static const double MachNumber       = 20.0;  // 1/M = h/r
-static const double GM               = 1.0;   // Newton G * mass
 static const int    NumHoles         = 2;     // Number of Black holes 1 or 2
+static const double GM               = 1.0;   // Newton G * mass
 static const double aBin             = 1.0;
-static const double OmegaBin         = 1.0;
+static const double OmegaBin         = std::sqrt(2.0*GM/(aBin*aBin*aBin));
+static const double phi1             = 0.0;   // initial orbital phase of black hole 1
+static const double phi2             = M_PI;  // initial orbital phase of black hole 2
+static const double rsink            = 0.1;   // sink radius in units of aBin 
+
+
 static SimulationStatus status;
 
 
@@ -64,9 +69,6 @@ static SimulationStatus status;
 // ============================================================================
 static double GravitationalPotential (double x, double y, double t)
 {
-    const double phi1 = 0.0;
-    const double phi2 = M_PI;
-
     if (NumHoles == 1)
     {
         const double r = std::sqrt (x * x + y * y);
@@ -90,8 +92,6 @@ static double GravitationalPotential (double x, double y, double t)
 
 static std::array<double, 2> GravitationalAcceleration (double x, double y, double t)
 {
-    const double phi1 = 0.0;
-    const double phi2 = M_PI;
 
     if (NumHoles == 1)
     {
@@ -555,16 +555,37 @@ int BinaryTorque::run (int argc, const char* argv[])
             S[4] -= (state1.U[4] - state0.U[4]) / tau;
         }
 
-        // Sink radius
+        // Sink radii
         // ====================================================================
-        if (r < 1.0)
-        {
-            S[0] -= state1.U[0] / (torb / ViscousAlpha);
-            S[1] -= state1.U[1] / (torb / ViscousAlpha);
-            S[2] -= state1.U[2] / (torb / ViscousAlpha);
-            S[3] -= state1.U[3] / (torb / ViscousAlpha);
-            S[4] -= state1.U[4] / (torb / ViscousAlpha);
+         if (NumHoles == 1) 
+         {
+            if (r < rsink)
+            {
+                S[0] -= state1.U[0] / (torb / ViscousAlpha);
+                S[1] -= state1.U[1] / (torb / ViscousAlpha);
+                S[2] -= state1.U[2] / (torb / ViscousAlpha);
+                S[3] -= state1.U[3] / (torb / ViscousAlpha);
+                S[4] -= state1.U[4] / (torb / ViscousAlpha);
+            }
         }
+        else if (NumHoles == 2)
+        {
+            const double x1 = 0.5 * aBin * std::cos(OmegaBin * t + phi1);
+            const double y1 = 0.5 * aBin * std::sin(OmegaBin * t + phi1);
+            const double x2 = 0.5 * aBin * std::cos(OmegaBin * t + phi2);
+            const double y2 = 0.5 * aBin * std::sin(OmegaBin * t + phi2);
+            const double r1 = std::sqrt((x-x1)*(x-x1) + (y-y1)*(y-y1));
+            const double r2 = std::sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2));
+                
+            if ((r1 < rsink) || (r2 < rsink))
+            {   
+                S[0] -= state1.U[0] / (torb / ViscousAlpha);
+                S[1] -= state1.U[1] / (torb / ViscousAlpha);
+                S[2] -= state1.U[2] / (torb / ViscousAlpha);
+                S[3] -= state1.U[3] / (torb / ViscousAlpha);
+                S[4] -= state1.U[4] / (torb / ViscousAlpha);
+            }
+        }   
 
         return S;
     };
