@@ -518,8 +518,8 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["cpi"]     = 0.25;
     user["cpf"]     = "single"; // or multiple
     user["tsi"]     = 0.1;
-    user["cfl"]     = 0.5;
-    user["plm"]     = 1.8;
+    user["cfl"]     = 0.3;
+    user["plm"]     = 1.5;
     user["N"]       = 128;
 
     user["SofteningRadius"] = SofteningRadius;
@@ -589,17 +589,20 @@ int BinaryTorque::run (int argc, const char* argv[])
         // Initial conditions from Tang+ (2017) MNRAS 469, 4258
         // MISSING?: radial drift velocity, pressure gradient for omegak2
         // Check Yike/Chris Disco setup
+        const double rs = SofteningRadius;
         const double r0 = 2.5 * aBin;
+        const double xsi = 10.0;
         const double sigma0 = 1.0;
         const double r2 = x * x + y * y;
         const double r  = std::sqrt (r2);
-        const double rho = sigma0 * std::pow (r, -0.5) * std::exp (-std::pow (r/r0, -10.0));
-        const double omegak2 = GM/(r*r2); // squared Keplerian for total M at center, is M total mass of binary?
-        const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
+        const double rho = sigma0 * std::pow (r + rs, -0.5) * std::max (std::exp (-std::pow (r/r0, -xsi)), 1e-6);
+        const double omegak2 = GM / std::pow (r + rs,  3.0) * NumHoles; // squared Keplerian for total M at center, is M total mass of binary?
+        const double omega2  = omegak2;// * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); // missing pressure gradient term
         const double vq = r * std::sqrt (omega2);
         const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
         const double qhX = -y / r;
         const double qhY =  x / r;
+
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
     };
 
