@@ -24,6 +24,7 @@
 #include "Logger.hpp"
 #define cot(x) std::tan (M_PI_2 - x)
 #define HUGE_TIME_SCALE 1e20
+#define DENSITY_FLOOR 1e-6
 
 using namespace Cow;
 
@@ -44,7 +45,6 @@ using namespace Cow;
 #define S22 2
 #define S33 3
 #define NRG 4
-#define DensityFloor 1e-8
 
 
 
@@ -187,19 +187,14 @@ ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& req
 {
     double P[6];
 
-    // if (U[DDD] < 0.0 && DensityFloor > 0.0)
-    // {
-    //     const_cast<double*>(U)[DDD] = DensityFloor;
-    // }
-
-    P[RHO] = U[DDD];
-    P[PRE] = U[DDD] * getSoundSpeedSquared (P);
-    P[V11] = U[S11] / U[DDD];
-    P[V22] = U[S22] / U[DDD];
-    P[V33] = U[S33] / U[DDD];
+    P[RHO] = std::max (DENSITY_FLOOR, U[DDD]);
+    P[PRE] = U[NRG];
+    P[V11] = U[S11] / P[RHO];
+    P[V22] = U[S22] / P[RHO];
+    P[V33] = U[S33] / P[RHO];
     P[RAD] = U[RAD];
 
-    if (P[PRE] < 0.0 || P[RHO] < 0.0 || U[DDD] < 0.0)
+    if (P[PRE] < 0.0 || P[RHO] < 0.0)
     {
         auto S = State();
         S.numFields = getNumConserved();
@@ -234,7 +229,7 @@ ConservationLaw::State ThinDiskNewtonianHydro::fromPrimitive (const Request& req
     S.U[S11] = P[RHO] * P[V11];
     S.U[S22] = P[RHO] * P[V22];
     S.U[S33] = P[RHO] * P[V33];
-    S.U[NRG] = 0.0;
+    S.U[NRG] = P[PRE];
     S.U[RAD] = P[RAD];
 
     S.F[DDD] = vn * S.U[DDD];
@@ -522,7 +517,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["plm"]     = 1.5;
     user["N"]       = 128;
 
-    user["SofteningRadius"] = SofteningRadius;
+    user["SofteningRadius"]  = SofteningRadius;
     user["BetaBuffer"]       = BetaBuffer;
     user["BufferRadius"]     = BufferRadius;
     user["ViscousAlpha"]     = ViscousAlpha;
@@ -613,8 +608,8 @@ int BinaryTorque::run (int argc, const char* argv[])
     {
         const double t = status.simulationTime;
         const double dg = P[0];
-        const double vx = P[1];
-        const double vy = P[2];
+        // const double vx = P[1];
+        // const double vy = P[2];
         const double r = std::sqrt (x * x + y * y);
         const auto ag = GravitationalAcceleration (x, y, t);
 
@@ -626,7 +621,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         S[S11] = dg * ag[0];
         S[S22] = dg * ag[1];
         S[S33] = 0.0;
-        S[NRG] = dg * (ag[0] * vx + ag[1] * vy);
+        S[NRG] = 0.0; // dg * (ag[0] * vx + ag[1] * vy);
         S[RAD] = 0.0;
 
         ConservationLaw::Request request;
@@ -683,7 +678,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         std::cout << user << std::endl;
     }
 
-    SofteningRadius  = user["SofteningRadius"];
+    SofteningRadius   = user["SofteningRadius"];
     BetaBuffer        = user["BetaBuffer"];
     BufferRadius      = user["BufferRadius"];
     ViscousAlpha      = user["ViscousAlpha"];

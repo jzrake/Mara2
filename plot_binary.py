@@ -25,7 +25,7 @@ def make_binary_plot(fig, filename):
     vr = vx * xh + vy * yh
     vq = vy * xh - vx * yh
     cs = (p / d)**0.5
-    Mq = vq / cs
+    # Mq = vq / cs
 
     ax1 = fig.add_subplot(2, 2, 1)
     ax2 = fig.add_subplot(2, 2, 2)
@@ -42,10 +42,10 @@ def make_binary_plot(fig, filename):
     cax3 = div3.append_axes('bottom', size='5%', pad=0.05)
     cax4 = div4.append_axes('bottom', size='5%', pad=0.05)
 
-    im1 = ax1.imshow(d, extent=[-10, 10, -10, 10])
-    im2 = ax2.imshow(p, extent=[-10, 10, -10, 10])
-    im3 = ax3.imshow(vq, extent=[-10, 10, -10, 10])
-    im4 = ax4.imshow(vr, extent=[-10, 10, -10, 10])#, vmin=0.0, vmax=0.02)
+    im1 = ax1.imshow(d,  extent=[-10, 10, -10, 10], vmin=0, vmax=1)
+    im2 = ax2.imshow(p,  extent=[-10, 10, -10, 10], vmin=0, vmax=0.001)
+    im3 = ax3.imshow(vq, extent=[-10, 10, -10, 10], vmin=-0.5, vmax=1.5)
+    im4 = ax4.imshow(vr, extent=[-10, 10, -10, 10], vmin=-0.5, vmax=1.5)
 
     fig.colorbar(im1, cax=cax1, orientation='horizontal')
     fig.colorbar(im2, cax=cax2, orientation='horizontal')
@@ -53,8 +53,9 @@ def make_binary_plot(fig, filename):
     fig.colorbar(im4, cax=cax4, orientation='horizontal')
 
     ax1.set_title(r"$\rho$")
-    ax2.set_title(r"$p$")
-    ax3.set_title(r"$\mathcal{M} = v_\theta / c_s$")
+    ax2.set_title(r"$P$")
+    # ax3.set_title(r"$\mathcal{M} = v_\theta / c_s$")
+    ax3.set_title(r"$v_\theta$")
     ax4.set_title(r"$v_r$")
 
     t = np.linspace(0, 2 * np.pi, 300)
