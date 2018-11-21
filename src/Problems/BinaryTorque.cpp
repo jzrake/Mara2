@@ -185,7 +185,15 @@ ThinDiskNewtonianHydro::ThinDiskNewtonianHydro()
 
 ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& request, const double* U) const
 {
-    double P[6];
+    double P[6] = {0, 0, 0, 0, 0, 0};
+
+    // We allow negative energies to fail silently, because it's only possible
+    // (by construction) in the guard zones.
+
+    if (U[NRG] < 0.0)
+    {
+        return fromPrimitive (request, P);
+    }
 
     P[RHO] = std::max (DENSITY_FLOOR, U[DDD]);
     P[PRE] = U[NRG];
@@ -303,7 +311,7 @@ std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
 
 double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P) const
 {
-    return P[PRE] / P[DDD];
+    return P[PRE] / P[RHO];
 }
 
 
@@ -648,7 +656,7 @@ int BinaryTorque::run (int argc, const char* argv[])
             S[1] -= (state1.U[1] - state0.U[1]) / tau;
             S[2] -= (state1.U[2] - state0.U[2]) / tau;
             S[3] -= (state1.U[3] - state0.U[3]) / tau;
-            S[4] -= (state1.U[4] - state0.U[4]) / tau;
+            // S[4] -= (state1.U[4] - state0.U[4]) / tau;
         }
 
         // Sink
@@ -658,7 +666,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         S[1] -= state1.U[1] / tsink;
         S[2] -= state1.U[2] / tsink;
         S[3] -= state1.U[3] / tsink;
-        S[4] -= state1.U[4] / tsink;
+        // S[4] -= state1.U[4] / tsink;
 
         return S;
     };
