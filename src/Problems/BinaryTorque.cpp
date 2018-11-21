@@ -37,7 +37,8 @@ using namespace Cow;
 #define V22 2
 #define V33 3
 #define PRE 4
-#define RAD 5
+#define XXX 5
+#define YYY 6
 
 // Indexes to conserved quanitites U
 #define DDD 0
@@ -185,22 +186,21 @@ ThinDiskNewtonianHydro::ThinDiskNewtonianHydro()
 
 ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& request, const double* U) const
 {
-    double P[6] = {0, 0, 0, 0, 0, 0};
+    double P[7] = {0, 0, 0, 0, 0, 0, 0};
 
-    // We allow negative energies to fail silently, because it's only possible
-    // (by construction) in the guard zones.
-
-    if (U[NRG] < 0.0)
-    {
-        return fromPrimitive (request, P);
-    }
+    const double t = status.simulationTime;
+    const double x = U[XXX];
+    const double y = U[YYY];
+    const double phi = GravitationalPotential (x, y, t);
+    const double cs2 = std::pow (MachNumber, -2) * -phi;
 
     P[RHO] = std::max (DENSITY_FLOOR, U[DDD]);
-    P[PRE] = U[NRG];
+    P[PRE] = P[RHO] * cs2;
     P[V11] = U[S11] / P[RHO];
     P[V22] = U[S22] / P[RHO];
     P[V33] = U[S33] / P[RHO];
-    P[RAD] = U[RAD];
+    P[XXX] = U[XXX];
+    P[YYY] = U[YYY];
 
     if (P[PRE] < 0.0 || P[RHO] < 0.0)
     {
@@ -224,42 +224,46 @@ ConservationLaw::State ThinDiskNewtonianHydro::fromPrimitive (const Request& req
     const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
 
     auto S = State();
-    S.numFields = 6;
+    S.numFields = 7;
 
     S.P[RHO] = P[RHO];
     S.P[V11] = P[V11];
     S.P[V22] = P[V22];
     S.P[V33] = P[V33];
     S.P[PRE] = P[PRE];
-    S.P[RAD] = P[RAD];
+    S.P[XXX] = P[XXX];
+    S.P[YYY] = P[YYY];
 
     S.U[DDD] = P[RHO];
     S.U[S11] = P[RHO] * P[V11];
     S.U[S22] = P[RHO] * P[V22];
     S.U[S33] = P[RHO] * P[V33];
     S.U[NRG] = P[PRE];
-    S.U[RAD] = P[RAD];
+    S.U[XXX] = P[XXX];
+    S.U[YYY] = P[YYY];
 
     S.F[DDD] = vn * S.U[DDD];
     S.F[S11] = vn * S.U[S11] + P[PRE] * dAA[0];
     S.F[S22] = vn * S.U[S22] + P[PRE] * dAA[1];
     S.F[S33] = vn * S.U[S33] + P[PRE] * dAA[2];
     S.F[NRG] = 0.0;
-    S.F[RAD] = 0.0;
+    S.F[XXX] = 0.0;
+    S.F[YYY] = 0.0;
 
     S.A[0] = vn - cs;
     S.A[1] = vn;
     S.A[2] = vn;
     S.A[3] = vn;
     S.A[4] = vn + cs;
-    S.A[5] = 0.0;
+    S.A[XXX] = 0.0;
+    S.A[YYY] = 0.0;
 
     return S;
 }
 
 int ThinDiskNewtonianHydro::getNumConserved() const
 {
-    return 6;
+    return 7;
 }
 
 int ThinDiskNewtonianHydro::getIndexFor (VariableType type) const
@@ -282,7 +286,8 @@ std::string ThinDiskNewtonianHydro::getPrimitiveName (int fieldIndex) const
         case V22: return "velocity2";
         case V33: return "velocity3";
         case PRE: return "pressure";
-        case RAD: return "radius";
+        case XXX: return "x";
+        case YYY: return "y";
         default: return "";
     }
 }
@@ -355,12 +360,12 @@ public:
             {
                 // WARNING: if other than 2 guard zones, do something!
                 const auto X = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
-                const double r = std::sqrt (X[0] * X[0] + X[1] * X[1]);
                 const double phi = GravitationalPotential (X[0], X[1], t);
                 const double cs2 = std::pow (MachNumber, -2) * -phi;
                 const double sigma = P(i, j, 0, RHO);
                 P(i, j, 0, PRE) = cs2 * sigma;
-                P(i, j, 0, RAD) = r;
+                P(i, j, 0, XXX) = X[0];
+                P(i, j, 0, YYY) = X[1];
             }
         }
     }
@@ -381,10 +386,14 @@ static void computeViscousFluxes1D (const Array& P, double dx, Array& Fhat)
         const double dgR = P(i + 1, 0, 0, RHO);
         const double pgL = P(i + 0, 0, 0, PRE);
         const double pgR = P(i + 1, 0, 0, PRE);
-        const double rcL = P(i + 0, 0, 0, RAD);
-        const double rcR = P(i + 1, 0, 0, RAD);
+        const double xcL = P(i + 0, 0, 0, XXX);
+        const double xcR = P(i + 1, 0, 0, XXX);
+        const double ycL = P(i + 0, 0, 0, YYY);
+        const double ycR = P(i + 1, 0, 0, YYY);
         const double uyL = P(i + 0, 0, 0, V22);
         const double uyR = P(i + 1, 0, 0, V22);
+        const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
+        const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
 
         const double csL = std::sqrt (pgL / dgL);
         const double csR = std::sqrt (pgR / dgR);
@@ -416,14 +425,18 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double dgR = P(i + 1, j, 0, RHO);
             const double pgL = P(i + 0, j, 0, PRE);
             const double pgR = P(i + 1, j, 0, PRE);
-            const double rcL = P(i + 0, j, 0, RAD);
-            const double rcR = P(i + 1, j, 0, RAD);
+            const double xcL = P(i + 0, j, 0, XXX);
+            const double xcR = P(i + 1, j, 0, XXX);
+            const double ycL = P(i + 0, j, 0, YYY);
+            const double ycR = P(i + 1, j, 0, YYY);
             const double uxL0 = P(i + 0, j - 1, 0, V11);
             const double uxL2 = P(i + 0, j + 0, 0, V11);
             const double uxR0 = P(i + 1, j + 0, 0, V11);
             const double uxR2 = P(i + 1, j + 1, 0, V11);
             const double uyL1 = P(i + 0, j - 1, 0, V22);
             const double uyR1 = P(i + 1, j + 1, 0, V22);
+            const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
+            const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
 
             const double csL = std::sqrt (pgL / dgL);
             const double csR = std::sqrt (pgR / dgR);
@@ -431,7 +444,7 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
             const double h0 = rc / MachNumber;
-            const double nu = ViscousAlpha * cs * h0 * (rc < 8.0 ? 1.0 : 0.0);
+            const double nu = ViscousAlpha * cs * h0;// * (rc < 8.0 ? 1.0 : 0.0);
             const double mu = dg * nu;
 
             const double dxuy = (uyR1 - uyL1) / dx;
@@ -457,14 +470,18 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double dgR = P(i, j + 1, 0, RHO);
             const double pgL = P(i, j + 0, 0, PRE);
             const double pgR = P(i, j + 1, 0, PRE);
-            const double rcL = P(i, j + 0, 0, RAD);
-            const double rcR = P(i, j + 1, 0, RAD);
+            const double xcL = P(i, j + 0, 0, XXX);
+            const double xcR = P(i, j + 1, 0, XXX);
+            const double ycL = P(i, j + 0, 0, YYY);
+            const double ycR = P(i, j + 1, 0, YYY);
             const double uyL0 = P(i - 1, j + 0, 0, V22);
             const double uyL2 = P(i + 0, j + 0, 0, V22);
             const double uyR0 = P(i + 0, j + 1, 0, V22);
             const double uyR2 = P(i + 1, j + 1, 0, V22);
             const double uxL1 = P(i - 1, j + 0, 0, V11);
             const double uxR1 = P(i + 1, j + 1, 0, V11);
+            const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
+            const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
 
             const double csL = std::sqrt (pgL / dgL);
             const double csR = std::sqrt (pgR / dgR);
@@ -551,7 +568,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double nu = 0.1;
         const double t0 = 1.0 / nu;
         const double ur = std::exp (-r * r / (4 * nu * t0));
-        return std::vector<double> {1.0, -ur * ny, ur * nx, 0.0, 1.0, 0.0};
+        return std::vector<double> {1.0, -ur * ny, ur * nx, 0.0, 1.0, x, y};
     };
 
     auto initialDataRing = [&] (double x, double y, double z) -> std::vector<double>
@@ -564,7 +581,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
         const double qhX = -y / r;
         const double qhY =  x / r;
-        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
+        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
     };
 
     auto initialDataFarris14 = [&] (double x, double y, double z) -> std::vector<double>
@@ -584,7 +601,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
         const double qhX = -y / r;
         const double qhY =  x / r;
-        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
+        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
     };
 
     auto initialDataTang17 = [&] (double x, double y, double z) -> std::vector<double>
@@ -606,7 +623,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double qhX = -y / r;
         const double qhY =  x / r;
 
-        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, 0.0};
+        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
     };
 
 
@@ -630,7 +647,8 @@ int BinaryTorque::run (int argc, const char* argv[])
         S[S22] = dg * ag[1];
         S[S33] = 0.0;
         S[NRG] = 0.0; // dg * (ag[0] * vx + ag[1] * vy);
-        S[RAD] = 0.0;
+        S[XXX] = 0.0;
+        S[YYY] = 0.0;
 
         ConservationLaw::Request request;
         request.getPrimitive = true;
@@ -747,7 +765,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     double dx = mg->cellLength (0, 0, 0, 0);
     double dy = mg->cellLength (0, 0, 0, 1);
 
-    cl->setGammaLawIndex (4. / 3);
+    cl->setGammaLawIndex (5. / 3);
     // cl->setPressureFloor (1e-2);
     fs->setPlmTheta (double (user["plm"]));
     fs->setRiemannSolver (rs);
