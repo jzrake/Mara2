@@ -60,6 +60,11 @@ static int    NumHoles         = 1;     // Number of Black holes 1 or 2
 static double GM               = 1.0;   // Newton G * mass
 static double aBin             = 1.0;   // Binary separation
 static double SinkRadius       = 0.1;   // Sink radius
+
+// Rotating frame of reference
+
+static double omegaFrame = 0.0;
+
 static std::string InitialDataString = "Ring";
 
 static SimulationStatus status;
@@ -93,10 +98,10 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
     {
         const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (2.0 * GM / (aBin * aBin * aBin));
         SinkGeometry g1, g2;
-        g1.x = 0.5 * aBin * std::cos (omegaBin * t);
-        g1.y = 0.5 * aBin * std::sin (omegaBin * t);
-        g2.x = 0.5 * aBin * std::cos (omegaBin * t + M_PI);
-        g2.y = 0.5 * aBin * std::sin (omegaBin * t + M_PI);
+        g1.x = 0.5 * aBin * std::cos ((omegaBin - omegaFrame) * t);
+        g1.y = 0.5 * aBin * std::sin ((omegaBin - omegaFrame) * t);
+        g2.x = 0.5 * aBin * std::cos ((omegaBin - omegaFrame) * t + M_PI);
+        g2.y = 0.5 * aBin * std::sin ((omegaBin - omegaFrame) * t + M_PI);
         g1.r = std::sqrt ((x - g1.x) * (x - g1.x) + (y - g1.y) * (y - g1.y));
         g2.r = std::sqrt ((x - g2.x) * (x - g2.x) + (y - g2.y) * (y - g2.y));
         g1.xhat = (x - g1.x) / g1.r;
@@ -626,6 +631,29 @@ int BinaryTorque::run (int argc, const char* argv[])
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
     };
 
+   auto initialDataTang17Rot = [&] (double x, double y, double z) -> std::vector<double>
+    {
+        // Initial conditions from Tang+ (2017) MNRAS 469, 4258
+        // MISSING?: radial drift velocity, pressure gradient for omegak2
+        // Check Yike/Chris Disco setup
+        const double rs = SofteningRadius;
+        const double r0 = 2.5 * aBin;
+        const double xsi = 10.0;
+        const double sigma0 = 1.0;
+        const double r2 = x * x + y * y;
+        const double r  = std::sqrt (r2);
+        const double rho = sigma0 * std::pow (r + rs, -0.5) * std::max (std::exp (-std::pow (r/r0, -xsi)), 1e-6);
+        const double omegak2 = GM / std::pow (r + rs,  3.0) * NumHoles; // squared Keplerian for total M at center, is M total mass of binary?
+        const double omega2  = omegak2;// * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); // missing pressure gradient term
+              double vq = r * std::sqrt (omega2);
+        const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
+        const double qhX = -y / r;
+        const double qhY =  x / r;
+
+        vq -= r * omegaFrame; 
+
+        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
+    };
 
     // Source terms
     // ------------------------------------------------------------------------
@@ -633,10 +661,10 @@ int BinaryTorque::run (int argc, const char* argv[])
     {
         const double t = status.simulationTime;
         const double dg = P[0];
-        // const double vx = P[1];
-        // const double vy = P[2];
+        const double vx = P[1];
+        const double vy = P[2];
         const double r = std::sqrt (x * x + y * y);
-        const auto ag = GravitationalAcceleration (x, y, t);
+        const auto ag  = GravitationalAcceleration (x, y, t);
 
         auto S = StateArray();
 
@@ -649,6 +677,12 @@ int BinaryTorque::run (int argc, const char* argv[])
         S[NRG] = 0.0; // dg * (ag[0] * vx + ag[1] * vy);
         S[XXX] = 0.0;
         S[YYY] = 0.0;
+
+        // Fictitious forces due to rotating frame (without Euler force)
+
+        S[S11] += dg * omegaFrame * ( 2.0 * vy + omegaFrame * x);
+        S[S22] += dg * omegaFrame * (-2.0 * vx + omegaFrame * y);
+
 
         ConservationLaw::Request request;
         request.getPrimitive = true;
@@ -719,6 +753,11 @@ int BinaryTorque::run (int argc, const char* argv[])
     if (InitialDataString == "Farris14")    initialData = initialDataFarris14;
     if (InitialDataString == "Tang17")      initialData = initialDataTang17;
 
+    if (InitialDataString == "Tang17Rot")
+    {       
+        omegaFrame =  std::sqrt (2.0 * GM / (aBin * aBin * aBin));
+        initialData = initialDataTang17Rot;
+    }       
     auto logger    = std::make_shared<Logger>();
     auto writer    = std::make_shared<CheckpointWriter>();
     auto tseries   = std::make_shared<TimeSeriesManager>();
@@ -740,7 +779,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     // auto bs = Shape {{ 2, 0, 0, 0, 0 }};
 
     mg->setCellsShape (cs);
-    mg->setLowerUpper ({{-10, -10, 0.0}}, {{10, 10, 1.0}});
+    mg->setLowerUpper ({{-10.0, -10.0, 0.0}}, {{10.0, 10.0, 1.0}});
     // mg->setLowerUpper ({{-10, 0.0, 0.0}}, {{10, 1.0, 1.0}});
 
     if (! user["serial"])
