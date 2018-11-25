@@ -620,15 +620,19 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double sigma0 = 1.0;
         const double r2 = x * x + y * y;
         const double r  = std::sqrt (r2);
-        const double rho = sigma0 * std::pow (r + rs, -0.5) * std::max (std::exp (-std::pow (r/r0, -xsi)), 1e-6);
+        const double sigma = sigma0 * std::pow (r + rs, -0.5) * std::max (std::exp (-std::pow (r/r0, -xsi)), 1e-6);
         const double omegak2 = GM / std::pow (r + rs,  3.0) * NumHoles; // squared Keplerian for total M at center, is M total mass of binary?
         const double omega2  = omegak2;// * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); // missing pressure gradient term
         const double vq = r * std::sqrt (omega2);
-        const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
-        const double qhX = -y / r;
-        const double qhY =  x / r;
+        const double pre = std::pow (vq / MachNumber, 2.0) * sigma; // cs^2 * rho
+        const double h0 = r / MachNumber;
+        const double nu = ViscousAlpha * (vq / MachNumber) * h0; //ViscousAlpha * cs * h0
+        const double vr = -(3.0/2.0) * nu / r; //radial drift velocity
 
-        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
+        const double vx = vq * (-y / r) + vr * (x / r);
+        const double vy = vq * ( x / r) + vr * (y / r);
+
+        return std::vector<double> {sigma, vx, vy, 0, pre, x, y};
     };
 
    auto initialDataTang17Rot = [&] (double x, double y, double z) -> std::vector<double>
@@ -647,12 +651,16 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double omega2  = omegak2;// * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); // missing pressure gradient term
               double vq = r * std::sqrt (omega2);
         const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
-        const double qhX = -y / r;
-        const double qhY =  x / r;
+        const double h0 = r / MachNumber;
+        const double nu = ViscousAlpha * (vq / MachNumber) * h0; //ViscousAlpha * cs * h0
+	    const double vr = -(3.0/2.0) * nu / r; //radial drift velocity
 
         vq -= r * omegaFrame; 
 
-        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
+        const double vx = vq * (-y / r) + vr * (x / r);
+        const double vy = vq * ( x / r) + vr * (y / r);
+
+        return std::vector<double> {rho, vx, vy, 0, pre, x, y};
     };
 
     // Source terms
