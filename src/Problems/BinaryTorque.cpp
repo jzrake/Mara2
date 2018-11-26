@@ -60,13 +60,9 @@ static int    NumHoles         = 1;     // Number of Black holes 1 or 2
 static double GM               = 1.0;   // Newton G * mass
 static double aBin             = 1.0;   // Binary separation
 static double SinkRadius       = 0.1;   // Sink radius
-
-// Rotating frame of reference
-
-static double omegaFrame = 0.0;
-
+static double OmegaFrame       = 0.0;   // Is set to OmegaBin if Tang17Rot && RotatingFrame == true
+static bool RotatingFrame      = true;  // Only used if IC is Tang17Rot
 static std::string InitialDataString = "Ring";
-
 static SimulationStatus status;
 
 
@@ -98,10 +94,10 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
     {
         const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (2.0 * GM / (aBin * aBin * aBin));
         SinkGeometry g1, g2;
-        g1.x = 0.5 * aBin * std::cos ((omegaBin - omegaFrame) * t);
-        g1.y = 0.5 * aBin * std::sin ((omegaBin - omegaFrame) * t);
-        g2.x = 0.5 * aBin * std::cos ((omegaBin - omegaFrame) * t + M_PI);
-        g2.y = 0.5 * aBin * std::sin ((omegaBin - omegaFrame) * t + M_PI);
+        g1.x = 0.5 * aBin * std::cos ((omegaBin - OmegaFrame) * t);
+        g1.y = 0.5 * aBin * std::sin ((omegaBin - OmegaFrame) * t);
+        g2.x = 0.5 * aBin * std::cos ((omegaBin - OmegaFrame) * t + M_PI);
+        g2.y = 0.5 * aBin * std::sin ((omegaBin - OmegaFrame) * t + M_PI);
         g1.r = std::sqrt ((x - g1.x) * (x - g1.x) + (y - g1.y) * (y - g1.y));
         g2.r = std::sqrt ((x - g2.x) * (x - g2.x) + (y - g2.y) * (y - g2.y));
         g1.xhat = (x - g1.x) / g1.r;
@@ -539,7 +535,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["outdir"]  = "data";
     user["restart"] = "";
     user["tfinal"]  = 16.0;
-    user["serial"]  = false;
+    user["serial"]  = 0;
     user["cpi"]     = 0.25;
     user["cpf"]     = "single"; // or multiple
     user["tsi"]     = 0.1;
@@ -556,6 +552,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["aBin"]             = aBin;
     user["SinkRadius"]       = SinkRadius;
     user["InitialData"]      = InitialDataString;
+    user["RotatingFrame"]    = RotatingFrame;
 
     auto cl = std::make_shared<ThinDiskNewtonianHydro>();
     auto initialData = std::function<std::vector<double>(double x, double y, double z)>();
@@ -655,7 +652,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double nu = ViscousAlpha * (vq / MachNumber) * h0; //ViscousAlpha * cs * h0
 	    const double vr = -(3.0/2.0) * nu / r; //radial drift velocity
 
-        vq -= r * omegaFrame; 
+        vq -= r * OmegaFrame; 
 
         const double vx = vq * (-y / r) + vr * (x / r);
         const double vy = vq * ( x / r) + vr * (y / r);
@@ -688,8 +685,8 @@ int BinaryTorque::run (int argc, const char* argv[])
 
         // Fictitious forces due to rotating frame (without Euler force)
 
-        S[S11] += dg * omegaFrame * ( 2.0 * vy + omegaFrame * x);
-        S[S22] += dg * omegaFrame * (-2.0 * vx + omegaFrame * y);
+        S[S11] += dg * OmegaFrame * ( 2.0 * vy + OmegaFrame * x);
+        S[S22] += dg * OmegaFrame * (-2.0 * vx + OmegaFrame * y);
 
 
         ConservationLaw::Request request;
@@ -754,18 +751,22 @@ int BinaryTorque::run (int argc, const char* argv[])
     NumHoles          = user["NumHoles"];
     aBin              = user["aBin"];
     SinkRadius        = user["SinkRadius"];
+    RotatingFrame     = user["RotatingFrame"];
     InitialDataString = std::string (user["InitialData"]);
 
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
     if (InitialDataString == "Ring")        initialData = initialDataRing;
     if (InitialDataString == "Farris14")    initialData = initialDataFarris14;
     if (InitialDataString == "Tang17")      initialData = initialDataTang17;
-
     if (InitialDataString == "Tang17Rot")
-    {       
-        omegaFrame =  std::sqrt (2.0 * GM / (aBin * aBin * aBin));
+    {
+        if (RotatingFrame)
+        {
+            OmegaFrame = std::sqrt (2.0 * GM / (aBin * aBin * aBin));
+        }
         initialData = initialDataTang17Rot;
-    }       
+    }
+
     auto logger    = std::make_shared<Logger>();
     auto writer    = std::make_shared<CheckpointWriter>();
     auto tseries   = std::make_shared<TimeSeriesManager>();
