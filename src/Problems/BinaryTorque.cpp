@@ -52,17 +52,17 @@ using namespace Cow;
 
 // ============================================================================
 static double SofteningRadius  =  0.2;  // r0^2, where Fg = G M m / (r^2 + r0^2)
-static double BetaBuffer       =  1.0;  // Orbital periods over which to relax to IC in outer buffer
+static double BetaBuffer       = 1e-3;  // Orbital periods over which to relax to IC in outer buffer
 static double BufferRadius     = 10.0;  // Radius beyond which solution is driven toward IC
 static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
 static double MachNumber       = 10.0;  // 1/M = h/r
-static int    NumHoles         = 1;     // Number of Black holes 1 or 2
+static int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static double GM               = 1.0;   // Newton G * mass
 static double aBin             = 1.0;   // Binary separation
 static double SinkRadius       = 0.1;   // Sink radius
-static double OmegaFrame       = 0.0;   // Is set to OmegaBin if Tang17Rot && RotatingFrame == true
-static bool RotatingFrame      = true;  // Only used if IC is Tang17Rot
-static std::string InitialDataString = "Ring";
+static double OmegaFrame       = 0.0;   // Is set to OmegaBin if Tang17 && RotatingFrame == true
+static int RotatingFrame       = true;  // Only used if IC is Tang17
+static std::string InitialDataString = "Tang17";
 static SimulationStatus status;
 
 
@@ -116,7 +116,10 @@ static double GravitationalPotential (double x, double y, double t)
 
     for (const auto& g : SinkGeometries (x, y, t))
     {
-        phi += -GM / (g.r + rs);
+        // phi += -GM / (g.r + rs);
+
+        // Note: new definition of softened potential:
+        phi += -GM * std::pow (g.r * g.r + rs * rs, -0.5);
     }
     return phi;
 }
@@ -128,10 +131,21 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, doub
 
     for (const auto& g : SinkGeometries (x, y, t))
     {
-        a[0] += -g.xhat * GM / std::pow (g.r + rs, 2);
-        a[1] += -g.yhat * GM / std::pow (g.r + rs, 2);
+        // a[0] += -g.xhat * GM / std::pow (g.r + rs, 2);
+        // a[1] += -g.yhat * GM / std::pow (g.r + rs, 2);
+
+        // Note: new definition of softened potential:
+        a[0] += -g.xhat * GM * std::pow (g.r * g.r + rs * rs, -1.5);
+        a[1] += -g.yhat * GM * std::pow (g.r * g.r + rs * rs, -1.5);
     }
     return a;
+}
+
+static double SoundSpeedSquared (double x, double y, double t)
+{
+    const double phi = GravitationalPotential (x, y, t);
+    const double cs2 = std::pow (MachNumber, -2) * -phi;
+    return cs2;
 }
 
 static double SinkKernel (double r)
@@ -189,14 +203,8 @@ ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& req
 {
     double P[7] = {0, 0, 0, 0, 0, 0, 0};
 
-    const double t = status.simulationTime;
-    const double x = U[XXX];
-    const double y = U[YYY];
-    const double phi = GravitationalPotential (x, y, t);
-    const double cs2 = std::pow (MachNumber, -2) * -phi;
-
     P[RHO] = std::max (DENSITY_FLOOR, U[DDD]);
-    P[PRE] = P[RHO] * cs2;
+    P[PRE] = P[RHO] * getSoundSpeedSquared (U);
     P[V11] = U[S11] / P[RHO];
     P[V22] = U[S22] / P[RHO];
     P[V33] = U[S33] / P[RHO];
@@ -317,7 +325,11 @@ std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
 
 double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P) const
 {
-    return P[PRE] / P[RHO];
+    // Note: the argument is allowed to be P or U, since only x and y are read from it.
+    const double t = status.simulationTime;
+    const double x = P[XXX];
+    const double y = P[YYY];
+    return SoundSpeedSquared (x, y, t);
 }
 
 
@@ -342,7 +354,7 @@ public:
 
     void apply (Cow::Array& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const override
     {
-        resetPressureToIsothermal(A);
+        // resetPressureToIsothermal(A);
         outflow.apply (A, location, boundary, axis, numGuard);
     }
 
@@ -351,25 +363,25 @@ public:
         return false;
     }
 
-    void resetPressureToIsothermal (Cow::Array& P) const
-    {
-        const double t = status.simulationTime;
+    // void resetPressureToIsothermal (Cow::Array& P) const
+    // {
+    //     const double t = status.simulationTime;
 
-        for (int i = 0; i < P.shape()[0]; ++i)
-        {
-            for (int j = 0; j < P.shape()[1]; ++j)
-            {
-                // WARNING: if other than 2 guard zones, do something!
-                const auto X = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
-                const double phi = GravitationalPotential (X[0], X[1], t);
-                const double cs2 = std::pow (MachNumber, -2) * -phi;
-                const double sigma = P(i, j, 0, RHO);
-                P(i, j, 0, PRE) = cs2 * sigma;
-                P(i, j, 0, XXX) = X[0];
-                P(i, j, 0, YYY) = X[1];
-            }
-        }
-    }
+    //     for (int i = 0; i < P.shape()[0]; ++i)
+    //     {
+    //         for (int j = 0; j < P.shape()[1]; ++j)
+    //         {
+    //             // WARNING: if other than 2 guard zones, do something!
+    //             const auto X = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
+    //             const double phi = GravitationalPotential (X[0], X[1], t);
+    //             const double cs2 = std::pow (MachNumber, -2) * -phi;
+    //             const double sigma = P(i, j, 0, RHO);
+    //             P(i, j, 0, PRE) = cs2 * sigma;
+    //             P(i, j, 0, XXX) = X[0];
+    //             P(i, j, 0, YYY) = X[1];
+    //         }
+    //     }
+    // }
 
     std::shared_ptr<MeshGeometry> meshGeometry;
     OutflowBoundaryCondition outflow;
@@ -445,7 +457,7 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
             const double h0 = rc / MachNumber;
-            const double nu = ViscousAlpha * cs * h0;// * (rc < 8.0 ? 1.0 : 0.0);
+            const double nu = ViscousAlpha * cs * h0;
             const double mu = dg * nu;
 
             const double dxuy = (uyR1 - uyL1) / dx;
@@ -596,7 +608,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double sigma0 = 1.0;
         const double r2 = x * x + y * y;
         const double r  = std::sqrt (r2);
-        const double rho = sigma0 * std::pow ((r/rs), -delta) * std::exp (-std::pow (r/rs, -xsi));
+        const double rho = sigma0 * std::pow (r / rs, -delta) * std::exp (-std::pow (r / rs, -xsi));
         const double omegak2 = GM/(r*r2); // squared Keplerian for total M at center, is M total mass of binary?
         const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
         const double vq = r * std::sqrt (omega2);
@@ -611,53 +623,29 @@ int BinaryTorque::run (int argc, const char* argv[])
         // Initial conditions from Tang+ (2017) MNRAS 469, 4258
         // MISSING?: radial drift velocity, pressure gradient for omegak2
         // Check Yike/Chris Disco setup
-        const double rs = SofteningRadius;
-        const double r0 = 2.5 * aBin;
-        const double xsi = 10.0;
-        const double sigma0 = 1.0;
-        const double r2 = x * x + y * y;
-        const double r  = std::sqrt (r2);
-        const double sigma = sigma0 * std::pow (r + rs, -0.5) * std::max (std::exp (-std::pow (r/r0, -xsi)), 1e-6);
-        const double omegak2 = GM / std::pow (r + rs,  3.0) * NumHoles; // squared Keplerian for total M at center, is M total mass of binary?
-        const double omega2  = omegak2;// * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); // missing pressure gradient term
-        const double vq = r * std::sqrt (omega2);
-        const double pre = std::pow (vq / MachNumber, 2.0) * sigma; // cs^2 * rho
-        const double h0 = r / MachNumber;
-        const double nu = ViscousAlpha * (vq / MachNumber) * h0; //ViscousAlpha * cs * h0
-        const double vr = -(3.0/2.0) * nu / r; //radial drift velocity
-
-        const double vx = vq * (-y / r) + vr * (x / r);
-        const double vy = vq * ( x / r) + vr * (y / r);
+        const auto   ag         = GravitationalAcceleration (x, y, status.simulationTime);
+        // const double omegaBin   = aBin == 0.0 ? 0.0 : std::sqrt (2.0 * GM / (aBin * aBin * aBin));
+        const double rs         = SofteningRadius;
+        const double r0         = 2.5 * aBin;
+        const double xsi        = 10.0;
+        const double sigma0     = 1.0;
+        const double r2         = x * x + y * y;
+        const double r          = std::sqrt (r2);
+        const double cs2        = SoundSpeedSquared (x, y, status.simulationTime);
+        const double cs2Deriv   = +(ag[0] * x + ag[1] * y) / r * std::pow (MachNumber, -2);
+        const double sigma      = sigma0 * std::pow (r/r0 + rs/r0, -0.5) * std::max (std::exp (-std::pow (r / r0, -xsi)), 1e-6);
+        const double sigmaDeriv = sigma0 * std::pow (r/r0 + rs/r0, -1.5) * -0.5 / r0; // neglects the cavity cutoff ^^
+        const double dPdr       = cs2 * sigmaDeriv + cs2Deriv * sigma;
+        const double omega2     = r < r0 ? GM / (4 * r0) : -(ag[0] * x + ag[1] * y) / r2 + dPdr / (sigma * r); // Not sure why GM / (4 * r0)... check this
+        const double vq         = r * std::sqrt (omega2); // defined to be in the inertial frame
+        const double pre        = cs2 * sigma;
+        const double h0         = r / MachNumber;
+        const double nu         = ViscousAlpha * std::sqrt (cs2) * h0; // ViscousAlpha * cs * h0
+	    const double vr         = -(3.0 / 2.0) * nu / (r + rs); // radial drift velocity (CHECK)
+        const double vx = (vq - r * OmegaFrame) * (-y / r) + vr * (x / r);
+        const double vy = (vq - r * OmegaFrame) * ( x / r) + vr * (y / r);
 
         return std::vector<double> {sigma, vx, vy, 0, pre, x, y};
-    };
-
-   auto initialDataTang17Rot = [&] (double x, double y, double z) -> std::vector<double>
-    {
-        // Initial conditions from Tang+ (2017) MNRAS 469, 4258
-        // MISSING?: radial drift velocity, pressure gradient for omegak2
-        // Check Yike/Chris Disco setup
-        const double rs = SofteningRadius;
-        const double r0 = 2.5 * aBin;
-        const double xsi = 10.0;
-        const double sigma0 = 1.0;
-        const double r2 = x * x + y * y;
-        const double r  = std::sqrt (r2);
-        const double rho = sigma0 * std::pow (r + rs, -0.5) * std::max (std::exp (-std::pow (r/r0, -xsi)), 1e-6);
-        const double omegak2 = GM / std::pow (r + rs,  3.0) * NumHoles; // squared Keplerian for total M at center, is M total mass of binary?
-        const double omega2  = omegak2;// * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); // missing pressure gradient term
-              double vq = r * std::sqrt (omega2);
-        const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
-        const double h0 = r / MachNumber;
-        const double nu = ViscousAlpha * (vq / MachNumber) * h0; //ViscousAlpha * cs * h0
-	    const double vr = -(3.0/2.0) * nu / r; //radial drift velocity
-
-        vq -= r * OmegaFrame; 
-
-        const double vx = vq * (-y / r) + vr * (x / r);
-        const double vy = vq * ( x / r) + vr * (y / r);
-
-        return std::vector<double> {rho, vx, vy, 0, pre, x, y};
     };
 
     // Source terms
@@ -757,14 +745,13 @@ int BinaryTorque::run (int argc, const char* argv[])
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
     if (InitialDataString == "Ring")        initialData = initialDataRing;
     if (InitialDataString == "Farris14")    initialData = initialDataFarris14;
-    if (InitialDataString == "Tang17")      initialData = initialDataTang17;
-    if (InitialDataString == "Tang17Rot")
+    if (InitialDataString == "Tang17")
     {
         if (RotatingFrame)
         {
             OmegaFrame = std::sqrt (2.0 * GM / (aBin * aBin * aBin));
         }
-        initialData = initialDataTang17Rot;
+        initialData = initialDataTang17;
     }
 
     auto logger    = std::make_shared<Logger>();
