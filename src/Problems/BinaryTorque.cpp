@@ -135,8 +135,8 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, doub
         // a[1] += -g.yhat * GM / std::pow (g.r + rs, 2);
 
         // Note: new definition of softened potential:
-        a[0] += -g.xhat * GM * std::pow (g.r * g.r + rs * rs, -1.5);
-        a[1] += -g.yhat * GM * std::pow (g.r * g.r + rs * rs, -1.5);
+        a[0] += -g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
+        a[1] += -g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
     }
     return a;
 }
