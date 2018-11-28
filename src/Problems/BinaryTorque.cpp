@@ -57,11 +57,11 @@ static double BufferRadius     = 10.0;  // Radius beyond which solution is drive
 static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
 static double MachNumber       = 10.0;  // 1/M = h/r
 static int    NumHoles         = 2;     // Number of Black holes 1 or 2
-static double GM               = 1.0;   // Newton G * mass
+static double GM               = 1.0;   // Newton G * mass of each component
 static double aBin             = 1.0;   // Binary separation
-static double SinkRadius       = 0.1;   // Sink radius
+static double SinkRadius       = 0.2;   // Sink radius
 static double OmegaFrame       = 0.0;   // Is set to OmegaBin if Tang17 && RotatingFrame == true
-static int RotatingFrame       = true;  // Only used if IC is Tang17
+static int RotatingFrame       = false; // Only used if IC is Tang17
 static std::string InitialDataString = "Tang17";
 static SimulationStatus status;
 
@@ -290,7 +290,7 @@ std::string ThinDiskNewtonianHydro::getPrimitiveName (int fieldIndex) const
 {
     switch (fieldIndex)
     {
-        case RHO: return "density";
+        case RHO: return "sigma";
         case V11: return "velocity1";
         case V22: return "velocity2";
         case V33: return "velocity3";
@@ -299,28 +299,6 @@ std::string ThinDiskNewtonianHydro::getPrimitiveName (int fieldIndex) const
         case YYY: return "y";
         default: return "";
     }
-}
-
-std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state) const
-{
-    auto D = std::vector<double> (5);
-    D[0] = state.U[RHO];
-    D[1] = state.U[S11];
-    D[2] = state.U[S22];
-    D[3] = state.U[S33];
-    D[4] = state.U[NRG];
-    return D;
-}
-
-std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
-{
-    auto N = std::vector<std::string>(5);
-    N[0] = "mass";
-    N[1] = "momentum1";
-    N[2] = "momentum2";
-    N[3] = "momentum3";
-    N[4] = "total_energy";
-    return N;
 }
 
 double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P) const
@@ -332,60 +310,63 @@ double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P) const
     return SoundSpeedSquared (x, y, t);
 }
 
-
-
-
-// ============================================================================
-class ThinDiskBoundaryCondition : public BoundaryCondition
+std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state) const
 {
-public:
-    ThinDiskBoundaryCondition()
+    const double t = status.simulationTime;
+    const double x = state.P[XXX];
+    const double y = state.P[YYY];
+    const double dg = state.P[RHO];
+    const double px = state.U[S11];
+    const double py = state.U[S22];
+    const auto ag = GravitationalAcceleration (x, y, t);
+    const auto sinks = SinkGeometries (x, y, t);
+
+    auto D = std::vector<double> (8);
+    D[0] = dg;
+    D[1] = x * py - y * px;
+
+    if (sinks.size() >= 1)
     {
+        const SinkGeometry g = sinks[0];
+        const double tsink = SinkKernel (g.r);
+        const double dgdot = dg / tsink;
+        const double pxdot = px / tsink;
+        const double pydot = py / tsink;
+        const double Ldot1 = g.x * pydot - g.y * pxdot;
+        D[2] = dgdot;
+        D[4] = dg * (g.x * ag[1] - g.y * ag[0]);
+        D[6] = Ldot1;
     }
-
-    void setConservationLaw (std::shared_ptr<ConservationLaw> cl) override
+    if (sinks.size() >= 2)
     {
+        const SinkGeometry g = sinks[1];
+        const double tsink = SinkKernel (g.r);
+        const double dgdot = dg / tsink;
+        const double pxdot = px / tsink;
+        const double pydot = py / tsink;
+        const double Ldot2 = g.x * pydot - g.y * pxdot;
+        D[3] = dgdot;
+        D[5] = dg * (g.x * ag[1] - g.y * ag[0]);
+        D[7] = Ldot2;
     }
+    return D;
+}
 
-    void setMeshGeometry (std::shared_ptr<MeshGeometry> mg) override
-    {
-        meshGeometry = mg;
-    }
-
-    void apply (Cow::Array& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const override
-    {
-        // resetPressureToIsothermal(A);
-        outflow.apply (A, location, boundary, axis, numGuard);
-    }
-
-    bool isAxisPeriodic (int axis) override
-    {
-        return false;
-    }
-
-    // void resetPressureToIsothermal (Cow::Array& P) const
-    // {
-    //     const double t = status.simulationTime;
-
-    //     for (int i = 0; i < P.shape()[0]; ++i)
-    //     {
-    //         for (int j = 0; j < P.shape()[1]; ++j)
-    //         {
-    //             // WARNING: if other than 2 guard zones, do something!
-    //             const auto X = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
-    //             const double phi = GravitationalPotential (X[0], X[1], t);
-    //             const double cs2 = std::pow (MachNumber, -2) * -phi;
-    //             const double sigma = P(i, j, 0, RHO);
-    //             P(i, j, 0, PRE) = cs2 * sigma;
-    //             P(i, j, 0, XXX) = X[0];
-    //             P(i, j, 0, YYY) = X[1];
-    //         }
-    //     }
-    // }
-
-    std::shared_ptr<MeshGeometry> meshGeometry;
-    OutflowBoundaryCondition outflow;
-};
+std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
+{
+    auto N = std::vector<std::string>(8);
+    N[0] = "fluid_mass";
+    N[1] = "fluid_angular_momentum";
+    N[2] = "accretion_mdot_on_bh1";
+    N[3] = "accretion_mdot_on_bh2";
+    N[4] = "gravitational_torque_on_bh1";
+    N[5] = "gravitational_torque_on_bh2";
+    N[6] = "accretion_torque_on_bh1";
+    N[7] = "accretion_torque_on_bh2";
+    // N[7] = "accretion_torque_on_bh1-tang17";
+    // N[8] = "accretion_torque_on_bh2-tang17";
+    return N;
+}
 
 
 
@@ -598,26 +579,6 @@ int BinaryTorque::run (int argc, const char* argv[])
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
     };
 
-    auto initialDataFarris14 = [&] (double x, double y, double z) -> std::vector<double>
-    {
-        // Initial conditions from Farris+ (2014) ApJ 783, 134
-        // MISSING: radial drift velocity, pressure gradient for omega
-        const double rs = 10.0 * aBin;
-        const double delta = 3.0;
-        const double xsi = 2.0;
-        const double sigma0 = 1.0;
-        const double r2 = x * x + y * y;
-        const double r  = std::sqrt (r2);
-        const double rho = sigma0 * std::pow (r / rs, -delta) * std::exp (-std::pow (r / rs, -xsi));
-        const double omegak2 = GM/(r*r2); // squared Keplerian for total M at center, is M total mass of binary?
-        const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
-        const double vq = r * std::sqrt (omega2);
-        const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
-        const double qhX = -y / r;
-        const double qhY =  x / r;
-        return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
-    };
-
     auto initialDataTang17 = [&] (double x, double y, double z) -> std::vector<double>
     {
         // Initial conditions from Tang+ (2017) MNRAS 469, 4258
@@ -744,7 +705,7 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
     if (InitialDataString == "Ring")        initialData = initialDataRing;
-    if (InitialDataString == "Farris14")    initialData = initialDataFarris14;
+    // if (InitialDataString == "Farris14")    initialData = initialDataFarris14;
     if (InitialDataString == "Tang17")
     {
         if (RotatingFrame)
@@ -764,7 +725,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
     // auto rs = std::shared_ptr<RiemannSolver> (new HlleRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
-    auto bc = std::shared_ptr<BoundaryCondition>(new ThinDiskBoundaryCondition);
+    auto bc = std::shared_ptr<BoundaryCondition>(new OutflowBoundaryCondition);
 
     // Set up grid shape.
     // ------------------------------------------------------------------------
@@ -837,8 +798,34 @@ int BinaryTorque::run (int argc, const char* argv[])
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
     };
 
+    auto taskTimeSeries = [&] (SimulationStatus, int rep)
+    {
+        auto volumeAverageOverPatches = [&] (std::vector<double> vals)
+        {
+            if (bd)
+                return bd->volumeAverageOverPatches (vals);
+
+            for (auto& val : vals)
+                val /= mg->meshVolume();
+
+            return vals;
+        };
+
+        auto volumeIntegrated = fo->volumeIntegratedDiagnostics (P, V);
+        auto volumeAveraged = volumeAverageOverPatches (volumeIntegrated);
+        auto fieldNames = cl->getDiagnosticNames();
+        auto entry = Variant::NamedValues();
+
+        for (unsigned int n = 0; n < fieldNames.size(); ++n)
+        {
+            entry[fieldNames[n]] = volumeAveraged[n];
+        }
+        tseries->append (status, entry);
+    };
+
     scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]), "checkpoint");
-    scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 1), "compute_dt"); // re-computing every time step
+    scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 1), "compute_dt");
+    scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (0.0, 0.0, 1), "time_series");
 
     writer->setMeshDecomposition (bd);
     writer->setTimeSeriesManager (tseries);
@@ -865,3 +852,92 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
 }
+
+
+
+
+
+
+
+
+
+
+    // auto initialDataFarris14 = [&] (double x, double y, double z) -> std::vector<double>
+    // {
+    //     // Initial conditions from Farris+ (2014) ApJ 783, 134
+    //     // MISSING: radial drift velocity, pressure gradient for omega
+    //     const double rs = 10.0 * aBin;
+    //     const double delta = 3.0;
+    //     const double xsi = 2.0;
+    //     const double sigma0 = 1.0;
+    //     const double r2 = x * x + y * y;
+    //     const double r  = std::sqrt (r2);
+    //     const double rho = sigma0 * std::pow (r / rs, -delta) * std::exp (-std::pow (r / rs, -xsi));
+    //     const double omegak2 = GM/(r*r2); // squared Keplerian for total M at center, is M total mass of binary?
+    //     const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
+    //     const double vq = r * std::sqrt (omega2);
+    //     const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
+    //     const double qhX = -y / r;
+    //     const double qhY =  x / r;
+    //     return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
+    // };
+
+
+
+
+
+
+
+// ============================================================================
+// class ThinDiskBoundaryCondition : public BoundaryCondition
+// {
+// public:
+//     ThinDiskBoundaryCondition()
+//     {
+//     }
+
+//     void setConservationLaw (std::shared_ptr<ConservationLaw> cl) override
+//     {
+//     }
+
+//     void setMeshGeometry (std::shared_ptr<MeshGeometry> mg) override
+//     {
+//         meshGeometry = mg;
+//     }
+
+//     void apply (Cow::Array& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const override
+//     {
+//         // resetPressureToIsothermal(A);
+//         outflow.apply (A, location, boundary, axis, numGuard);
+//     }
+
+//     bool isAxisPeriodic (int axis) override
+//     {
+//         return false;
+//     }
+
+    // void resetPressureToIsothermal (Cow::Array& P) const
+    // {
+    //     const double t = status.simulationTime;
+
+    //     for (int i = 0; i < P.shape()[0]; ++i)
+    //     {
+    //         for (int j = 0; j < P.shape()[1]; ++j)
+    //         {
+    //             // WARNING: if other than 2 guard zones, do something!
+    //             const auto X = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
+    //             const double phi = GravitationalPotential (X[0], X[1], t);
+    //             const double cs2 = std::pow (MachNumber, -2) * -phi;
+    //             const double sigma = P(i, j, 0, RHO);
+    //             P(i, j, 0, PRE) = cs2 * sigma;
+    //             P(i, j, 0, XXX) = X[0];
+    //             P(i, j, 0, YYY) = X[1];
+    //         }
+    //     }
+    // }
+
+//     std::shared_ptr<MeshGeometry> meshGeometry;
+//     OutflowBoundaryCondition outflow;
+// };
+
+
