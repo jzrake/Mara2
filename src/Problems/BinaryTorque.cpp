@@ -332,9 +332,9 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink;
         const double pydot = py / tsink;
-        const double Ldot1 = g.x * pydot - g.y * pxdot;
+        const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
         D[2] = dgdot;
-        D[4] = dg * (g.x * ag[1] - g.y * ag[0]);
+        D[4] = dg * (g.x * ag[1] - g.y * ag[0]); // Gravitational torque on BH 1 (rb \times fg)
         D[6] = Ldot1;
     }
     if (sinks.size() >= 2)
@@ -344,9 +344,9 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink;
         const double pydot = py / tsink;
-        const double Ldot2 = g.x * pydot - g.y * pxdot;
+        const double Ldot2 = x * pydot - y * pxdot; // Total accretion torque from sink 2
         D[3] = dgdot;
-        D[5] = dg * (g.x * ag[1] - g.y * ag[0]);
+        D[5] = dg * (g.x * ag[1] - g.y * ag[0]); // Gravitational torque on BH 2 (rb \times fg)
         D[7] = Ldot2;
     }
     return D;
