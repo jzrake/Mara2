@@ -61,6 +61,7 @@ static double GM               = 1.0;   // Newton G * mass of each component
 static double aBin             = 1.0;   // Binary separation
 static double SinkRadius       = 0.2;   // Sink radius
 static double OmegaFrame       = 0.0;   // Is set to OmegaBin if Tang17 && RotatingFrame == true
+static double LdotEfficiency   = 1.0;   // Efficiency f to accrete L through the mini-disks (f = 1 is maximal)
 static int RotatingFrame       = false; // Only used if IC is Tang17
 static std::string InitialDataString = "Tang17";
 static SimulationStatus status;
@@ -330,8 +331,8 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const SinkGeometry g = sinks[0];
         const double tsink = SinkKernel (g.r);
         const double dgdot = dg / tsink;
-        const double pxdot = px / tsink;
-        const double pydot = py / tsink;
+        const double pxdot = px / tsink * LdotEfficiency;
+        const double pydot = py / tsink * LdotEfficiency;
         const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
         D[2] = dgdot;
         D[4] = dg * (g.x * ag[1] - g.y * ag[0]); // Gravitational torque on BH 1 (rb \times fg)
@@ -342,8 +343,8 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const SinkGeometry g = sinks[1];
         const double tsink = SinkKernel (g.r);
         const double dgdot = dg / tsink;
-        const double pxdot = px / tsink;
-        const double pydot = py / tsink;
+        const double pxdot = px / tsink * LdotEfficiency;
+        const double pydot = py / tsink * LdotEfficiency;
         const double Ldot2 = x * pydot - y * pxdot; // Total accretion torque from sink 2
         D[3] = dgdot;
         D[5] = dg * (g.x * ag[1] - g.y * ag[0]); // Gravitational torque on BH 2 (rb \times fg)
@@ -544,6 +545,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["NumHoles"]         = NumHoles;
     user["aBin"]             = aBin;
     user["SinkRadius"]       = SinkRadius;
+    user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
     user["RotatingFrame"]    = RotatingFrame;
 
@@ -661,18 +663,14 @@ int BinaryTorque::run (int argc, const char* argv[])
             S[0] -= (state1.U[0] - state0.U[0]) / tau;
             S[1] -= (state1.U[1] - state0.U[1]) / tau;
             S[2] -= (state1.U[2] - state0.U[2]) / tau;
-            S[3] -= (state1.U[3] - state0.U[3]) / tau;
-            // S[4] -= (state1.U[4] - state0.U[4]) / tau;
         }
 
         // Sink
         // ====================================================================
         const double tsink = SinkTime (x, y, t);
         S[0] -= state1.U[0] / tsink;
-        S[1] -= state1.U[1] / tsink;
-        S[2] -= state1.U[2] / tsink;
-        S[3] -= state1.U[3] / tsink;
-        // S[4] -= state1.U[4] / tsink;
+        S[1] -= state1.U[1] / tsink * LdotEfficiency;
+        S[2] -= state1.U[2] / tsink * LdotEfficiency;
 
         return S;
     };
@@ -700,6 +698,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     NumHoles          = user["NumHoles"];
     aBin              = user["aBin"];
     SinkRadius        = user["SinkRadius"];
+    LdotEfficiency    = user["LdotEfficiency"];
     RotatingFrame     = user["RotatingFrame"];
     InitialDataString = std::string (user["InitialData"]);
 
