@@ -151,7 +151,7 @@ static double SoundSpeedSquared (double x, double y, double t)
 
 static double SinkKernel (double r)
 {
-    const double viscousTimeScale = 2 * M_PI / std::sqrt (SinkRadius * SinkRadius * SinkRadius / GM) / ViscousAlpha;
+    const double viscousTimeScale = 2 * M_PI * std::sqrt (SinkRadius * SinkRadius * SinkRadius / GM) / ViscousAlpha;
     return r < SinkRadius ? viscousTimeScale : HUGE_TIME_SCALE;
 }
 
