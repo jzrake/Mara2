@@ -581,6 +581,23 @@ int BinaryTorque::run (int argc, const char* argv[])
         return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
     };
 
+    auto initialDataZrake = [&] (double x, double y, double z) -> std::vector<double>
+    {
+        const auto   phi        = GravitationalPotential (x, y, status.simulationTime);
+        const double cs2        = SoundSpeedSquared      (x, y, status.simulationTime);
+        const double sigma0     = 1.0;
+        const double r0         = 2.5 * aBin;
+        const double rs         = SofteningRadius;
+        const double r2         = x * x + y * y;
+        const double r          = std::sqrt (r2);
+        const double sigma      = std::pow (r/r0 + rs/r0, -0.5) * sigma0;
+        const double vq         = std::sqrt (-phi);
+        const double pre        = cs2 * sigma;
+        const double vx         = vq * (-y / r);
+        const double vy         = vq * ( x / r);
+        return std::vector<double> {sigma, vx, vy, 0, pre, x, y};
+    };
+
     auto initialDataTang17 = [&] (double x, double y, double z) -> std::vector<double>
     {
         // Initial conditions from Tang+ (2017) MNRAS 469, 4258
@@ -604,7 +621,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double pre        = cs2 * sigma;
         const double h0         = r / MachNumber;
         const double nu         = ViscousAlpha * std::sqrt (cs2) * h0; // ViscousAlpha * cs * h0
-	    const double vr         = -(3.0 / 2.0) * nu / (r + rs); // radial drift velocity (CHECK)
+        const double vr         = -(3.0 / 2.0) * nu / (r + rs); // radial drift velocity (CHECK)
         const double vx = (vq - r * OmegaFrame) * (-y / r) + vr * (x / r);
         const double vy = (vq - r * OmegaFrame) * ( x / r) + vr * (y / r);
 
@@ -704,6 +721,7 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
     if (InitialDataString == "Ring")        initialData = initialDataRing;
+    if (InitialDataString == "Zrake")       initialData = initialDataZrake;
     // if (InitialDataString == "Farris14")    initialData = initialDataFarris14;
     if (InitialDataString == "Tang17")
     {
