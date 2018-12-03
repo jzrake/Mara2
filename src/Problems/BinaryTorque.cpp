@@ -425,14 +425,19 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double ycL = P(i + 0, j, 0, YYY);
             const double ycR = P(i + 1, j, 0, YYY);
             const double uxL0 = P(i + 0, j - 1, 0, V11);
-            const double uxL2 = P(i + 0, j + 0, 0, V11);
-            const double uxR0 = P(i + 1, j + 0, 0, V11);
+            const double uxL1 = P(i + 0, j + 0, 0, V11);
+            const double uxL2 = P(i + 0, j + 1, 0, V11);
+            const double uxR0 = P(i + 1, j - 1, 0, V11);
+            const double uxR1 = P(i + 1, j + 0, 0, V11);
             const double uxR2 = P(i + 1, j + 1, 0, V11);
-            const double uyL1 = P(i + 0, j - 1, 0, V22);
-            const double uyR1 = P(i + 1, j + 1, 0, V22);
+            const double uyL0 = P(i + 0, j - 1, 0, V22);
+            const double uyL1 = P(i + 0, j + 0, 0, V22);
+            const double uyL2 = P(i + 0, j + 1, 0, V22);
+            const double uyR0 = P(i + 1, j - 1, 0, V22);
+            const double uyR1 = P(i + 1, j + 0, 0, V22);
+            const double uyR2 = P(i + 1, j + 1, 0, V22);
             const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
             const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
-
             const double csL = std::sqrt (pgL / dgL);
             const double csR = std::sqrt (pgR / dgR);
             const double rc = 0.5 * (rcL + rcR);
@@ -442,11 +447,12 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double nu = ViscousAlpha * cs * h0;
             const double mu = dg * nu;
 
+            const double dxux = (uxR1 - uxL1) / dx;
             const double dxuy = (uyR1 - uyL1) / dx;
             const double dyux = (uxR2 - uxR0 + uxL2 - uxL0) / (4 * dy);
+            const double dyuy = (uyR2 - uyR0 + uyL2 - uyL0) / (4 * dy);
 
-            // To be checked...
-            const double tauxx = 0.0;
+            const double tauxx = mu * (dxux - dyuy);
             const double tauxy = mu * (dxuy + dyux);
 
             Fhat(i + 1, j, 0, 0, 0) -= 0.0;   // mass flux
@@ -469,15 +475,20 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double xcR = P(i, j + 1, 0, XXX);
             const double ycL = P(i, j + 0, 0, YYY);
             const double ycR = P(i, j + 1, 0, YYY);
+            const double uxL0 = P(i - 1, j + 0, 0, V11);
+            const double uxL1 = P(i + 0, j + 0, 0, V11);
+            const double uxL2 = P(i + 1, j + 0, 0, V11);
+            const double uxR0 = P(i - 1, j + 1, 0, V11);
+            const double uxR1 = P(i + 0, j + 1, 0, V11);
+            const double uxR2 = P(i + 1, j + 1, 0, V11);
             const double uyL0 = P(i - 1, j + 0, 0, V22);
-            const double uyL2 = P(i + 0, j + 0, 0, V22);
-            const double uyR0 = P(i + 0, j + 1, 0, V22);
+            const double uyL1 = P(i + 0, j + 0, 0, V22);
+            const double uyL2 = P(i + 1, j + 0, 0, V22);
+            const double uyR0 = P(i - 1, j + 1, 0, V22);
+            const double uyR1 = P(i + 0, j + 1, 0, V22);
             const double uyR2 = P(i + 1, j + 1, 0, V22);
-            const double uxL1 = P(i - 1, j + 0, 0, V11);
-            const double uxR1 = P(i + 1, j + 1, 0, V11);
             const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
             const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
-
             const double csL = std::sqrt (pgL / dgL);
             const double csR = std::sqrt (pgR / dgR);
             const double rc = 0.5 * (rcL + rcR);
@@ -488,11 +499,12 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double mu = dg * nu;
 
             const double dyux = (uxR1 - uxL1) / dy;
+            const double dyuy = (uyR1 - uyL1) / dy;
+            const double dxux = (uxR2 - uxR0 + uxL2 - uxL0) / (4 * dx);
             const double dxuy = (uyR2 - uyR0 + uyL2 - uyL0) / (4 * dx);
 
-            // To be checked...
             const double tauyx = mu * (dyux + dxuy);
-            const double tauyy = 0.0;
+            const double tauyy = mu * (dyuy - dxux);
 
             Fhat(i, j + 1, 0, 0, 1) -= 0.0;   // mass flux
             Fhat(i, j + 1, 0, 1, 1) -= tauyx; // px flux
