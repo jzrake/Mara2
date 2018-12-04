@@ -497,7 +497,7 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
             const double h0 = rc / MachNumber;
-            const double nu = ViscousAlpha * cs * h0 * (rc < 8.0 ? 1.0 : 0.0);
+            const double nu = ViscousAlpha * cs * h0; // * (rc < 8.0 ? 1.0 : 0.0);
             const double mu = dg * nu;
 
             const double dyux = (uxR1 - uxL1) / dy;
