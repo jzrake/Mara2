@@ -629,7 +629,7 @@ ConservationLaw::State RelativisticMHD::fromConserved (const Request& request, c
     solver.estimate_from_cons();
 
     int error;
-    
+
     if ((error = solver.solve_anton2dzw (P)) == 0)
     {
         return fromPrimitive (request, P);

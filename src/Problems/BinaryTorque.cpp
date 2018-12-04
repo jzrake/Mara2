@@ -319,7 +319,7 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     const double dg = state.P[RHO];
     const double px = state.U[S11];
     const double py = state.U[S22];
-    const auto ag = GravitationalAcceleration (x, y, t);
+    // const auto ag = GravitationalAcceleration (x, y, t); <--- was using this until 0d143ad
     const auto sinks = SinkGeometries (x, y, t);
 
     auto D = std::vector<double> (8);
@@ -329,18 +329,20 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     if (sinks.size() >= 1)
     {
         const SinkGeometry g = sinks[0];
+        const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}}; // <--- should be this
         const double tsink = SinkKernel (g.r);
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
         D[2] = dgdot;
-        D[4] = dg * (g.x * ag[1] - g.y * ag[0]); // Gravitational torque on BH 1 (rb \times fg)
+        D[4] = dg * (g.x * ag[1] - g.y * ag[0]);
         D[6] = Ldot1;
     }
     if (sinks.size() >= 2)
     {
         const SinkGeometry g = sinks[1];
+        const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}};
         const double tsink = SinkKernel (g.r);
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink * LdotEfficiency;
