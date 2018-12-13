@@ -55,6 +55,7 @@ static double SofteningRadius  =  0.2;  // r0^2, where Fg = G M m / (r^2 + r0^2)
 static double BetaBuffer       = 1e-3;  // Orbital periods over which to relax to IC in outer buffer
 static double BufferRadius     = 10.0;  // Radius beyond which solution is driven toward IC
 static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
+static double VacuumCleaner    = 1.0;   // alpha_mini / alpha_disk (set to a number > 1 to simulate faster-than reasonable sinks)
 static double MachNumber       = 10.0;  // 1/M = h/r
 static int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static double GM               = 1.0;   // Newton G * mass of each component
@@ -151,8 +152,11 @@ static double SoundSpeedSquared (double x, double y, double t)
 
 static double SinkKernel (double r)
 {
-    const double viscousTimeScale = 2 * M_PI * std::sqrt (SinkRadius * SinkRadius * SinkRadius / GM) / ViscousAlpha;
-    return r < SinkRadius ? viscousTimeScale : HUGE_TIME_SCALE;
+    const double rsink = SinkRadius;
+    const double orbitalPeriod = 2 * M_PI * std::sqrt (rsink * rsink * rsink / GM);
+    const double viscousTime = orbitalPeriod / ViscousAlpha;
+    const double sinkTime = viscousTime / VacuumCleaner;
+    return r < rsink ? sinkTime : HUGE_TIME_SCALE;
 }
 
 static double SinkTime (double x, double y, double t)
@@ -562,6 +566,8 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
     user["RotatingFrame"]    = RotatingFrame;
+    user["VacuumCleaner"]    = VacuumCleaner;
+
 
     auto cl = std::make_shared<ThinDiskNewtonianHydro>();
     auto initialData = std::function<std::vector<double>(double x, double y, double z)>();
@@ -731,7 +737,9 @@ int BinaryTorque::run (int argc, const char* argv[])
     SinkRadius        = user["SinkRadius"];
     LdotEfficiency    = user["LdotEfficiency"];
     RotatingFrame     = user["RotatingFrame"];
+    VacuumCleaner    = user["VacuumCleaner"];
     InitialDataString = std::string (user["InitialData"]);
+
 
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
     if (InitialDataString == "Ring")        initialData = initialDataRing;
