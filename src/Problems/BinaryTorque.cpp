@@ -152,11 +152,11 @@ static double SoundSpeedSquared (double x, double y, double t)
 
 static double SinkKernel (double r)
 {
-    const double rsink = SinkRadius;
-    const double orbitalPeriod = 2 * M_PI * std::sqrt (rsink * rsink * rsink / GM);
-    const double viscousTime = orbitalPeriod / ViscousAlpha;
-    const double sinkTime = viscousTime / VacuumCleaner;
-    return r < rsink ? sinkTime : HUGE_TIME_SCALE;
+    // The sqrt(2) below comes from M / Mtot.
+    const double omegaSink = std::sqrt (GM / std::pow (SinkRadius, 3));
+    const double tvisc = 2. / 3 * std::sqrt (2.0) * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+    const double tsink = tvisc / VacuumCleaner;
+    return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
 }
 
 static double SinkTime (double x, double y, double t)
