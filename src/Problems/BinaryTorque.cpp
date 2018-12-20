@@ -53,7 +53,6 @@ using namespace Cow;
 // ============================================================================
 static double SofteningRadius  =  0.2;  // r0^2, where Fg = G M m / (r^2 + r0^2)
 static double BetaBuffer       = 1e-3;  // Orbital periods over which to relax to IC in outer buffer
-static double BufferRadius     = 10.0;  // Radius beyond which solution is driven toward IC
 static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
 static double VacuumCleaner    = 1.0;   // alpha_mini / alpha_disk (set to a number > 1 to simulate faster-than reasonable sinks)
 static double MachNumber       = 10.0;  // 1/M = h/r
@@ -63,6 +62,7 @@ static double aBin             = 1.0;   // Binary separation
 static double SinkRadius       = 0.2;   // Sink radius
 static double OmegaFrame       = 0.0;   // Is set to OmegaBin if Tang17 && RotatingFrame == true
 static double LdotEfficiency   = 1.0;   // Efficiency f to accrete L through the mini-disks (f = 1 is maximal)
+static double DomainRadius     = 8.0;
 static int RotatingFrame       = false; // Only used if IC is Tang17
 static std::string InitialDataString = "Tang17";
 static SimulationStatus status;
@@ -118,9 +118,6 @@ static double GravitationalPotential (double x, double y, double t)
 
     for (const auto& g : SinkGeometries (x, y, t))
     {
-        // phi += -GM / (g.r + rs);
-
-        // Note: new definition of softened potential:
         phi += -GM * std::pow (g.r * g.r + rs * rs, -0.5);
     }
     return phi;
@@ -133,10 +130,6 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, doub
 
     for (const auto& g : SinkGeometries (x, y, t))
     {
-        // a[0] += -g.xhat * GM / std::pow (g.r + rs, 2);
-        // a[1] += -g.yhat * GM / std::pow (g.r + rs, 2);
-
-        // Note: new definition of softened potential:
         a[0] += -g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         a[1] += -g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
     }
@@ -183,6 +176,7 @@ static double SinkKernel (double r)
     // orbital time is with repect to gas orbits around a single component, so
     // would not involve the sqrt(2). tvisc = 29.81 for Mach = 10 and Alpha =
     // 0.1.
+
     const double yike_comparison_factor = std::sqrt (2.0);
     tsink *= yike_comparison_factor;
 
@@ -205,7 +199,11 @@ static double SinkTime (double x, double y, double t)
 
 static double bufferZoneProfile (double r)
 {
-    return 1.0 + std::tanh (r - BufferRadius);
+    // The tightness parameter below steepens the onset of the buffer. For a
+    // value of 3 and when DomainRadius = 8, the return value is 1% at roughly
+    // r = 7.2.
+    const double tightness = 3;
+    return 1.0 + std::tanh (tightness * (r - DomainRadius));
 }
 
 
@@ -445,12 +443,10 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double nu = ViscousAlpha * cs * rt / MachNumber;
             const double mu = dg * nu;
 
-
             const double dxux = (uxR1 - uxL1) / dx;
             const double dxuy = (uyR1 - uyL1) / dx;
             const double dyux = (uxR2 - uxR0 + uxL2 - uxL0) / (4 * dy);
             const double dyuy = (uyR2 - uyR0 + uyL2 - uyL0) / (4 * dy);
-
             const double tauxx = mu * (dxux - dyuy);
             const double tauxy = mu * (dxuy + dyux);
 
@@ -496,7 +492,6 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double dyuy = (uyR1 - uyL1) / dy;
             const double dxux = (uxR2 - uxR0 + uxL2 - uxL0) / (4 * dx);
             const double dxuy = (uyR2 - uyR0 + uyL2 - uyL0) / (4 * dx);
-
             const double tauyx = mu * (dyux + dxuy);
             const double tauyy = mu * (dyuy - dxux);
 
@@ -538,7 +533,7 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     user["SofteningRadius"]  = SofteningRadius;
     user["BetaBuffer"]       = BetaBuffer;
-    user["BufferRadius"]     = BufferRadius;
+    user["DomainRadius"]     = DomainRadius;
     user["ViscousAlpha"]     = ViscousAlpha;
     user["MachNumber"]       = MachNumber;
     user["NumHoles"]         = NumHoles;
@@ -672,7 +667,7 @@ int BinaryTorque::run (int argc, const char* argv[])
 
         // Outer buffer
         // ====================================================================
-        if (r > 0.5 * BufferRadius)
+        if (r > 0.5 * DomainRadius)
         {
             const double vk       = std::sqrt (-GravitationalPotential (x, y, t));
             const double torb     = 2.0 * M_PI * r / vk;
@@ -710,7 +705,7 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     SofteningRadius   = user["SofteningRadius"];
     BetaBuffer        = user["BetaBuffer"];
-    BufferRadius      = user["BufferRadius"];
+    DomainRadius      = user["DomainRadius"];
     ViscousAlpha      = user["ViscousAlpha"];
     MachNumber        = user["MachNumber"];
     NumHoles          = user["NumHoles"];
@@ -752,7 +747,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto bs = Shape {{ 2, 2, 0, 0, 0 }};
 
     mg->setCellsShape (cs);
-    mg->setLowerUpper ({{-10.0, -10.0, 0.0}}, {{10.0, 10.0, 1.0}});
+    mg->setLowerUpper ({{-DomainRadius, -DomainRadius, 0.0}}, {{DomainRadius, DomainRadius, 1.0}});
 
     if (! user["serial"])
     {
