@@ -144,32 +144,26 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, doub
 }
 
 /**
- * This function selects the orbital frequency apropriately depending on which
- * component is closer by.
+ * This function approximates the distance to either hole when that distance
+ * is small, and the distance to the origin when it is large.
  */
-double EffectiveOmega (double x, double y, double t)
+double EffectiveRadius (double x, double y, double t)
 {
-    const double rs = SofteningRadius;
-    const double Phi = GravitationalPotential (x, y, t);
-
     auto sinks = SinkGeometries (x, y, t);
 
-    const double r_inv = 1.0 / (sinks[0].r + rs) + 1.0 / (sinks[1].r + rs); 
-    return std::sqrt (-Phi) * r_inv;  
+    if (sinks.size() == 1)
+    {
+        return sinks[0].r;
+    }
 
-//    if (sinks.size() == 1)
-//    {
-//        return std::sqrt (-Phi / (sinks[0].r * sinks[0].r + rs * rs));
-//    }
-//    else if (sinks[0].r < sinks[1].r)
-//    {
-//        return std::sqrt (-Phi / (sinks[0].r * sinks[0].r + rs * rs));
-//    }
-//    else if (sinks[1].r < sinks[0].r)
-//    {
-//        return std::sqrt (-Phi / (sinks[1].r * sinks[1].r + rs * rs));
-//    }
-//    throw;
+    const double dx1 = x - sinks[0].x;
+    const double dy1 = y - sinks[0].y;
+    const double dx2 = x - sinks[1].x;
+    const double dy2 = y - sinks[1].y;
+    const double r1 = std::sqrt (dx1 * dx1 + dy1 * dy1);
+    const double r2 = std::sqrt (dx2 * dx2 + dy2 * dy2);
+
+    return (1.0 - 1.0 / (r1 / r2 + r2 / r1)) / (1.0 / r1 + 1.0 / r2);
 }
 
 static double SoundSpeedSquared (double x, double y, double t)
@@ -211,7 +205,7 @@ static double SinkTime (double x, double y, double t)
 
 static double bufferZoneProfile (double r)
 {
-    return 1 + std::tanh (r - BufferRadius);
+    return 1.0 + std::tanh (r - BufferRadius);
 }
 
 
@@ -360,8 +354,6 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     const double px = state.U[S11];
     const double py = state.U[S22];
     const double rs = SofteningRadius;
-
-    // const auto ag = GravitationalAcceleration (x, y, t); <--- was using this until 0d143ad
     const auto sinks = SinkGeometries (x, y, t);
 
     auto D = std::vector<double> (8);
@@ -371,9 +363,6 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     if (sinks.size() >= 1)
     {
         const SinkGeometry g = sinks[0];
-        // const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}}; // <--- (until 16ac2ae)
-//        const std::array<double, 2> ag = {{GM / (g.r * g.r + rs * rs) * g.xhat, GM / (g.r * g.r + rs * rs) * g.yhat}}; // <--- should be this
-        //const std::array<double, 2> ag;
         const double agx = g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double agy = g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double tsink = SinkKernel (g.r);
@@ -382,15 +371,12 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
         D[2] = dgdot;
-        D[4] = dg * (g.x * agy - g.y * agx);
+        D[4] = dg * (g.x * agy - g.y * agx); // Gravitational torque on BH 1 (rb \times fg)
         D[6] = Ldot1;
     }
     if (sinks.size() >= 2)
     {
         const SinkGeometry g = sinks[1];
-        // const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}}; // <--- (until 16ac2ae)
-        // const std::array<double, 2> ag = {{GM / (g.r * g.r + rs * rs) * g.xhat, GM / (g.r * g.r + rs * rs) * g.yhat}}; // <--- should be this
-        //const std::array<double, 2> ag;
         const double agx = g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double agy = g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double tsink = SinkKernel (g.r);
@@ -399,7 +385,6 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot2 = x * pydot - y * pxdot; // Total accretion torque from sink 2
         D[3] = dgdot;
-        //D[5] = dg * (g.x * ag[1] - g.y * ag[0]); // Gravitational torque on BH 2 (rb \times fg)
         D[5] = dg * (g.x * agy - g.y * agx); // Gravitational torque on BH 2 (rb \times fg)
         D[7] = Ldot2;
     }
@@ -426,48 +411,6 @@ std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
 
 
 // ============================================================================
-static void computeViscousFluxes1D (const Array& P, double dx, Array& Fhat)
-{
-    const double t = status.simulationTime;
-
-    for (int i = 0; i < P.shape()[0] - 1; ++i)
-    {
-        const double dgL = P(i + 0, 0, 0, RHO);
-        const double dgR = P(i + 1, 0, 0, RHO);
-        // const double pgL = P(i + 0, 0, 0, PRE);
-        // const double pgR = P(i + 1, 0, 0, PRE);
-        const double xcL = P(i + 0, 0, 0, XXX);
-        const double xcR = P(i + 1, 0, 0, XXX);
-        const double ycL = P(i + 0, 0, 0, YYY);
-        const double ycR = P(i + 1, 0, 0, YYY);
-        const double uyL = P(i + 0, 0, 0, V22);
-        const double uyR = P(i + 1, 0, 0, V22);
-        // const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
-        // const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
-
-        // const double csL = std::sqrt (pgL / dgL);
-        // const double csR = std::sqrt (pgR / dgR);
-        // const double rc = 0.5 * (rcL + rcR);
-        // const double cs = 0.5 * (csL + csR);
-        const double dg = 0.5 * (dgL + dgR);
-        // const double h0 = rc / MachNumber;
-        // const double nu = ViscousAlpha * cs * h0;
-        const double xc = 0.5 * (xcL + xcR);
-        const double yc = 0.5 * (ycL + ycR);
-        const double nu = ViscousAlpha * SoundSpeedSquared (xc, yc, t) / EffectiveOmega (xc, yc, t);
-        const double mu = dg * nu;
-
-        const double dxuy = (uyR - uyL) / dx;
-        const double tauxy = mu * dxuy;
-
-        Fhat(i + 1, 0, 0, 0, 0) -= 0.0;   // mass flux
-        Fhat(i + 1, 0, 0, 1, 0) -= 0.0;   // px flux
-        Fhat(i + 1, 0, 0, 2, 0) -= tauxy; // py flux
-        Fhat(i + 1, 0, 0, 3, 0) -= 0.0;   // pz flux
-        Fhat(i + 1, 0, 0, 4, 0) -= 0.0;   // E flux (neglected)
-    }
-}
-
 static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array& Fhat)
 {
     const double t = status.simulationTime;
@@ -478,8 +421,6 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
         {
             const double dgL = P(i + 0, j, 0, RHO);
             const double dgR = P(i + 1, j, 0, RHO);
-            // const double pgL = P(i + 0, j, 0, PRE);
-            // const double pgR = P(i + 1, j, 0, PRE);
             const double xcL = P(i + 0, j, 0, XXX);
             const double xcR = P(i + 1, j, 0, XXX);
             const double ycL = P(i + 0, j, 0, YYY);
@@ -496,22 +437,14 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double uyR0 = P(i + 1, j - 1, 0, V22);
             const double uyR1 = P(i + 1, j + 0, 0, V22);
             const double uyR2 = P(i + 1, j + 1, 0, V22);
-            // const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
-            // const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
-            // const double csL = std::sqrt (pgL / dgL);
-            // const double csR = std::sqrt (pgR / dgR);
-            // const double rc = 0.5 * (rcL + rcR);
-            // const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
-            // const double h0 = rc / MachNumber;
-            // const double nu = ViscousAlpha * cs * h0;
             const double xc = 0.5 * (xcL + xcR);
             const double yc = 0.5 * (ycL + ycR);
-            const double nu = ViscousAlpha * SoundSpeedSquared (xc, yc, t) / EffectiveOmega (xc, yc, t);
+            const double cs = SoundSpeedSquared (xc, yc, t);
+            const double rt = EffectiveRadius (xc, yc, t);
+            const double nu = ViscousAlpha * cs * rt / MachNumber;
             const double mu = dg * nu;
 
-            // nu = ViscousAlpha * cs * cs / omega;
-            // omega = GM / r1 +  GM / r2;
 
             const double dxux = (uxR1 - uxL1) / dx;
             const double dxuy = (uyR1 - uyL1) / dx;
@@ -535,8 +468,6 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
         {
             const double dgL = P(i, j + 0, 0, RHO);
             const double dgR = P(i, j + 1, 0, RHO);
-            const double pgL = P(i, j + 0, 0, PRE);
-            const double pgR = P(i, j + 1, 0, PRE);
             const double xcL = P(i, j + 0, 0, XXX);
             const double xcR = P(i, j + 1, 0, XXX);
             const double ycL = P(i, j + 0, 0, YYY);
@@ -553,18 +484,12 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double uyR0 = P(i - 1, j + 1, 0, V22);
             const double uyR1 = P(i + 0, j + 1, 0, V22);
             const double uyR2 = P(i + 1, j + 1, 0, V22);
-//            const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
-//            const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
-//            const double csL = std::sqrt (pgL / dgL);
-//            const double csR = std::sqrt (pgR / dgR);
-//            const double rc = 0.5 * (rcL + rcR);
-//            const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
-//            const double h0 = rc / MachNumber;
-//            const double nu = ViscousAlpha * cs * h0; // * (rc < 8.0 ? 1.0 : 0.0);
             const double xc = 0.5 * (xcL + xcR);
             const double yc = 0.5 * (ycL + ycR);
-            const double nu = ViscousAlpha * SoundSpeedSquared (xc, yc, t) / EffectiveOmega (xc, yc, t);
+            const double cs = SoundSpeedSquared (xc, yc, t);
+            const double rt = EffectiveRadius (xc, yc, t);
+            const double nu = ViscousAlpha * cs * rt / MachNumber;
             const double mu = dg * nu;
 
             const double dyux = (uxR1 - uxL1) / dy;
@@ -588,14 +513,7 @@ static auto makeViscousFluxCorrection (double dx, double dy)
 {
     return [dx,dy] (const Cow::Array& P, Cow::Array& F)
     {
-        if (P.shape()[1] == 1)
-        {
-            computeViscousFluxes1D (P, dx, F);
-        }
-        else
-        {
-            computeViscousFluxes2D (P, dx, dy, F);
-        }
+        computeViscousFluxes2D (P, dx, dy, F);
     };
 }
 
@@ -807,7 +725,6 @@ int BinaryTorque::run (int argc, const char* argv[])
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
     if (InitialDataString == "Ring")        initialData = initialDataRing;
     if (InitialDataString == "Zrake")       initialData = initialDataZrake;
-    // if (InitialDataString == "Farris14")    initialData = initialDataFarris14;
     if (InitialDataString == "Tang17")
     {
         if (RotatingFrame)
@@ -825,7 +742,6 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto bd = std::shared_ptr<BlockDecomposition>();
     auto mg = std::shared_ptr<MeshGeometry> (new CartesianMeshGeometry);
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
-    // auto rs = std::shared_ptr<RiemannSolver> (new HlleRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
     auto bc = std::shared_ptr<BoundaryCondition>(new OutflowBoundaryCondition);
 
@@ -834,12 +750,9 @@ int BinaryTorque::run (int argc, const char* argv[])
     int N = int (user["N"]);
     auto cs = Shape {{ N, N, 1, 1, 1 }};
     auto bs = Shape {{ 2, 2, 0, 0, 0 }};
-    // auto cs = Shape {{ N, 1, 1, 1, 1 }};
-    // auto bs = Shape {{ 2, 0, 0, 0, 0 }};
 
     mg->setCellsShape (cs);
     mg->setLowerUpper ({{-10.0, -10.0, 0.0}}, {{10.0, 10.0, 1.0}});
-    // mg->setLowerUpper ({{-10, 0.0, 0.0}}, {{10, 1.0, 1.0}});
 
     if (! user["serial"])
     {
@@ -954,92 +867,3 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
 }
-
-
-
-
-
-
-
-
-
-
-    // auto initialDataFarris14 = [&] (double x, double y, double z) -> std::vector<double>
-    // {
-    //     // Initial conditions from Farris+ (2014) ApJ 783, 134
-    //     // MISSING: radial drift velocity, pressure gradient for omega
-    //     const double rs = 10.0 * aBin;
-    //     const double delta = 3.0;
-    //     const double xsi = 2.0;
-    //     const double sigma0 = 1.0;
-    //     const double r2 = x * x + y * y;
-    //     const double r  = std::sqrt (r2);
-    //     const double rho = sigma0 * std::pow (r / rs, -delta) * std::exp (-std::pow (r / rs, -xsi));
-    //     const double omegak2 = GM/(r*r2); // squared Keplerian for total M at center, is M total mass of binary?
-    //     const double omega2  = omegak2 * std::pow (1.0 + (3.0/16.0)*aBin*aBin/r2, 2.0); //missing pressure gradient term
-    //     const double vq = r * std::sqrt (omega2);
-    //     const double pre = std::pow (vq / MachNumber, 2.0) * rho; // cs^2 * rho
-    //     const double qhX = -y / r;
-    //     const double qhY =  x / r;
-    //     return std::vector<double> {rho, vq * qhX, vq * qhY, 0, pre, x, y};
-    // };
-
-
-
-
-
-
-
-// ============================================================================
-// class ThinDiskBoundaryCondition : public BoundaryCondition
-// {
-// public:
-//     ThinDiskBoundaryCondition()
-//     {
-//     }
-
-//     void setConservationLaw (std::shared_ptr<ConservationLaw> cl) override
-//     {
-//     }
-
-//     void setMeshGeometry (std::shared_ptr<MeshGeometry> mg) override
-//     {
-//         meshGeometry = mg;
-//     }
-
-//     void apply (Cow::Array& A, MeshLocation location, MeshBoundary boundary, int axis, int numGuard) const override
-//     {
-//         // resetPressureToIsothermal(A);
-//         outflow.apply (A, location, boundary, axis, numGuard);
-//     }
-
-//     bool isAxisPeriodic (int axis) override
-//     {
-//         return false;
-//     }
-
-    // void resetPressureToIsothermal (Cow::Array& P) const
-    // {
-    //     const double t = status.simulationTime;
-
-    //     for (int i = 0; i < P.shape()[0]; ++i)
-    //     {
-    //         for (int j = 0; j < P.shape()[1]; ++j)
-    //         {
-    //             // WARNING: if other than 2 guard zones, do something!
-    //             const auto X = meshGeometry->coordinateAtIndex (i - 2, j - 2, 0);
-    //             const double phi = GravitationalPotential (X[0], X[1], t);
-    //             const double cs2 = std::pow (MachNumber, -2) * -phi;
-    //             const double sigma = P(i, j, 0, RHO);
-    //             P(i, j, 0, PRE) = cs2 * sigma;
-    //             P(i, j, 0, XXX) = X[0];
-    //             P(i, j, 0, YYY) = X[1];
-    //         }
-    //     }
-    // }
-
-//     std::shared_ptr<MeshGeometry> meshGeometry;
-//     OutflowBoundaryCondition outflow;
-// };
-
-
