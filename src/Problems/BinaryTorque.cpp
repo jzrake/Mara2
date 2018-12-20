@@ -60,10 +60,8 @@ static int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static double GM               = 1.0;   // Newton G * mass of each component
 static double aBin             = 1.0;   // Binary separation
 static double SinkRadius       = 0.2;   // Sink radius
-static double OmegaFrame       = 0.0;   // Is set to OmegaBin if Tang17 && RotatingFrame == true
 static double LdotEfficiency   = 1.0;   // Efficiency f to accrete L through the mini-disks (f = 1 is maximal)
 static double DomainRadius     = 8.0;
-static int RotatingFrame       = false; // Only used if IC is Tang17
 static std::string InitialDataString = "Tang17";
 static SimulationStatus status;
 
@@ -96,10 +94,10 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
     {
         const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (2.0 * GM / (aBin * aBin * aBin));
         SinkGeometry g1, g2;
-        g1.x = 0.5 * aBin * std::cos ((omegaBin - OmegaFrame) * t);
-        g1.y = 0.5 * aBin * std::sin ((omegaBin - OmegaFrame) * t);
-        g2.x = 0.5 * aBin * std::cos ((omegaBin - OmegaFrame) * t + M_PI);
-        g2.y = 0.5 * aBin * std::sin ((omegaBin - OmegaFrame) * t + M_PI);
+        g1.x = 0.5 * aBin * std::cos (omegaBin * t);
+        g1.y = 0.5 * aBin * std::sin (omegaBin * t);
+        g2.x = 0.5 * aBin * std::cos (omegaBin * t + M_PI);
+        g2.y = 0.5 * aBin * std::sin (omegaBin * t + M_PI);
         g1.r = std::sqrt ((x - g1.x) * (x - g1.x) + (y - g1.y) * (y - g1.y));
         g2.r = std::sqrt ((x - g2.x) * (x - g2.x) + (y - g2.y) * (y - g2.y));
         g1.xhat = (x - g1.x) / g1.r;
@@ -531,6 +529,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["plm"]     = 1.5;
     user["N"]       = 128;
 
+
     user["SofteningRadius"]  = SofteningRadius;
     user["BetaBuffer"]       = BetaBuffer;
     user["DomainRadius"]     = DomainRadius;
@@ -541,7 +540,6 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["SinkRadius"]       = SinkRadius;
     user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
-    user["RotatingFrame"]    = RotatingFrame;
     user["VacuumCleaner"]    = VacuumCleaner;
 
 
@@ -600,7 +598,6 @@ int BinaryTorque::run (int argc, const char* argv[])
         // MISSING?: radial drift velocity, pressure gradient for omegak2
         // Check Yike/Chris Disco setup
         const auto   ag         = GravitationalAcceleration (x, y, status.simulationTime);
-        // const double omegaBin   = aBin == 0.0 ? 0.0 : std::sqrt (2.0 * GM / (aBin * aBin * aBin));
         const double rs         = SofteningRadius;
         const double r0         = 2.5 * aBin;
         const double xsi        = 10.0;
@@ -618,8 +615,8 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double h0         = r / MachNumber;
         const double nu         = ViscousAlpha * std::sqrt (cs2) * h0; // ViscousAlpha * cs * h0
         const double vr         = -(3.0 / 2.0) * nu / (r + rs); // radial drift velocity (CHECK)
-        const double vx = (vq - r * OmegaFrame) * (-y / r) + vr * (x / r);
-        const double vy = (vq - r * OmegaFrame) * ( x / r) + vr * (y / r);
+        const double vx         = vq * (-y / r) + vr * (x / r);
+        const double vy         = vq * ( x / r) + vr * (y / r);
 
         return std::vector<double> {sigma, vx, vy, 0, pre, x, y};
     };
@@ -628,14 +625,12 @@ int BinaryTorque::run (int argc, const char* argv[])
     // ------------------------------------------------------------------------
     auto sourceTermsFunction = [&] (double x, double y, double z, StateArray P)
     {
-        const double t = status.simulationTime;
+        const double t  = status.simulationTime;
         const double dg = P[0];
-        const double vx = P[1];
-        const double vy = P[2];
-        const double r = std::sqrt (x * x + y * y);
-        const auto ag  = GravitationalAcceleration (x, y, t);
-
+        const double r  = std::sqrt (x * x + y * y);
+        const auto ag   = GravitationalAcceleration (x, y, t);
         auto S = StateArray();
+
 
         // Gravitational source term
         // ====================================================================
@@ -643,15 +638,9 @@ int BinaryTorque::run (int argc, const char* argv[])
         S[S11] = dg * ag[0];
         S[S22] = dg * ag[1];
         S[S33] = 0.0;
-        S[NRG] = 0.0; // dg * (ag[0] * vx + ag[1] * vy);
+        S[NRG] = 0.0;
         S[XXX] = 0.0;
         S[YYY] = 0.0;
-
-        // Fictitious forces due to rotating frame (without Euler force)
-
-        S[S11] += dg * OmegaFrame * ( 2.0 * vy + OmegaFrame * x);
-        S[S22] += dg * OmegaFrame * (-2.0 * vx + OmegaFrame * y);
-
 
         ConservationLaw::Request request;
         request.getPrimitive = true;
@@ -665,18 +654,17 @@ int BinaryTorque::run (int argc, const char* argv[])
         auto state0 = cl->fromPrimitive (request, &initialData (x, y, z)[0]);
         auto state1 = cl->fromPrimitive (request, &P[0]);
 
+
         // Outer buffer
         // ====================================================================
-        if (r > 0.5 * DomainRadius)
-        {
-            const double vk       = std::sqrt (-GravitationalPotential (x, y, t));
-            const double torb     = 2.0 * M_PI * r / vk;
-            const double tau      = torb * BetaBuffer / bufferZoneProfile (r);
+        const double vk       = std::sqrt (-GravitationalPotential (x, y, t));
+        const double torb     = 2.0 * M_PI * r / vk;
+        const double tau      = torb * BetaBuffer / bufferZoneProfile (r);
 
-            S[0] -= (state1.U[0] - state0.U[0]) / tau;
-            S[1] -= (state1.U[1] - state0.U[1]) / tau;
-            S[2] -= (state1.U[2] - state0.U[2]) / tau;
-        }
+        S[0] -= (state1.U[0] - state0.U[0]) / tau;
+        S[1] -= (state1.U[1] - state0.U[1]) / tau;
+        S[2] -= (state1.U[2] - state0.U[2]) / tau;
+
 
         // Sink
         // ====================================================================
@@ -712,22 +700,15 @@ int BinaryTorque::run (int argc, const char* argv[])
     aBin              = user["aBin"];
     SinkRadius        = user["SinkRadius"];
     LdotEfficiency    = user["LdotEfficiency"];
-    RotatingFrame     = user["RotatingFrame"];
-    VacuumCleaner    = user["VacuumCleaner"];
+    VacuumCleaner     = user["VacuumCleaner"];
     InitialDataString = std::string (user["InitialData"]);
 
 
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
     if (InitialDataString == "Ring")        initialData = initialDataRing;
     if (InitialDataString == "Zrake")       initialData = initialDataZrake;
-    if (InitialDataString == "Tang17")
-    {
-        if (RotatingFrame)
-        {
-            OmegaFrame = std::sqrt (2.0 * GM / (aBin * aBin * aBin));
-        }
-        initialData = initialDataTang17;
-    }
+    if (InitialDataString == "Tang17")      initialData = initialDataTang17;
+
 
     auto logger    = std::make_shared<Logger>();
     auto writer    = std::make_shared<CheckpointWriter>();
@@ -739,6 +720,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto rs = std::shared_ptr<RiemannSolver> (new HllcNewtonianHydroRiemannSolver);
     auto fs = std::shared_ptr<IntercellFluxScheme> (new MethodOfLinesPlm);
     auto bc = std::shared_ptr<BoundaryCondition>(new OutflowBoundaryCondition);
+
 
     // Set up grid shape.
     // ------------------------------------------------------------------------
