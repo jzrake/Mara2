@@ -436,7 +436,7 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double dg = 0.5 * (dgL + dgR);
             const double xc = 0.5 * (xcL + xcR);
             const double yc = 0.5 * (ycL + ycR);
-            const double cs = SoundSpeedSquared (xc, yc, t);
+            const double cs = std::sqrt (SoundSpeedSquared (xc, yc, t));
             const double rt = EffectiveRadius (xc, yc, t);
             const double nu = ViscousAlpha * cs * rt / MachNumber;
             const double mu = dg * nu;
@@ -481,7 +481,7 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double dg = 0.5 * (dgL + dgR);
             const double xc = 0.5 * (xcL + xcR);
             const double yc = 0.5 * (ycL + ycR);
-            const double cs = SoundSpeedSquared (xc, yc, t);
+            const double cs = std::sqrt (SoundSpeedSquared (xc, yc, t));
             const double rt = EffectiveRadius (xc, yc, t);
             const double nu = ViscousAlpha * cs * rt / MachNumber;
             const double mu = dg * nu;
