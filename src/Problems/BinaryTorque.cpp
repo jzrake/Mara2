@@ -143,6 +143,32 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, doub
     return a;
 }
 
+/**
+ * This function selects the orbital frequency apropriately depending on which
+ * component is closer by.
+ */
+double EffectiveOmega (double x, double y, double t)
+{
+    const double rs = SofteningRadius;
+    const double Phi = GravitationalPotential (x, y, t);
+
+    auto sinks = SinkGeometries (x, y, t);
+
+    if (sinks.size() == 1)
+    {
+        return std::sqrt (Phi / (sinks[0].r * sinks[0].r + rs * rs));
+    }
+    else if (sinks[0].r < sinks[1].r)
+    {
+        return std::sqrt (Phi / (sinks[0].r * sinks[0].r + rs * rs));
+    }
+    else if (sinks[1].r < sinks[0].r)
+    {
+        return std::sqrt (Phi / (sinks[1].r * sinks[1].r + rs * rs));
+    }
+    throw;
+}
+
 static double SoundSpeedSquared (double x, double y, double t)
 {
     const double phi = GravitationalPotential (x, y, t);
@@ -152,7 +178,10 @@ static double SoundSpeedSquared (double x, double y, double t)
 
 static double SinkKernel (double r)
 {
-    // The sqrt(2) below comes from M / Mtot.
+    // The sqrt(2) below is there to match numbers in Yike's runs. The correct
+    // orbital time is with repect to gas orbits around a single component, so
+    // would not involve the sqrt(2). tvisc = 29.81 for Mach = 10 and Alpha =
+    // 0.1.
     const double omegaSink = std::sqrt (GM / std::pow (SinkRadius, 3));
     const double tvisc = 2. / 3 * std::sqrt (2.0) * MachNumber * MachNumber / ViscousAlpha / omegaSink;
     const double tsink = tvisc / VacuumCleaner;
@@ -323,6 +352,8 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     const double dg = state.P[RHO];
     const double px = state.U[S11];
     const double py = state.U[S22];
+    const double rs = SofteningRadius;
+
     // const auto ag = GravitationalAcceleration (x, y, t); <--- was using this until 0d143ad
     const auto sinks = SinkGeometries (x, y, t);
 
@@ -333,7 +364,8 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     if (sinks.size() >= 1)
     {
         const SinkGeometry g = sinks[0];
-        const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}}; // <--- should be this
+        // const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}}; // <--- (until 16ac2ae)
+        const std::array<double, 2> ag = {{GM / (g.r * g.r + rs * rs) * g.xhat, GM / (g.r * g.r + rs * rs) * g.yhat}}; // <--- should be this
         const double tsink = SinkKernel (g.r);
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink * LdotEfficiency;
@@ -346,7 +378,8 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     if (sinks.size() >= 2)
     {
         const SinkGeometry g = sinks[1];
-        const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}};
+        // const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}}; // <--- (until 16ac2ae)
+        const std::array<double, 2> ag = {{GM / (g.r * g.r + rs * rs) * g.xhat, GM / (g.r * g.r + rs * rs) * g.yhat}}; // <--- should be this
         const double tsink = SinkKernel (g.r);
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink * LdotEfficiency;
@@ -381,28 +414,33 @@ std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
 // ============================================================================
 static void computeViscousFluxes1D (const Array& P, double dx, Array& Fhat)
 {
+    const double t = status.simulationTime;
+
     for (int i = 0; i < P.shape()[0] - 1; ++i)
     {
         const double dgL = P(i + 0, 0, 0, RHO);
         const double dgR = P(i + 1, 0, 0, RHO);
-        const double pgL = P(i + 0, 0, 0, PRE);
-        const double pgR = P(i + 1, 0, 0, PRE);
+        // const double pgL = P(i + 0, 0, 0, PRE);
+        // const double pgR = P(i + 1, 0, 0, PRE);
         const double xcL = P(i + 0, 0, 0, XXX);
         const double xcR = P(i + 1, 0, 0, XXX);
         const double ycL = P(i + 0, 0, 0, YYY);
         const double ycR = P(i + 1, 0, 0, YYY);
         const double uyL = P(i + 0, 0, 0, V22);
         const double uyR = P(i + 1, 0, 0, V22);
-        const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
-        const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
+        // const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
+        // const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
 
-        const double csL = std::sqrt (pgL / dgL);
-        const double csR = std::sqrt (pgR / dgR);
-        const double rc = 0.5 * (rcL + rcR);
-        const double cs = 0.5 * (csL + csR);
+        // const double csL = std::sqrt (pgL / dgL);
+        // const double csR = std::sqrt (pgR / dgR);
+        // const double rc = 0.5 * (rcL + rcR);
+        // const double cs = 0.5 * (csL + csR);
         const double dg = 0.5 * (dgL + dgR);
-        const double h0 = rc / MachNumber;
-        const double nu = ViscousAlpha * cs * h0;
+        // const double h0 = rc / MachNumber;
+        // const double nu = ViscousAlpha * cs * h0;
+        const double xc = 0.5 * (xcL + xcR);
+        const double yc = 0.5 * (ycL + ycR);
+        const double nu = ViscousAlpha * SoundSpeedSquared (xc, yc, t) / EffectiveOmega (xc, yc, t);
         const double mu = dg * nu;
 
         const double dxuy = (uyR - uyL) / dx;
@@ -418,14 +456,16 @@ static void computeViscousFluxes1D (const Array& P, double dx, Array& Fhat)
 
 static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array& Fhat)
 {
+    const double t = status.simulationTime;
+
     for (int i = 0; i < P.shape()[0] - 1; ++i)
     {
         for (int j = 1; j < P.shape()[1] - 1; ++j)
         {
             const double dgL = P(i + 0, j, 0, RHO);
             const double dgR = P(i + 1, j, 0, RHO);
-            const double pgL = P(i + 0, j, 0, PRE);
-            const double pgR = P(i + 1, j, 0, PRE);
+            // const double pgL = P(i + 0, j, 0, PRE);
+            // const double pgR = P(i + 1, j, 0, PRE);
             const double xcL = P(i + 0, j, 0, XXX);
             const double xcR = P(i + 1, j, 0, XXX);
             const double ycL = P(i + 0, j, 0, YYY);
@@ -442,16 +482,22 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double uyR0 = P(i + 1, j - 1, 0, V22);
             const double uyR1 = P(i + 1, j + 0, 0, V22);
             const double uyR2 = P(i + 1, j + 1, 0, V22);
-            const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
-            const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
-            const double csL = std::sqrt (pgL / dgL);
-            const double csR = std::sqrt (pgR / dgR);
-            const double rc = 0.5 * (rcL + rcR);
-            const double cs = 0.5 * (csL + csR);
+            // const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
+            // const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
+            // const double csL = std::sqrt (pgL / dgL);
+            // const double csR = std::sqrt (pgR / dgR);
+            // const double rc = 0.5 * (rcL + rcR);
+            // const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
-            const double h0 = rc / MachNumber;
-            const double nu = ViscousAlpha * cs * h0;
+            // const double h0 = rc / MachNumber;
+            // const double nu = ViscousAlpha * cs * h0;
+            const double xc = 0.5 * (xcL + xcR);
+            const double yc = 0.5 * (ycL + ycR);
+            const double nu = ViscousAlpha * SoundSpeedSquared (xc, yc, t) / EffectiveOmega (xc, yc, t);
             const double mu = dg * nu;
+
+            // nu = ViscousAlpha * cs * cs / omega;
+            // omega = GM / r1 +  GM / r2;
 
             const double dxux = (uxR1 - uxL1) / dx;
             const double dxuy = (uyR1 - uyL1) / dx;
