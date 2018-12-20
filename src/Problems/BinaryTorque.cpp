@@ -154,19 +154,22 @@ double EffectiveOmega (double x, double y, double t)
 
     auto sinks = SinkGeometries (x, y, t);
 
-    if (sinks.size() == 1)
-    {
-        return std::sqrt (Phi / (sinks[0].r * sinks[0].r + rs * rs));
-    }
-    else if (sinks[0].r < sinks[1].r)
-    {
-        return std::sqrt (Phi / (sinks[0].r * sinks[0].r + rs * rs));
-    }
-    else if (sinks[1].r < sinks[0].r)
-    {
-        return std::sqrt (Phi / (sinks[1].r * sinks[1].r + rs * rs));
-    }
-    throw;
+    const double r_inv = 1.0 / (sinks[0].r + rs) + 1.0 / (sinks[1].r + rs); 
+    return std::sqrt (-Phi) * r_inv;  
+
+//    if (sinks.size() == 1)
+//    {
+//        return std::sqrt (-Phi / (sinks[0].r * sinks[0].r + rs * rs));
+//    }
+//    else if (sinks[0].r < sinks[1].r)
+//    {
+//        return std::sqrt (-Phi / (sinks[0].r * sinks[0].r + rs * rs));
+//    }
+//    else if (sinks[1].r < sinks[0].r)
+//    {
+//        return std::sqrt (-Phi / (sinks[1].r * sinks[1].r + rs * rs));
+//    }
+//    throw;
 }
 
 static double SoundSpeedSquared (double x, double y, double t)
@@ -178,13 +181,17 @@ static double SoundSpeedSquared (double x, double y, double t)
 
 static double SinkKernel (double r)
 {
+    const double omegaSink = std::sqrt (GM / std::pow (SinkRadius, 3));
+    const double tvisc = 2. / 3 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+          double tsink = tvisc / VacuumCleaner;
+
     // The sqrt(2) below is there to match numbers in Yike's runs. The correct
     // orbital time is with repect to gas orbits around a single component, so
     // would not involve the sqrt(2). tvisc = 29.81 for Mach = 10 and Alpha =
     // 0.1.
-    const double omegaSink = std::sqrt (GM / std::pow (SinkRadius, 3));
-    const double tvisc = 2. / 3 * std::sqrt (2.0) * MachNumber * MachNumber / ViscousAlpha / omegaSink;
-    const double tsink = tvisc / VacuumCleaner;
+    const double yike_comparison_factor = std::sqrt (2.0);
+    tsink *= yike_comparison_factor;
+
     return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
 }
 
@@ -365,28 +372,35 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     {
         const SinkGeometry g = sinks[0];
         // const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}}; // <--- (until 16ac2ae)
-        const std::array<double, 2> ag = {{GM / (g.r * g.r + rs * rs) * g.xhat, GM / (g.r * g.r + rs * rs) * g.yhat}}; // <--- should be this
+//        const std::array<double, 2> ag = {{GM / (g.r * g.r + rs * rs) * g.xhat, GM / (g.r * g.r + rs * rs) * g.yhat}}; // <--- should be this
+        //const std::array<double, 2> ag;
+        const double agx = g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
+        const double agy = g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double tsink = SinkKernel (g.r);
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
         D[2] = dgdot;
-        D[4] = dg * (g.x * ag[1] - g.y * ag[0]);
+        D[4] = dg * (g.x * agy - g.y * agx);
         D[6] = Ldot1;
     }
     if (sinks.size() >= 2)
     {
         const SinkGeometry g = sinks[1];
         // const std::array<double, 2> ag = {{GM / (g.r * g.r) * g.xhat, GM / (g.r * g.r) * g.yhat}}; // <--- (until 16ac2ae)
-        const std::array<double, 2> ag = {{GM / (g.r * g.r + rs * rs) * g.xhat, GM / (g.r * g.r + rs * rs) * g.yhat}}; // <--- should be this
+        // const std::array<double, 2> ag = {{GM / (g.r * g.r + rs * rs) * g.xhat, GM / (g.r * g.r + rs * rs) * g.yhat}}; // <--- should be this
+        //const std::array<double, 2> ag;
+        const double agx = g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
+        const double agy = g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double tsink = SinkKernel (g.r);
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot2 = x * pydot - y * pxdot; // Total accretion torque from sink 2
         D[3] = dgdot;
-        D[5] = dg * (g.x * ag[1] - g.y * ag[0]); // Gravitational torque on BH 2 (rb \times fg)
+        //D[5] = dg * (g.x * ag[1] - g.y * ag[0]); // Gravitational torque on BH 2 (rb \times fg)
+        D[5] = dg * (g.x * agy - g.y * agx); // Gravitational torque on BH 2 (rb \times fg)
         D[7] = Ldot2;
     }
     return D;
@@ -539,15 +553,18 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
             const double uyR0 = P(i - 1, j + 1, 0, V22);
             const double uyR1 = P(i + 0, j + 1, 0, V22);
             const double uyR2 = P(i + 1, j + 1, 0, V22);
-            const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
-            const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
-            const double csL = std::sqrt (pgL / dgL);
-            const double csR = std::sqrt (pgR / dgR);
-            const double rc = 0.5 * (rcL + rcR);
-            const double cs = 0.5 * (csL + csR);
+//            const double rcL = std::sqrt (xcL * xcL + ycL * ycL);
+//            const double rcR = std::sqrt (xcR * xcR + ycR * ycR);
+//            const double csL = std::sqrt (pgL / dgL);
+//            const double csR = std::sqrt (pgR / dgR);
+//            const double rc = 0.5 * (rcL + rcR);
+//            const double cs = 0.5 * (csL + csR);
             const double dg = 0.5 * (dgL + dgR);
-            const double h0 = rc / MachNumber;
-            const double nu = ViscousAlpha * cs * h0; // * (rc < 8.0 ? 1.0 : 0.0);
+//            const double h0 = rc / MachNumber;
+//            const double nu = ViscousAlpha * cs * h0; // * (rc < 8.0 ? 1.0 : 0.0);
+            const double xc = 0.5 * (xcL + xcR);
+            const double yc = 0.5 * (ycL + ycR);
+            const double nu = ViscousAlpha * SoundSpeedSquared (xc, yc, t) / EffectiveOmega (xc, yc, t);
             const double mu = dg * nu;
 
             const double dyux = (uxR1 - uxL1) / dy;
