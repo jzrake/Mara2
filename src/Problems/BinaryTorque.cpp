@@ -154,7 +154,7 @@ double EffectiveRadius (double x, double y, double t)
     const double r1 = std::sqrt (dx1 * dx1 + dy1 * dy1);
     const double r2 = std::sqrt (dx2 * dx2 + dy2 * dy2);
 
-    return (1.0 - 1.0 / (r1 / r2 + r2 / r1)) / (1.0 / r1 + 1.0 / r2);
+    return (1.0 + 2.0 / (r1 / r2 + r2 / r1)) / (1.0 / r1 + 1.0 / r2);
 }
 
 static double SoundSpeedSquared (double x, double y, double t)
