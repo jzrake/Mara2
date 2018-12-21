@@ -175,16 +175,7 @@ static double SinkKernel (double r)
 {
     const double omegaSink = std::sqrt (GM / std::pow (SinkRadius, 3));
     const double tvisc = 2. / 3 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
-          double tsink = tvisc / VacuumCleaner;
-
-    // The sqrt(2) below is there to match numbers in Yike's runs. The correct
-    // orbital time is with repect to gas orbits around a single component, so
-    // would not involve the sqrt(2). tvisc = 29.81 for Mach = 10 and Alpha =
-    // 0.1.
-
-    const double yike_comparison_factor = std::sqrt (2.0);
-    tsink *= yike_comparison_factor;
-
+    const double tsink = tvisc / VacuumCleaner;
     return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
 }
 
