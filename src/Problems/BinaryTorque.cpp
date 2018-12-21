@@ -57,6 +57,7 @@ static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
 static double VacuumCleaner    = 1.0;   // alpha_mini / alpha_disk (set to a number > 1 to simulate faster-than reasonable sinks)
 static double MachNumber       = 10.0;  // 1/M = h/r
 static int    NumHoles         = 2;     // Number of Black holes 1 or 2
+static int    ScaleHeightFunc  = 0;     // 0 := H ~ cylindrical, 1 := H ~ min(r1,r2), 2 := H ~ interp(r1,r2)
 static double GM               = 1.0;   // Newton G * mass of each component
 static double aBin             = 1.0;   // Binary separation
 static double SinkRadius       = 0.2;   // Sink radius
@@ -144,7 +145,7 @@ double EffectiveRadius (double x, double y, double t)
 
     if (sinks.size() == 1)
     {
-        return sinks[0].r;
+        return std::sqrt (x * x + y * y);
     }
 
     const double dx1 = x - sinks[0].x;
@@ -154,7 +155,13 @@ double EffectiveRadius (double x, double y, double t)
     const double r1 = std::sqrt (dx1 * dx1 + dy1 * dy1);
     const double r2 = std::sqrt (dx2 * dx2 + dy2 * dy2);
 
-    return (1.0 + 2.0 / (r1 / r2 + r2 / r1)) / (1.0 / r1 + 1.0 / r2);
+    switch (ScaleHeightFunc)
+    {
+        case 0: return std::sqrt (x * x + y * y);
+        case 1: return std::min (r1, r2);
+        case 2: return (1.0 + 2.0 / (r1 / r2 + r2 / r1)) / (1.0 / r1 + 1.0 / r2);
+    }
+    throw;
 }
 
 static double SoundSpeedSquared (double x, double y, double t)
@@ -536,6 +543,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["ViscousAlpha"]     = ViscousAlpha;
     user["MachNumber"]       = MachNumber;
     user["NumHoles"]         = NumHoles;
+    user["ScaleHeightFunc"]  = ScaleHeightFunc;
     user["aBin"]             = aBin;
     user["SinkRadius"]       = SinkRadius;
     user["LdotEfficiency"]   = LdotEfficiency;
@@ -697,6 +705,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     ViscousAlpha      = user["ViscousAlpha"];
     MachNumber        = user["MachNumber"];
     NumHoles          = user["NumHoles"];
+    ScaleHeightFunc   = user["ScaleHeightFunc"];
     aBin              = user["aBin"];
     SinkRadius        = user["SinkRadius"];
     LdotEfficiency    = user["LdotEfficiency"];
