@@ -6,10 +6,11 @@
 
 
 // ============================================================================
-ConservationLaw::State ScalarUpwind::intercellFlux (const FaceData& faceData) const
+ConservationLaw::State ScalarUpwind::intercellFlux (const FaceData& faceData, double t) const
 {
     ConservationLaw::Request request;
     request.areaElement = faceData.areaElement;
+    request.simulationTime = t;
 
     const double* PL = &faceData.stencilData (0);
     const double* PR = &faceData.stencilData (1);
@@ -40,10 +41,11 @@ void MethodOfLines::setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse
     riemannSolver = solverToUse;
 }
 
-ConservationLaw::State MethodOfLines::intercellFlux (const FaceData& faceData) const
+ConservationLaw::State MethodOfLines::intercellFlux (const FaceData& faceData, double t) const
 {
     ConservationLaw::Request request;
     request.areaElement = faceData.areaElement;
+    request.simulationTime = t;
 
     const double* P0 = &faceData.stencilData(0);
     const double* P1 = &faceData.stencilData(1);
@@ -79,10 +81,11 @@ void MethodOfLinesPlm::setRiemannSolver (std::shared_ptr<RiemannSolver> solverTo
     riemannSolver = solverToUse;
 }
 
-ConservationLaw::State MethodOfLinesPlm::intercellFlux (const FaceData& faceData) const
+ConservationLaw::State MethodOfLinesPlm::intercellFlux (const FaceData& faceData, double t) const
 {
     ConservationLaw::Request request;
     request.areaElement = faceData.areaElement;
+    request.simulationTime = t;
 
     const double* P0 = &faceData.stencilData(0);
     const double* P1 = &faceData.stencilData(1);
@@ -122,10 +125,11 @@ MethodOfLinesWeno::MethodOfLinesWeno()
     weno.setShenZha10A (50.0);
 }
 
-ConservationLaw::State MethodOfLinesWeno::intercellFlux (const FaceData& faceData) const
+ConservationLaw::State MethodOfLinesWeno::intercellFlux (const FaceData& faceData, double t) const
 {
     auto request = ConservationLaw::Request();
     request.areaElement = faceData.areaElement;
+    request.simulationTime = t;
 
     const auto claw = faceData.conservationLaw;
     const auto states = claw->fromPrimitive (request, faceData.stencilData);

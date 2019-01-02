@@ -64,7 +64,7 @@ protected:
 
 using StateArray = std::array<double, MARA_NUM_FIELDS>;
 using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
-using SourceTermsFunction = std::function<StateArray (double x, double y, double z, StateArray primitive)>;
+using SourceTermsFunction = std::function<StateArray (double x, double y, double z, double t, StateArray primitive)>;
 
 using AreaElement = std::array<double, 3>;
 using Coordinate = std::array<double, 3>;
@@ -92,7 +92,7 @@ public MayUseIntercellFluxScheme
 {
 public:
     virtual int getStencilSize() const = 0;
-    virtual void advance (MeshData& solution, double dt) const = 0;
+    virtual void advance (MeshData& solution, double t0, double dt) const = 0;
     virtual void advance (MeshData& solution, ParticleData& particles, double dt) const {};
 };
 
@@ -384,6 +384,7 @@ public:
         bool getEigenvalues;
         std::array<double, 3> position;
         AreaElement areaElement;
+        double simulationTime;
     };
 
     class StateFailure : public std::exception
@@ -525,7 +526,7 @@ public:
     };
 
     virtual void setPlmTheta (double plmTheta) {}
-    virtual ConservationLaw::State intercellFlux (const FaceData&) const = 0;
+    virtual ConservationLaw::State intercellFlux (const FaceData&, double t) const = 0;
     virtual int getStencilSize() const = 0;
 };
 

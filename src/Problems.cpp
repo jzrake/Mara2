@@ -185,7 +185,7 @@ void Hydro1DTestProgram::runProblem (const Problem& problem, const Scheme& schem
        return dt1 < dt2 ? dt1 : dt2;
    };
    auto condition = [&] () { return status.simulationTime < problem.finalTime; };
-   auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+   auto advance   = [&] (double dt) { return ss->advance (*md, 0.0, dt); };
    auto scheduler = std::make_shared<TaskScheduler>();
    auto logger    = std::make_shared<Logger>();
    auto writer    = std::make_shared<CheckpointWriter>();
@@ -311,7 +311,7 @@ void Relativistic1DTestProgram::runProblem (const Problem& problem, const Scheme
        return dt1 < dt2 ? dt1 : dt2;
    };
    auto condition = [&] () { return status.simulationTime < problem.finalTime; };
-   auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+   auto advance   = [&] (double dt) { return ss->advance (*md, 0.0, dt); };
    auto scheduler = std::make_shared<TaskScheduler>();
    auto logger    = std::make_shared<Logger>();
    auto writer    = std::make_shared<CheckpointWriter>();
@@ -449,7 +449,7 @@ void Hydro2DTestProgram::runProblem (const Problem& problem, const Scheme& schem
        return dt1 < dt2 ? dt1 : dt2;
    };
    auto condition = [&] () { return status.simulationTime < problem.finalTime; };
-   auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+   auto advance   = [&] (double dt) { return ss->advance (*md, 0.0, dt); };
    auto scheduler = std::make_shared<TaskScheduler>();
    auto logger    = std::make_shared<Logger>();
    auto writer    = std::make_shared<CheckpointWriter>();
@@ -632,7 +632,7 @@ void NewtonianMHD2DTestProgram::runProblem (const Problem& problem, const Scheme
        return dt1 < dt2 ? dt1 : dt2;
    };
    auto condition = [&] () { return status.simulationTime < problem.finalTime; };
-   auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+   auto advance   = [&] (double dt) { return ss->advance (*md, 0.0, dt); };
    auto scheduler = std::make_shared<TaskScheduler>();
    auto logger    = std::make_shared<Logger>();
    auto writer    = std::make_shared<CheckpointWriter>();

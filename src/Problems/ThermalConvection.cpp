@@ -215,7 +215,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
     // Gravitational source terms, heating, and initial data function
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [g0, q0] (double r, double q, double p, StateArray P)
+    auto sourceTermsFunction = [g0, q0] (double r, double q, double p, double, StateArray P)
     {
         const double dg = P[0];
         const double vr = P[1];
@@ -321,7 +321,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
     auto L         = mo->linearCellDimension();
     auto V         = mo->measure (MeshLocation::cell);
     auto P         = md->getPrimitive();
-    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+    auto advance   = [&] (double dt) { return ss->advance (*md, 0.0, dt); };
     auto condition = [&] () { return status.simulationTime < double (user["tfinal"]); };
     auto timestep  = [&] () { return timestepSize; };
 

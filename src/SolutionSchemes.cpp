@@ -86,12 +86,12 @@ void MethodOfLinesTVD::setDisableFieldCT (bool shouldDisableFieldCT)
     disableFieldCT = shouldDisableFieldCT;
 }
 
-void MethodOfLinesTVD::setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&)> viscousFluxToUse)
+void MethodOfLinesTVD::setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&, double)> viscousFluxToUse)
 {
     viscousFlux = viscousFluxToUse;
 }
 
-void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
+void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
 {
     if (! fieldOperator)     throw std::logic_error ("No FieldOperator instance");
     if (! meshOperator)      throw std::logic_error ("No MeshOperator instance");
@@ -120,35 +120,6 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
     auto D = IntercellFluxScheme::FaceData();
     D.conservationLaw = cl;
 
-    auto Fhat = [&] (GodunovStencil& stencil)
-    {
-        D.areaElement = stencil.faceNormal.cartesian();
-        D.stencilData = stencil.cellData;
-
-        auto S = fluxScheme->intercellFlux (D);
-
-        for (int q = 0; q < nq; ++q)
-        {
-            stencil.godunovFlux[q] = S.F[q];
-        }
-    };
-
-    auto fluxCorrection = [&] (const Array& P, Array& fluxes)
-    {
-        auto ib = cl->getIndexFor (ConservationLaw::VariableType::magnetic);
-
-        if (ib != -1 && ! disableFieldCT)
-        {
-            auto ct = CellCenteredFieldCT();
-            ct.correctGodunovFluxes (fluxes, ib);
-        }
-
-        if (viscousFlux)
-        {
-            viscousFlux (P, fluxes);
-        }
-    };
-
 
     // RK parameters
     // ------------------------------------------------------------------------
@@ -167,8 +138,42 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
 
     // RK updates
     // ------------------------------------------------------------------------
-    auto U0 = fieldOperator->generateConserved (solution.P);
+    auto U0 = fieldOperator->generateConserved (solution.P, t0);
     auto U = U0;
+    auto t = t0;
+
+
+    auto Fhat = [&] (GodunovStencil& stencil)
+    {
+        D.areaElement = stencil.faceNormal.cartesian();
+        D.stencilData = stencil.cellData;
+
+        auto S = fluxScheme->intercellFlux (D, t);
+
+        for (int q = 0; q < nq; ++q)
+        {
+            stencil.godunovFlux[q] = S.F[q];
+        }
+    };
+
+
+    auto fluxCorrection = [&] (const Array& P, Array& fluxes)
+    {
+        auto ib = cl->getIndexFor (ConservationLaw::VariableType::magnetic);
+
+        if (ib != -1 && ! disableFieldCT)
+        {
+            auto ct = CellCenteredFieldCT();
+            ct.correctGodunovFluxes (fluxes, ib);
+        }
+
+        if (viscousFlux)
+        {
+            viscousFlux (P, fluxes, t);
+        }
+    };
+
+
 
     for (int rk = 0; rk < rungeKuttaOrder; ++rk)
     {
@@ -179,7 +184,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
 
         if (sourceTermsFunction)
         {
-            auto S = meshOperator->generateSourceTerms (sourceTermsFunction, solution.P, startIndex);
+            auto S = meshOperator->generateSourceTerms (sourceTermsFunction, solution.P, t, startIndex);
 
             for (int n = 0; n < L.size(); ++n)
             {
@@ -192,7 +197,10 @@ void MethodOfLinesTVD::advance (MeshData& solution, double dt) const
             U[n] = U0[n] * (1 - b[rk]) + (U[n] + dt * L[n]) * b[rk];
         }
 
-        fieldOperator->recoverPrimitive (U[interior], solution.P[interior]);
+        // Update the inter-timestep time
+        t = t0 * (1 - b[rk]) + (t + dt) * b[rk];
+
+        fieldOperator->recoverPrimitive (U[interior], solution.P[interior], t);
         solution.applyBoundaryCondition (*boundaryCondition);
     }
 }

@@ -194,7 +194,7 @@ Array MeshOperator::generate (InitialDataFunction F, MeshLocation location, Vect
     }
 }
 
-Array MeshOperator::generateSourceTerms (SourceTermsFunction S, const Array& P, Index start) const
+Array MeshOperator::generateSourceTerms (SourceTermsFunction S, const Array& P, double t, Index start) const
 {
     ENSURE_GEOMETRY_IS_VALID;
     auto sourceTermArray = Array (P.shape());
@@ -208,7 +208,7 @@ Array MeshOperator::generateSourceTerms (SourceTermsFunction S, const Array& P, 
         {
             p[q] = P(i, j, k, q);
         }
-        auto s = S (x[0], x[1], x[2], p);
+        auto s = S (x[0], x[1], x[2], t, p);
 
         for (int q = 0; q < P.size(3); ++q)
         {

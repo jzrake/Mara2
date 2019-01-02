@@ -1180,8 +1180,8 @@ SCENARIO ("Field operator should convert prim -> cons", "[FieldOperator]")
         {
             auto P = mo->generate (id, MeshLocation::cell);
             auto X = mo->cellCentroidCoordinates();
-            auto U = fo->generateConserved (P);
-            auto Q = fo->recoverPrimitive (U);
+            auto U = fo->generateConserved (P, 0.0);
+            auto Q = fo->recoverPrimitive (U, 0.0);
 
             THEN ("The conserved variables are as expected")
             {
@@ -1456,7 +1456,7 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
         {
             THEN ("Calling advance() raises an exception as it should")
             {
-                CHECK_THROWS (ss->advance (*md, 0.0));
+                CHECK_THROWS (ss->advance (*md, 0.0, 0.0));
             }
         }
 
@@ -1470,14 +1470,14 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
 
             THEN ("Calling advance() returns successfully")
             {
-                CHECK_NOTHROW (ss->advance (*md, 0.0));
+                CHECK_NOTHROW (ss->advance (*md, 0.0, 0.0));
             }
 
             THEN ("The solution is unchanged after update (it was uniform)")
             {
                 auto P0 = md->P;
 
-                ss->advance (*md, 1.0);
+                ss->advance (*md, 0.0, 1.0);
 
                 CHECK (md->P.shape() == P0.shape());
                 
@@ -1501,12 +1501,12 @@ SCENARIO ("Method of lines TVD scheme behaves reasonably", "[SolutionScheme]")
 
             THEN ("The scheme works with the old mesh data")
             {
-                CHECK_NOTHROW (ss->advance (*md, 1.0));
+                CHECK_NOTHROW (ss->advance (*md, 0.0, 1.0));
             }
 
             THEN ("But it raises an exception with the new mesh data")
             {
-                CHECK_THROWS (ss->advance (*md2, 1.0));
+                CHECK_THROWS (ss->advance (*md2, 0.0, 1.0));
             }
         }
     }

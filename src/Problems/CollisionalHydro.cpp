@@ -30,7 +30,7 @@ class CollisionalHydroScheme : public GenericSolutionScheme
 public:
     CollisionalHydroScheme();
     virtual ~CollisionalHydroScheme() {}
-    void advance (MeshData& solution, double dt) const override;
+    void advance (MeshData& solution, double, double dt) const override;
     void advance (MeshData& solution, ParticleData& pd, double dt) const override;
     double getCollisionTime (const MeshData& solution, const ParticleData& pd) const;
 private:
@@ -219,7 +219,7 @@ CollisionalHydroScheme::CollisionalHydroScheme()
     scatteringEventDuration = 1e-1; // time over which scattering events are communicated to the grid
 }
 
-void CollisionalHydroScheme::advance (MeshData& solution, double dt) const
+void CollisionalHydroScheme::advance (MeshData& solution, double, double dt) const
 {
     throw std::logic_error ("CollisionalHydroScheme does not implement advance() without particle data");
 }
@@ -258,7 +258,7 @@ void CollisionalHydroScheme::advance (MeshData& md, ParticleData& pd, double dt)
         D.areaElement = stencil.faceNormal.cartesian();
         D.stencilData = stencil.cellData;
 
-        auto S = fluxScheme->intercellFlux (D);
+        auto S = fluxScheme->intercellFlux (D, 0.0);
 
         for (int q = 0; q < nq; ++q)
         {
@@ -269,7 +269,7 @@ void CollisionalHydroScheme::advance (MeshData& md, ParticleData& pd, double dt)
 
     // Update
     // ------------------------------------------------------------------------
-    auto U0 = fieldOperator->generateConserved (md.P);
+    auto U0 = fieldOperator->generateConserved (md.P, 0.0);
     auto U = U0;
 
     auto F = meshOperator->godunov (Fhat, md.P, md.B, footprint, startIndex, nullptr);
@@ -286,7 +286,7 @@ void CollisionalHydroScheme::advance (MeshData& md, ParticleData& pd, double dt)
         U[n] += dt * L[n] + S[n];
     }
 
-    fieldOperator->recoverPrimitive (U[interior], md.P[interior]);
+    fieldOperator->recoverPrimitive (U[interior], md.P[interior], 0.0);
     md.applyBoundaryCondition (*boundaryCondition);
 }
 

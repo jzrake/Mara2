@@ -217,7 +217,7 @@ public:
     std::string getPrimitiveName (int fieldIndex) const override;
     std::vector<double> makeDiagnostics (const State& state) const override;
     std::vector<std::string> getDiagnosticNames() const override;
-    double getSoundSpeedSquared (const double *P) const;
+    double getSoundSpeedSquared (const double *P, double t) const;
 };
 
 
@@ -233,7 +233,7 @@ ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& req
     double P[7] = {0, 0, 0, 0, 0, 0, 0};
 
     P[RHO] = std::max (DENSITY_FLOOR, U[DDD]);
-    P[PRE] = P[RHO] * getSoundSpeedSquared (U);
+    P[PRE] = P[RHO] * getSoundSpeedSquared (U, request.simulationTime);
     P[V11] = U[S11] / P[RHO];
     P[V22] = U[S22] / P[RHO];
     P[V33] = U[S33] / P[RHO];
@@ -258,7 +258,7 @@ ConservationLaw::State ThinDiskNewtonianHydro::fromConserved (const Request& req
 ConservationLaw::State ThinDiskNewtonianHydro::fromPrimitive (const Request& request, const double* P) const
 {
     const auto dAA = request.areaElement;
-    const double cs = std::sqrt (getSoundSpeedSquared (P));
+    const double cs = std::sqrt (getSoundSpeedSquared (P, request.simulationTime));
     const double vn = P[V11] * dAA[0] + P[V22] * dAA[1] + P[V33] * dAA[2];
 
     auto S = State();
@@ -330,10 +330,9 @@ std::string ThinDiskNewtonianHydro::getPrimitiveName (int fieldIndex) const
     }
 }
 
-double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P) const
+double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P, double t) const
 {
     // Note: the argument is allowed to be P or U, since only x and y are read from it.
-    const double t = status.simulationTime;
     const double x = P[XXX];
     const double y = P[YYY];
     return SoundSpeedSquared (x, y, t);
@@ -405,10 +404,8 @@ std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
 
 
 // ============================================================================
-static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array& Fhat)
+static void computeViscousFluxes2D (const Array& P, double dx, double dy, double t, Array& Fhat)
 {
-    const double t = status.simulationTime;
-
     for (int i = 0; i < P.shape()[0] - 1; ++i)
     {
         for (int j = 1; j < P.shape()[1] - 1; ++j)
@@ -502,9 +499,9 @@ static void computeViscousFluxes2D (const Array& P, double dx, double dy, Array&
 
 static auto makeViscousFluxCorrection (double dx, double dy)
 {
-    return [dx,dy] (const Cow::Array& P, Cow::Array& F)
+    return [dx,dy] (const Cow::Array& P, Cow::Array& F, double t)
     {
-        computeViscousFluxes2D (P, dx, dy, F);
+        computeViscousFluxes2D (P, dx, dy, t, F);
     };
 }
 
@@ -622,9 +619,8 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     // Source terms
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [&] (double x, double y, double z, StateArray P)
+    auto sourceTermsFunction = [&] (double x, double y, double z, double t, StateArray P)
     {
-        const double t  = status.simulationTime;
         const double dg = P[0];
         const double r  = std::sqrt (x * x + y * y);
         const auto ag   = GravitationalAcceleration (x, y, t);
@@ -649,6 +645,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         request.areaElement[0] = 1.0;
         request.areaElement[1] = 0.0;
         request.areaElement[2] = 0.0;
+        request.simulationTime = t;
 
         auto state0 = cl->fromPrimitive (request, &initialData (x, y, z)[0]);
         auto state1 = cl->fromPrimitive (request, &P[0]);
@@ -775,7 +772,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto L         = mo->linearCellDimension();
     auto V         = mo->measure (MeshLocation::cell);
     auto P         = md->getPrimitive();
-    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+    auto advance   = [&] (double dt) { return ss->advance (*md, status.simulationTime, dt); };
     auto condition = [&] () { return status.simulationTime < double (user["tfinal"]); };
     auto timestep  = [&] () { return timestepSize; };
 

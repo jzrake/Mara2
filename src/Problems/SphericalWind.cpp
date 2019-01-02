@@ -178,7 +178,7 @@ int SphericalWind::run (int argc, const char* argv[])
 
     // Geometrical source terms
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [&] (double r, double q, double p, StateArray P)
+    auto sourceTermsFunction = [&] (double r, double q, double p, double, StateArray P)
     {
         const double gm = 4. / 3;
         const double dg = P[0];
@@ -312,7 +312,7 @@ int SphericalWind::run (int argc, const char* argv[])
     auto L         = mo->linearCellDimension();
     auto V         = mo->measure (MeshLocation::cell);
     auto P         = md->getPrimitive();
-    auto advance   = [&] (double dt) { return ss->advance (*md, dt); };
+    auto advance   = [&] (double dt) { return ss->advance (*md, 0.0, dt); };
     auto condition = [&] () { return status.simulationTime < double (user["tfinal"]); };
     auto timestep  = [&] () { return timestepSize; };
 
