@@ -58,8 +58,9 @@ static double VacuumCleaner    = 1.0;   // alpha_mini / alpha_disk (set to a num
 static double MachNumber       = 10.0;  // 1/M = h/r
 static int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static int    ScaleHeightFunc  = 0;     // 0 := H ~ cylindrical, 1 := H ~ min(r1,r2), 2 := H ~ interp(r1,r2)
-static double GM               = 1.0;   // Newton G * mass of each component
+static double GM               = 1.0;   // Newton G * mass of binary
 static double aBin             = 1.0;   // Binary separation
+static double MassRatio        = 1.0;   // Binary mass ratio q = m2/m1
 static double SinkRadius       = 0.2;   // Sink radius
 static double LdotEfficiency   = 1.0;   // Efficiency f to accrete L through the mini-disks (f = 1 is maximal)
 static double DomainRadius     = 8.0;
@@ -93,12 +94,15 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
     }
     if (NumHoles == 2)
     {
-        const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (2.0 * GM / (aBin * aBin * aBin));
+        const  double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
+        static double mu = MassRatio / (1.0 + MassRatio);
+
         SinkGeometry g1, g2;
-        g1.x = 0.5 * aBin * std::cos (omegaBin * t);
-        g1.y = 0.5 * aBin * std::sin (omegaBin * t);
-        g2.x = 0.5 * aBin * std::cos (omegaBin * t + M_PI);
-        g2.y = 0.5 * aBin * std::sin (omegaBin * t + M_PI);
+
+        g1.x = mu * aBin * std::cos (omegaBin * t);
+        g1.y = mu * aBin * std::sin (omegaBin * t);
+        g2.x = mu / MassRatio * aBin * std::cos (omegaBin * t + M_PI);
+        g2.y = mu / MassRatio * aBin * std::sin (omegaBin * t + M_PI);
         g1.r = std::sqrt ((x - g1.x) * (x - g1.x) + (y - g1.y) * (y - g1.y));
         g2.r = std::sqrt ((x - g2.x) * (x - g2.x) + (y - g2.y) * (y - g2.y));
         g1.xhat = (x - g1.x) / g1.r;
@@ -112,26 +116,35 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
 
 static double GravitationalPotential (double x, double y, double t)
 {
-    const double rs = SofteningRadius;
+    const  double rs = SofteningRadius;
+    static double GM1 = GM / (1.0 + MassRatio);
+    static double GM2 = GM1 *  MassRatio;     
     double phi = 0.0;
+    auto s = SinkGeometries (x, y, t);
 
-    for (const auto& g : SinkGeometries (x, y, t))
-    {
-        phi += -GM * std::pow (g.r * g.r + rs * rs, -0.5);
-    }
+    phi += -GM1 * std::pow (s[0].r * s[0].r + rs * rs, -0.5);
+    phi += -GM2 * std::pow (s[1].r * s[1].r + rs * rs, -0.5);
+
     return phi;
 }
 
 static std::array<double, 2> GravitationalAcceleration (double x, double y, double t)
 {
-    const double rs = SofteningRadius;
     std::array<double, 2> a = {{0.0, 0.0}};
+    const  double rs = SofteningRadius;
+    static double mu = MassRatio / (1.0 + MassRatio);
+    static double GM1 = GM * mu / MassRatio;
+    static double GM2 = GM * mu;
 
-    for (const auto& g : SinkGeometries (x, y, t))
-    {
-        a[0] += -g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        a[1] += -g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-    }
+    auto s = SinkGeometries (x, y, t);
+
+
+    a[0] += -s[0].xhat * GM1 * s[0].r * std::pow (s[0].r * s[0].r + rs * rs, -1.5);
+    a[0] += -s[1].xhat * GM2 * s[1].r * std::pow (s[1].r * s[1].r + rs * rs, -1.5);
+
+    a[1] += -s[0].yhat * GM1 * s[0].r * std::pow (s[0].r * s[0].r + rs * rs, -1.5);
+    a[1] += -s[1].yhat * GM2 * s[1].r * std::pow (s[1].r * s[1].r + rs * rs, -1.5);
+
     return a;
 }
 
@@ -171,25 +184,42 @@ static double SoundSpeedSquared (double x, double y, double t)
     return cs2;
 }
 
-static double SinkKernel (double r)
+// These two sink kernel functions can be combined
+static double SinkKernel1 (double r)
 {
-    const double omegaSink = std::sqrt (GM / std::pow (SinkRadius, 3));
-    const double tvisc = 2. / 3 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
-    const double tsink = tvisc / VacuumCleaner;
+    static double GM1 = GM / (1.0 + MassRatio);
+    const  double omegaSink = std::sqrt (GM1 / std::pow (SinkRadius, 3));
+    const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+    const  double tsink = tvisc / VacuumCleaner;
+
+    return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
+}
+
+static double SinkKernel2 (double r)
+{
+    static double GM2 = GM * MassRatio / (1.0 + MassRatio);
+    const  double omegaSink = std::sqrt (GM2 / std::pow (SinkRadius, 3));
+    const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+    const  double tsink = tvisc / VacuumCleaner;
+
     return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
 }
 
 static double SinkTime (double x, double y, double t)
 {
     double tmin = HUGE_TIME_SCALE;
+    auto s = SinkGeometries (x, y, t);
 
-    for (const auto& g : SinkGeometries (x, y, t))
+    if (SinkKernel1 (s[0].r) < tmin)
     {
-        if (SinkKernel (g.r) < tmin)
-        {
-            tmin = SinkKernel (g.r);
-        }
+        tmin = SinkKernel1 (s[0].r);
     }
+
+    if (SinkKernel2 (s[1].r) < tmin)
+    {
+        tmin = SinkKernel2 (s[1].r);
+    }
+
     return tmin;
 }
 
@@ -340,14 +370,16 @@ double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P, double t) 
 
 std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state) const
 {
-    const double t = status.simulationTime;
-    const double x = state.P[XXX];
-    const double y = state.P[YYY];
-    const double dg = state.P[RHO];
-    const double px = state.U[S11];
-    const double py = state.U[S22];
-    const double rs = SofteningRadius;
-    const auto sinks = SinkGeometries (x, y, t);
+    const  double t = status.simulationTime;
+    const  double x = state.P[XXX];
+    const  double y = state.P[YYY];
+    const  double dg = state.P[RHO];
+    const  double px = state.U[S11];
+    const  double py = state.U[S22];
+    const  double rs = SofteningRadius;
+    static double GM1 = GM / (1.0 + MassRatio);
+    static double GM2 = GM1 *  MassRatio; 
+    const  auto sinks = SinkGeometries (x, y, t);
 
     auto D = std::vector<double> (8);
     D[0] = dg;
@@ -356,9 +388,9 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     if (sinks.size() >= 1)
     {
         const SinkGeometry g = sinks[0];
-        const double agx = g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        const double agy = g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        const double tsink = SinkKernel (g.r);
+        const double agx = g.xhat * GM1 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
+        const double agy = g.yhat * GM1 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
+        const double tsink = SinkKernel1 (g.r);
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
@@ -370,9 +402,9 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     if (sinks.size() >= 2)
     {
         const SinkGeometry g = sinks[1];
-        const double agx = g.xhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        const double agy = g.yhat * GM * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        const double tsink = SinkKernel (g.r);
+        const double agx = g.xhat * GM2 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
+        const double agy = g.yhat * GM2 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
+        const double tsink = SinkKernel2 (g.r);
         const double dgdot = dg / tsink;
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
@@ -533,6 +565,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["NumHoles"]         = NumHoles;
     user["ScaleHeightFunc"]  = ScaleHeightFunc;
     user["aBin"]             = aBin;
+    user["MassRatio"]        = MassRatio;    
     user["SinkRadius"]       = SinkRadius;
     user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
@@ -695,6 +728,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     NumHoles          = user["NumHoles"];
     ScaleHeightFunc   = user["ScaleHeightFunc"];
     aBin              = user["aBin"];
+    MassRatio         = user["MassRatio"];    
     SinkRadius        = user["SinkRadius"];
     LdotEfficiency    = user["LdotEfficiency"];
     VacuumCleaner     = user["VacuumCleaner"];
