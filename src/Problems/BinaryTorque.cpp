@@ -80,6 +80,21 @@ struct SinkGeometry
     double yhat;
 };
 
+
+static std::array<double, 4> SinkLocations (double t)
+{   
+    std::array<double, 4> sinkLocations;     
+    const  double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
+    static double mu = MassRatio / (1.0 + MassRatio);
+
+    sinkLocations[0] = mu * aBin * std::cos (omegaBin * t);
+    sinkLocations[1] = mu * aBin * std::sin (omegaBin * t);
+    sinkLocations[2] = mu / MassRatio * aBin * std::cos (omegaBin * t + M_PI);
+    sinkLocations[3] = mu / MassRatio * aBin * std::sin (omegaBin * t + M_PI);
+
+    return sinkLocations;
+}
+
 static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
 {
     if (NumHoles == 1)
@@ -90,25 +105,27 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
         g.r = std::sqrt (x * x + y * y);
         g.xhat = g.x / g.r;
         g.yhat = g.y / g.r;
+
         return {g};
     }
     if (NumHoles == 2)
     {
-        const  double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
-        static double mu = MassRatio / (1.0 + MassRatio);
+        const auto sinkLocations = SinkLocations (t);
 
         SinkGeometry g1, g2;
 
-        g1.x = mu * aBin * std::cos (omegaBin * t);
-        g1.y = mu * aBin * std::sin (omegaBin * t);
-        g2.x = mu / MassRatio * aBin * std::cos (omegaBin * t + M_PI);
-        g2.y = mu / MassRatio * aBin * std::sin (omegaBin * t + M_PI);
+        g1.x = sinkLocations[0];
+        g1.y = sinkLocations[1];
+        g2.x = sinkLocations[2];
+        g2.y = sinkLocations[3];
+
         g1.r = std::sqrt ((x - g1.x) * (x - g1.x) + (y - g1.y) * (y - g1.y));
         g2.r = std::sqrt ((x - g2.x) * (x - g2.x) + (y - g2.y) * (y - g2.y));
         g1.xhat = (x - g1.x) / g1.r;
         g1.yhat = (y - g1.y) / g1.r;
         g2.xhat = (x - g2.x) / g2.r;
         g2.yhat = (y - g2.y) / g2.r;
+
         return {g1, g2};
     }
     return {};
@@ -117,13 +134,13 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
 static double GravitationalPotential (double x, double y, double t)
 {
     const  double rs = SofteningRadius;
-    static double GM1 = GM / (1.0 + MassRatio);
+    static double GM1 = GM  / (1.0 + MassRatio);
     static double GM2 = GM1 *  MassRatio;     
-    double phi = 0.0;
+
     auto s = SinkGeometries (x, y, t);
 
-    phi += -GM1 * std::pow (s[0].r * s[0].r + rs * rs, -0.5);
-    phi += -GM2 * std::pow (s[1].r * s[1].r + rs * rs, -0.5);
+    double phi  = -GM1 * std::pow (s[0].r * s[0].r + rs * rs, -0.5);
+           phi += -GM2 * std::pow (s[1].r * s[1].r + rs * rs, -0.5);
 
     return phi;
 }
@@ -132,9 +149,8 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, doub
 {
     std::array<double, 2> a = {{0.0, 0.0}};
     const  double rs = SofteningRadius;
-    static double mu = MassRatio / (1.0 + MassRatio);
-    static double GM1 = GM * mu / MassRatio;
-    static double GM2 = GM * mu;
+    static double GM1 = GM / (1.0 + MassRatio);
+    static double GM2 = GM1 *  MassRatio; 
 
     auto s = SinkGeometries (x, y, t);
 
