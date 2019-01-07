@@ -61,6 +61,7 @@ static int    ScaleHeightFunc  = 0;     // 0 := H ~ cylindrical, 1 := H ~ min(r1
 static double GM               = 1.0;   // Newton G * mass of binary
 static double aBin             = 1.0;   // Binary separation
 static double MassRatio        = 1.0;   // Binary mass ratio q = m2/m1
+static double Eccentricity     = 0.0;   // Binary eccentricity e
 static double SinkRadius       = 0.2;   // Sink radius
 static double LdotEfficiency   = 1.0;   // Efficiency f to accrete L through the mini-disks (f = 1 is maximal)
 static double DomainRadius     = 8.0;
@@ -80,20 +81,45 @@ struct SinkGeometry
     double yhat;
 };
 
-
 static std::array<double, 4> SinkLocations (double t)
 {   
     std::array<double, 4> sinkLocations;     
     const  double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
     static double mu = MassRatio / (1.0 + MassRatio);
+    static double Tolerance = 1e-6;
 
-    sinkLocations[0] = mu * aBin * std::cos (omegaBin * t);
-    sinkLocations[1] = mu * aBin * std::sin (omegaBin * t);
-    sinkLocations[2] = mu / MassRatio * aBin * std::cos (omegaBin * t + M_PI);
-    sinkLocations[3] = mu / MassRatio * aBin * std::sin (omegaBin * t + M_PI);
+    if (Eccentricity > 0.0)
+    {
+        double M = omegaBin * t; //Mean anomoly
+        // minimize f(E) = E - e * sinE - M using Newton-Rapheson
+        double    E = M; // eccentric anomoly - set first guess to M
+        double fofE = E - Eccentricity * std::sin(E) - M;         
+        while (std::abs(fofE) > Tolerance)
+        {
+            double dfdE = 1.0 - Eccentricity * std::cos (E);
+            E   -= fofE/dfdE;
+            fofE = E - Eccentricity * std::sin(E) - M;
+        }
+        double x = aBin * (std::cos(E) - Eccentricity);
+        double y = aBin * std::sqrt(1.0 - Eccentricity * Eccentricity) * std::sin(E);
+        double r = std::sqrt(x*x + y*y);
+        double f = std::atan2(y,x);
+        sinkLocations[0] = mu * r * std::cos(f);
+        sinkLocations[1] = mu * r * std::sin(f);        
+        sinkLocations[2] = mu / MassRatio * r * std::cos(f + M_PI);
+        sinkLocations[3] = mu / MassRatio * r * std::sin(f + M_PI);
+    }
+    else
+    {
+        sinkLocations[0] = mu * aBin * std::cos (omegaBin * t);
+        sinkLocations[1] = mu * aBin * std::sin (omegaBin * t);
+        sinkLocations[2] = mu / MassRatio * aBin * std::cos (omegaBin * t + M_PI);
+        sinkLocations[3] = mu / MassRatio * aBin * std::sin (omegaBin * t + M_PI);
+    }   
 
     return sinkLocations;
 }
+
 
 static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
 {
@@ -581,7 +607,8 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["NumHoles"]         = NumHoles;
     user["ScaleHeightFunc"]  = ScaleHeightFunc;
     user["aBin"]             = aBin;
-    user["MassRatio"]        = MassRatio;    
+    user["MassRatio"]        = MassRatio; 
+    user["Eccentricity"]     = Eccentricity;    
     user["SinkRadius"]       = SinkRadius;
     user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
@@ -745,6 +772,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     ScaleHeightFunc   = user["ScaleHeightFunc"];
     aBin              = user["aBin"];
     MassRatio         = user["MassRatio"];    
+    Eccentricity      = user["Eccentricity"];    
     SinkRadius        = user["SinkRadius"];
     LdotEfficiency    = user["LdotEfficiency"];
     VacuumCleaner     = user["VacuumCleaner"];
