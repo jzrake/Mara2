@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
@@ -9,10 +11,11 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 def make_binary_plot(fig, filename):
     h5f = h5py.File(filename, 'r')
 
+    R  = h5f['user']['DomainRadius'][...]
     x  = h5f['mesh']['points']['x'][...]
     y  = h5f['mesh']['points']['y'][...]
     p  = h5f['primitive']['pressure'][...]
-    d  = h5f['primitive']['density'][...]
+    d  = h5f['primitive']['sigma'][...]
     vx = h5f['primitive']['velocity1'][...]
     vy = h5f['primitive']['velocity2'][...]
 
@@ -42,10 +45,10 @@ def make_binary_plot(fig, filename):
     cax3 = div3.append_axes('bottom', size='5%', pad=0.05)
     cax4 = div4.append_axes('bottom', size='5%', pad=0.05)
 
-    im1 = ax1.imshow(d,  extent=[-10, 10, -10, 10], vmin=0, vmax=1)
-    im2 = ax2.imshow(p,  extent=[-10, 10, -10, 10], vmin=0, vmax=0.001)
-    im3 = ax3.imshow(vq, extent=[-10, 10, -10, 10], vmin=-0.5, vmax=1.5)
-    im4 = ax4.imshow(vr, extent=[-10, 10, -10, 10], vmin=-0.5, vmax=1.5)
+    im1 = ax1.imshow(d,  extent=[-R, R, -R, R])#, vmin=0, vmax=1)
+    im2 = ax2.imshow(p,  extent=[-R, R, -R, R])#, vmin=0, vmax=0.001)
+    im3 = ax3.imshow(vq, extent=[-R, R, -R, R])#, vmin=-0.5, vmax=1.5)
+    im4 = ax4.imshow(vr, extent=[-R, R, -R, R])#, vmin=-0.5, vmax=1.5)
 
     fig.colorbar(im1, cax=cax1, orientation='horizontal')
     fig.colorbar(im2, cax=cax2, orientation='horizontal')
@@ -59,9 +62,9 @@ def make_binary_plot(fig, filename):
     ax4.set_title(r"$v_r$")
 
     t = np.linspace(0, 2 * np.pi, 300)
-    x = 8 * np.cos(t)
-    y = 8 * np.sin(t)
-    ax4.plot(x, y, '--')
+    x = 7. * np.cos(t)
+    y = 7. * np.sin(t)
+    ax4.plot(x, y, '--', lw=1, c='k')
 
     for ax in [ax1, ax2, ax3, ax4]:
         ax.set_xticks([])

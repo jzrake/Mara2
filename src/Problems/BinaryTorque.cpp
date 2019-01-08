@@ -824,12 +824,10 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto fo = std::make_shared<FieldOperator>();
     auto md = std::make_shared<MeshData> (mg->cellsShape(), bs, cl->getNumConserved());
 
-
     double dx = mg->cellLength (0, 0, 0, 0);
     double dy = mg->cellLength (0, 0, 0, 1);
 
     cl->setGammaLawIndex (5. / 3);
-    // cl->setPressureFloor (1e-2);
     fs->setPlmTheta (double (user["plm"]));
     fs->setRiemannSolver (rs);
     fo->setConservationLaw (cl);
@@ -918,4 +916,79 @@ int BinaryTorque::run (int argc, const char* argv[])
     taskRecomputeDt (status, 0);
 
     return maraMainLoop (status, timestep, condition, advance, *scheduler, *logger);
+}
+
+
+
+
+// ============================================================================
+int BinaryTorqueStressCalculation::run (int argc, const char* argv[])
+{
+    for (int n = 1; n < argc; ++n)
+    {
+        processFile(argv[n]);
+    }
+    return 0;
+}
+
+void BinaryTorqueStressCalculation::processFile(std::string fname) const
+{
+    auto h5f  = H5::File (fname);
+    auto user = h5f.getGroup ("user").readNamedValues();
+    auto prim = h5f.getGroup ("primitive");
+    auto stat = h5f.getGroup ("status");
+
+    SofteningRadius   = user["SofteningRadius"];
+    BetaBuffer        = user["BetaBuffer"];
+    DomainRadius      = user["DomainRadius"];
+    ViscousAlpha      = user["ViscousAlpha"];
+    MachNumber        = user["MachNumber"];
+    NumHoles          = user["NumHoles"];
+    ScaleHeightFunc   = user["ScaleHeightFunc"];
+    aBin              = user["aBin"];
+    SinkRadius        = user["SinkRadius"];
+    LdotEfficiency    = user["LdotEfficiency"];
+    VacuumCleaner     = user["VacuumCleaner"];
+    InitialDataString = std::string (user["InitialData"]);
+
+    status.update (stat.readNamedValues());
+
+    auto N  = int (user["N"]);
+    auto cs = Shape {N, N, 1, 1, 1};
+    auto bs = Shape {2, 2, 0, 0, 0};
+    auto cl = std::make_shared<ThinDiskNewtonianHydro>();
+    auto mg = std::make_shared<CartesianMeshGeometry>();
+    auto rs = std::make_shared<HllcNewtonianHydroRiemannSolver>();
+    auto fs = std::make_shared<MethodOfLinesPlm>();
+    auto bc = std::make_shared<OutflowBoundaryCondition>();
+    auto ss = std::make_shared<MethodOfLinesTVD>();
+    auto mo = std::make_shared<MeshOperator>();
+    auto fo = std::make_shared<FieldOperator>();
+    auto md = std::make_shared<MeshData> (cs, bs, cl->getNumConserved());
+    auto dx = mg->cellLength (0, 0, 0, 0);
+    auto dy = mg->cellLength (0, 0, 0, 1);
+
+    mg->setCellsShape (cs);
+    mg->setLowerUpper ({-DomainRadius, -DomainRadius, 0.0}, {DomainRadius, DomainRadius, 1.0});
+    bc->setMeshGeometry (mg);
+    bc->setConservationLaw (cl);
+    fs->setPlmTheta (user["plm"]);
+    fs->setRiemannSolver (rs);
+    fo->setConservationLaw (cl);
+    mo->setMeshGeometry (mg);
+    ss->setMeshOperator (mo);
+    ss->setFieldOperator (fo);
+    ss->setBoundaryCondition (bc);
+    ss->setIntercellFluxScheme (fs);
+    ss->setViscousFluxFunction (makeViscousFluxCorrection (dx, dy));
+
+    auto P = prim.readArrays (cl->getPrimitiveNames(), 3);
+    md->assignPrimitive (P);
+    md->applyBoundaryCondition (*bc);
+
+    fname.replace(fname.find(".h5"), 3, "-stress.h5");
+
+    auto h5res = H5::File (fname, "w");
+    h5res.writeArray("viscous_flux", ss->computeViscousFluxes (*md, status.simulationTime));
+    h5res.writeArray("advective_flux", ss->computeAdvectiveFluxes (*md, status.simulationTime));
 }

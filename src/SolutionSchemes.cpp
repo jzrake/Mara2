@@ -93,11 +93,7 @@ void MethodOfLinesTVD::setViscousFluxFunction (std::function<void(const Cow::Arr
 
 void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
 {
-    if (! fieldOperator)     throw std::logic_error ("No FieldOperator instance");
-    if (! meshOperator)      throw std::logic_error ("No MeshOperator instance");
-    if (! boundaryCondition) throw std::logic_error ("No BoundaryCondition instance");
-    if (! fluxScheme)        throw std::logic_error ("No IntercellFluxScheme instance");
-
+    check_valid();
 
     // Figure out the scheme footprint, and if we have enough guard zones
     // ------------------------------------------------------------------------
@@ -203,4 +199,72 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
         fieldOperator->recoverPrimitive (U[interior], solution.P[interior], t);
         solution.applyBoundaryCondition (*boundaryCondition);
     }
+}
+
+Cow::Array MethodOfLinesTVD::computeAdvectiveFluxes (MeshData& solution, double t0) const
+{
+    check_valid();
+
+    // Figure out the scheme footprint, and if we have enough guard zones
+    // ------------------------------------------------------------------------
+    auto footprint = Shape3D();
+    auto startIndex = Index();
+    auto interior = Region();
+
+    SchemeHelpers::makeFootprint (
+        fluxScheme->getStencilSize(),
+        solution.P.shape(),
+        solution.getBoundaryShape(),
+        footprint, startIndex, interior);
+
+
+    // Setup callback to compute Godunov fluxes
+    // ------------------------------------------------------------------------
+    auto cl = fieldOperator->getConservationLaw();
+    auto nq = cl->getNumConserved();
+
+    auto D = IntercellFluxScheme::FaceData();
+    D.conservationLaw = cl;
+
+    auto Fhat = [&] (GodunovStencil& stencil)
+    {
+        D.areaElement = stencil.faceNormal.cartesian();
+        D.stencilData = stencil.cellData;
+
+        auto S = fluxScheme->intercellFlux (D, t0);
+
+        for (int q = 0; q < nq; ++q)
+        {
+            stencil.godunovFlux[q] = S.F[q];
+        }
+    };
+    return meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, nullptr);
+}
+
+Cow::Array MethodOfLinesTVD::computeViscousFluxes (MeshData& solution, double t0) const
+{
+    check_valid();
+
+    auto footprint = Shape3D();
+    auto startIndex = Index();
+    auto interior = Region();
+
+    SchemeHelpers::makeFootprint (
+        fluxScheme->getStencilSize(),
+        solution.P.shape(),
+        solution.getBoundaryShape(),
+        footprint, startIndex, interior);
+
+    auto Fhat = [] (GodunovStencil&) {};
+    auto visc = [this, t0] (const Array& P, Array& F) { if (viscousFlux) viscousFlux (P, F, t0); };
+
+    return meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, visc);
+}
+
+void MethodOfLinesTVD::check_valid() const
+{
+    if (! fieldOperator)     throw std::logic_error ("No FieldOperator instance");
+    if (! meshOperator)      throw std::logic_error ("No MeshOperator instance");
+    if (! boundaryCondition) throw std::logic_error ("No BoundaryCondition instance");
+    if (! fluxScheme)        throw std::logic_error ("No IntercellFluxScheme instance");
 }

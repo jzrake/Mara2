@@ -216,6 +216,7 @@ int main (int argc, const char* argv[])
     programs["tovtk"]       = std::make_unique<CheckpointToVtkProgram>();
     programs["alfven"]      = std::make_unique<AlfvenWaveCollision>();
     programs["binary"]      = std::make_unique<BinaryTorque>();
+    programs["bt-stress"]   = std::make_unique<BinaryTorqueStressCalculation>();
 
     if (argc == 1)
     {
