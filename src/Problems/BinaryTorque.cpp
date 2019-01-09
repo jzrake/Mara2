@@ -81,8 +81,14 @@ struct SinkGeometry
     double yhat;
 };
 
+static double sinkLocationsLastArg = -1;
+static std::array<double, 4> sinkLocationsLastRes;
+
 static std::array<double, 4> SinkLocations (double t)
 {   
+
+    if (t == sinkLocationsLastArg) return sinkLocationsLastRes;
+
     std::array<double, 4> sinkLocations;     
     const  double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
     static double mu = MassRatio / (1.0 + MassRatio);
@@ -117,7 +123,9 @@ static std::array<double, 4> SinkLocations (double t)
         sinkLocations[3] = mu / MassRatio * aBin * std::sin (omegaBin * t + M_PI);
     }   
 
-    return sinkLocations;
+    sinkLocationsLastArg = t;
+
+    return sinkLocationsLastRes = sinkLocations;
 }
 
 
