@@ -60,7 +60,8 @@ static int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static int    ScaleHeightFunc  = 0;     // 0 := H ~ cylindrical, 1 := H ~ min(r1,r2), 2 := H ~ interp(r1,r2)
 static double GM               = 1.0;   // Newton G * mass of binary
 static double aBin             = 1.0;   // Binary separation
-static double MassRatio        = 1.0;   // Binary mass ratio q = m2/m1
+static double BinaryMassRatio  = 1.0;   // Binary mass ratio q = m2/m1
+static double DiskMassRatio    = 0.1;   // sigma0 = DiskMassRatio * M / aBin^2, where sigma0 is used in Tang17
 static double Eccentricity     = 0.0;   // Binary eccentricity e
 static double SinkRadius       = 0.2;   // Sink radius
 static double LdotEfficiency   = 1.0;   // Efficiency f to accrete L through the mini-disks (f = 1 is maximal)
@@ -91,7 +92,7 @@ static std::array<double, 4> SinkLocations (double t)
 
     std::array<double, 4> sinkLocations;     
     const  double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
-    static double mu = MassRatio / (1.0 + MassRatio);
+    static double mu = BinaryMassRatio / (1.0 + BinaryMassRatio);
     static double Tolerance = 1e-6;
 
     if (Eccentricity > 0.0)
@@ -112,15 +113,15 @@ static std::array<double, 4> SinkLocations (double t)
         double f = std::atan2(y,x);
         sinkLocations[0] = mu * r * std::cos(f);
         sinkLocations[1] = mu * r * std::sin(f);        
-        sinkLocations[2] = mu / MassRatio * r * std::cos(f + M_PI);
-        sinkLocations[3] = mu / MassRatio * r * std::sin(f + M_PI);
+        sinkLocations[2] = mu / BinaryMassRatio * r * std::cos(f + M_PI);
+        sinkLocations[3] = mu / BinaryMassRatio * r * std::sin(f + M_PI);
     }
     else
     {
         sinkLocations[0] = mu * aBin * std::cos (omegaBin * t);
         sinkLocations[1] = mu * aBin * std::sin (omegaBin * t);
-        sinkLocations[2] = mu / MassRatio * aBin * std::cos (omegaBin * t + M_PI);
-        sinkLocations[3] = mu / MassRatio * aBin * std::sin (omegaBin * t + M_PI);
+        sinkLocations[2] = mu / BinaryMassRatio * aBin * std::cos (omegaBin * t + M_PI);
+        sinkLocations[3] = mu / BinaryMassRatio * aBin * std::sin (omegaBin * t + M_PI);
     }   
 
     sinkLocationsLastArg = t;
@@ -168,8 +169,8 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, double t)
 static double GravitationalPotential (double x, double y, double t)
 {
     const  double rs = SofteningRadius;
-    static double GM1 = GM  / (1.0 + MassRatio);
-    static double GM2 = GM1 *  MassRatio;     
+    static double GM1 = GM  / (1.0 + BinaryMassRatio);
+    static double GM2 = GM1 * BinaryMassRatio;
 
     auto s = SinkGeometries (x, y, t);
 
@@ -183,8 +184,8 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, doub
 {
     std::array<double, 2> a = {{0.0, 0.0}};
     const  double rs = SofteningRadius;
-    static double GM1 = GM / (1.0 + MassRatio);
-    static double GM2 = GM1 *  MassRatio; 
+    static double GM1 = GM / (1.0 + BinaryMassRatio);
+    static double GM2 = GM1 *  BinaryMassRatio; 
 
     auto s = SinkGeometries (x, y, t);
 
@@ -237,7 +238,7 @@ static double SoundSpeedSquared (double x, double y, double t)
 // These two sink kernel functions can be combined
 static double SinkKernel1 (double r)
 {
-    static double GM1 = GM / (1.0 + MassRatio);
+    static double GM1 = GM / (1.0 + BinaryMassRatio);
     const  double omegaSink = std::sqrt (GM1 / std::pow (SinkRadius, 3));
     const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
     const  double tsink = tvisc / VacuumCleaner;
@@ -247,7 +248,7 @@ static double SinkKernel1 (double r)
 
 static double SinkKernel2 (double r)
 {
-    static double GM2 = GM * MassRatio / (1.0 + MassRatio);
+    static double GM2 = GM * BinaryMassRatio / (1.0 + BinaryMassRatio);
     const  double omegaSink = std::sqrt (GM2 / std::pow (SinkRadius, 3));
     const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
     const  double tsink = tvisc / VacuumCleaner;
@@ -427,8 +428,8 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     const  double px = state.U[S11];
     const  double py = state.U[S22];
     const  double rs = SofteningRadius;
-    static double GM1 = GM / (1.0 + MassRatio);
-    static double GM2 = GM1 *  MassRatio; 
+    static double GM1 = GM / (1.0 + BinaryMassRatio);
+    static double GM2 = GM1 *  BinaryMassRatio; 
     const  auto sinks = SinkGeometries (x, y, t);
 
     auto D = std::vector<double> (8);
@@ -587,6 +588,91 @@ static auto makeViscousFluxCorrection (double dx, double dy)
     };
 }
 
+static std::vector<double> initialStarParticleLocations()
+{
+    const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
+
+    return {
+        +0.5 * aBin, 0.0,
+        -0.5 * aBin, 0.0,
+        0.0, +omegaBin * 0.5 * aBin,
+        0.0, -omegaBin * 0.5 * aBin,
+    };
+};
+
+static std::vector<double> starParticleDerivatives (const Cow::Array& P, const std::vector<double>& starParticles)
+{
+    double GM1 = GM  / (1.0 + BinaryMassRatio);
+    double GM2 = GM1 * BinaryMassRatio;
+    const double rs = SofteningRadius;
+
+    const double x1 = starParticles[0];
+    const double y1 = starParticles[1];
+    const double x2 = starParticles[2];
+    const double y2 = starParticles[3];
+    const double vx1 = starParticles[4];
+    const double vy1 = starParticles[5];
+    const double vx2 = starParticles[6];
+    const double vy2 = starParticles[7];
+    const double x1dot = vx1;
+    const double y1dot = vy1;
+    const double x2dot = vx2;
+    const double y2dot = vy2;
+
+    const double x12 = x2 - x1;
+    const double y12 = y2 - y1;
+    const double r2 = x12 * x12 + y12 * y12;
+    const double x12hat = x12 / std::sqrt (r2);
+    const double y12hat = y12 / std::sqrt (r2);
+
+    const double vx1dot =  GM2 / r2 * x12hat;
+    const double vy1dot =  GM2 / r2 * y12hat;
+    const double vx2dot = -GM1 / r2 * x12hat;
+    const double vy2dot = -GM1 / r2 * y12hat;
+
+    // WARNING: assuming two guard zones here:
+    const double dx = P(3, 0, 0, XXX) - P(2, 0, 0, XXX);
+    const double dy = P(0, 3, 0, YYY) - P(0, 2, 0, YYY);
+
+    double vx1dotGas = 0.0;
+    double vy1dotGas = 0.0;
+    double vx2dotGas = 0.0;
+    double vy2dotGas = 0.0;
+
+    for (int i = 2; i < P.shape()[0] - 2; ++i)
+    {
+        for (int j = 2; j < P.shape()[1] - 2; ++j)
+        {
+            const double sigma = P(i, j, RHO);
+            const double mc = sigma * dx * dy;
+            const double xc = P(i, j, XXX);
+            const double yc = P(i, j, YYY);
+            const double x1c = xc - x1;
+            const double y1c = yc - y1;
+            const double x2c = xc - y2;
+            const double y2c = yc - y2;
+            const double r1csqu = x1c * x1c + y1c * y1c;
+            const double r2csqu = x2c * x2c + y2c * y2c;
+
+            vx1dotGas += mc * std::pow (r1csqu + rs * rs, -1.5) * x1c;
+            vy1dotGas += mc * std::pow (r1csqu + rs * rs, -1.5) * y1c;
+            vx2dotGas += mc * std::pow (r2csqu + rs * rs, -1.5) * x2c;
+            vy2dotGas += mc * std::pow (r2csqu + rs * rs, -1.5) * y2c;
+        }
+    }
+
+    // agas is the gravitational acceleration on the star from the gas.
+    std::vector<double> agasLocal = {vx1dotGas, vy1dotGas, vx2dotGas, vy2dotGas};
+    std::vector<double> agasTotal = MpiCommunicator::world().sum (agasLocal);
+
+    return {
+        x1dot, y1dot,
+        x2dot, y2dot,
+        vx1dot + agasTotal[0], vy1dot + agasTotal[1],
+        vx2dot + agasTotal[2], vy2dot + agasTotal[3],
+    };
+}
+
 
 
 
@@ -615,8 +701,9 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["NumHoles"]         = NumHoles;
     user["ScaleHeightFunc"]  = ScaleHeightFunc;
     user["aBin"]             = aBin;
-    user["MassRatio"]        = MassRatio; 
-    user["Eccentricity"]     = Eccentricity;    
+    user["BinaryMassRatio"]  = BinaryMassRatio;
+    user["DiskMassRatio"]    = DiskMassRatio;
+    user["Eccentricity"]     = Eccentricity;
     user["SinkRadius"]       = SinkRadius;
     user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
@@ -681,7 +768,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double rs         = SofteningRadius;
         const double r0         = 2.5 * aBin;
         const double xsi        = 10.0;
-        const double sigma0     = 1.0;
+        const double sigma0     = DiskMassRatio * GM / aBin / aBin; // NOTE: there's a G here, meaning G = 1 throughout
         const double r2         = x * x + y * y;
         const double r          = std::sqrt (r2);
         const double cs2        = SoundSpeedSquared (x, y, status.simulationTime);
@@ -703,7 +790,7 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     // Source terms
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [&] (double x, double y, double z, double t, StateArray P)
+    auto sourceTermsFunction = [&] (double x, double y, double z, double t, const std::vector<double>& particles, StateArray P)
     {
         const double dg = P[0];
         const double r  = std::sqrt (x * x + y * y);
@@ -779,8 +866,9 @@ int BinaryTorque::run (int argc, const char* argv[])
     NumHoles          = user["NumHoles"];
     ScaleHeightFunc   = user["ScaleHeightFunc"];
     aBin              = user["aBin"];
-    MassRatio         = user["MassRatio"];    
-    Eccentricity      = user["Eccentricity"];    
+    BinaryMassRatio   = user["BinaryMassRatio"];
+    DiskMassRatio     = user["DiskMassRatio"];
+    Eccentricity      = user["Eccentricity"];
     SinkRadius        = user["SinkRadius"];
     LdotEfficiency    = user["LdotEfficiency"];
     VacuumCleaner     = user["VacuumCleaner"];
@@ -840,7 +928,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     fs->setRiemannSolver (rs);
     fo->setConservationLaw (cl);
     mo->setMeshGeometry (mg);
-    ss->setSourceTermsFunction (sourceTermsFunction);
+    ss->setSourceTermsWithParticles (sourceTermsFunction);
     ss->setMeshOperator (mo);
     ss->setFieldOperator (fo);
     ss->setBoundaryCondition (bc);
@@ -848,7 +936,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     ss->setDisableFieldCT (true);
     ss->setIntercellFluxScheme (fs);
     ss->setViscousFluxFunction (makeViscousFluxCorrection (dx, dy));
-
+    ss->setStarParticleDerivatives (starParticleDerivatives);
     md->setVelocityIndex (cl->getIndexFor (ConservationLaw::VariableType::velocity));
     bc->setMeshGeometry (mg);
     bc->setConservationLaw (cl);
@@ -919,6 +1007,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     else
     {
         md->assignPrimitive (mo->generate (initialData, MeshLocation::cell));
+        md->starParticles = initialStarParticleLocations();
     }
     md->applyBoundaryCondition (*bc);
     taskRecomputeDt (status, 0);
@@ -954,6 +1043,9 @@ void BinaryTorqueStressCalculation::processFile(std::string fname) const
     NumHoles          = user["NumHoles"];
     ScaleHeightFunc   = user["ScaleHeightFunc"];
     aBin              = user["aBin"];
+    BinaryMassRatio   = user["BinaryMassRatio"];
+    DiskMassRatio     = user["DiskMassRatio"];
+    Eccentricity      = user["Eccentricity"];
     SinkRadius        = user["SinkRadius"];
     LdotEfficiency    = user["LdotEfficiency"];
     VacuumCleaner     = user["VacuumCleaner"];

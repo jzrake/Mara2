@@ -65,6 +65,7 @@ protected:
 using StateArray = std::array<double, MARA_NUM_FIELDS>;
 using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
 using SourceTermsFunction = std::function<StateArray (double x, double y, double z, double t, StateArray primitive)>;
+using SourceTermsWithParticles = std::function<StateArray (double x, double y, double z, double t, const std::vector<double>&, StateArray primitive)>;
 
 using AreaElement = std::array<double, 3>;
 using Coordinate = std::array<double, 3>;

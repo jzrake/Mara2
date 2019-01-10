@@ -91,6 +91,18 @@ void MethodOfLinesTVD::setViscousFluxFunction (std::function<void(const Cow::Arr
     viscousFlux = viscousFluxToUse;
 }
 
+void MethodOfLinesTVD::setStarParticleDerivatives (
+    std::function<std::vector<double>(const Cow::Array&, const std::vector<double>&)>
+    starParticleDerivativesToUse)
+{
+    starParticleDerivatives = starParticleDerivativesToUse;
+}
+
+void MethodOfLinesTVD::setSourceTermsWithParticles (SourceTermsWithParticles sourceTermsWithParticlesToUse)
+{
+    sourceTermsWithParticles = sourceTermsWithParticlesToUse;
+}
+
 void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
 {
     check_valid();
@@ -135,9 +147,10 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
     // RK updates
     // ------------------------------------------------------------------------
     auto U0 = fieldOperator->generateConserved (solution.P, t0);
+    auto H0 = solution.starParticles;
     auto U = U0;
     auto t = t0;
-
+    auto H = H0; // H is for 'holes'
 
     auto Fhat = [&] (GodunovStencil& stencil)
     {
@@ -187,6 +200,15 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
                 L[n] += S[n];
             }
         }
+        else if (sourceTermsWithParticles)
+        {
+            auto S = meshOperator->generateSourceTerms (sourceTermsWithParticles, solution.P, t, H, startIndex);
+
+            for (int n = 0; n < L.size(); ++n)
+            {
+                L[n] += S[n];
+            }
+        }
 
         for (int n = 0; n < L.size(); ++n)
         {
@@ -196,7 +218,21 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
         // Update the inter-timestep time
         t = t0 * (1 - b[rk]) + (t + dt) * b[rk];
 
+        // Update the star particle positions
+        if (starParticleDerivatives)
+        {
+            auto Hdot = starParticleDerivatives (solution.P, H);
+
+            assert(Hdot.size() == H.size());
+
+            for (int n = 0; n < H.size(); ++n)
+            {
+                H[n] = H0[n] * (1 - b[rk]) + (H[n] + dt * Hdot[n]) * b[rk];
+            }
+        }
+
         fieldOperator->recoverPrimitive (U[interior], solution.P[interior], t);
+        solution.starParticles = H;
         solution.applyBoundaryCondition (*boundaryCondition);
     }
 }

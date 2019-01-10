@@ -106,6 +106,7 @@ void CheckpointWriter::writeCheckpoint (
         auto primitiveGroup  = file.createGroup ("primitive");
         auto diagnosticGroup = file.createGroup ("diagnostic");
         auto meshGroup       = file.createGroup ("mesh");
+        auto particleGroup   = file.createGroup ("particles");
 
 
         // Write misc data like date and run script (disabled because put_time is C++14)
@@ -137,6 +138,11 @@ void CheckpointWriter::writeCheckpoint (
             auto field = meshData.getDiagnosticName(q);
             diagnosticGroup.createDataSet (field, globalShape, dtype, plist);
         }
+
+
+        // Write star particle data
+        // --------------------------------------------------------------------
+        particleGroup.writeVectorDouble ("data", meshData.starParticles);
 
 
         // Write the simulation status data into the checkpoint
@@ -259,6 +265,11 @@ void CheckpointWriter::readCheckpoint (
     
     if (timeSeriesManager) timeSeriesManager->load (timeSeriesGroup);
     if (taskScheduler) taskScheduler->load (schedulerGroup);
+
+    if (file.hasGroup ("particles"))
+    {
+        meshData.starParticles = file.readVectorDouble ("data");
+    }
 }
 
 

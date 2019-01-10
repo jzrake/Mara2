@@ -125,6 +125,11 @@ public:
     Array Z; /**< Zone health array */
     Array D; /**< Diagnostics array (not allocated by default) */
 
+    /**
+     * These variables are for the BinaryTorque problem.
+     */
+    std::vector<double> starParticles;
+
 private:
     Region getRegion (int flags) const;
     int velocityIndex;

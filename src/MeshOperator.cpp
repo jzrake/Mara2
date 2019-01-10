@@ -218,6 +218,31 @@ Array MeshOperator::generateSourceTerms (SourceTermsFunction S, const Array& P, 
     return sourceTermArray;
 }
 
+Array MeshOperator::generateSourceTerms (SourceTermsWithParticles S, const Array& P, double t,
+    const std::vector<double>& particles, Index start) const
+{
+    ENSURE_GEOMETRY_IS_VALID;
+    auto sourceTermArray = Array (P.shape());
+
+    P.shape3D().deploy ([&] (int i, int j, int k)
+    {
+        auto p = StateArray();
+        auto x = geometry->coordinateAtIndex (i + start[0], j + start[1], k + start[2]);
+
+        for (int q = 0; q < P.size(3); ++q)
+        {
+            p[q] = P(i, j, k, q);
+        }
+        auto s = S (x[0], x[1], x[2], t, particles, p);
+
+        for (int q = 0; q < P.size(3); ++q)
+        {
+            sourceTermArray (i, j, k, q) = s[q];
+        }
+    });
+    return sourceTermArray;
+}
+
 Array MeshOperator::measure (MeshLocation location) const
 {
     switch (location)

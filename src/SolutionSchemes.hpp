@@ -54,15 +54,20 @@ public:
     void setRungeKuttaOrder (int rungeKuttaOrderToUse);
     void setDisableFieldCT (bool shouldDisableFieldCT);
     void setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&, double)> viscousFluxToUse);
+    void setStarParticleDerivatives (std::function<std::vector<double>(const Cow::Array&, const std::vector<double>&)> starParticleDerivativesToUse);
+    void setSourceTermsWithParticles (SourceTermsWithParticles sourceTermsWithParticlesToUse);
     void advance (MeshData& solution, double t0, double dt) const override;
 
     Cow::Array computeAdvectiveFluxes (MeshData& solution, double t0) const;
     Cow::Array computeViscousFluxes (MeshData& solution, double t0) const;
+
 private:
     void check_valid() const;
     int rungeKuttaOrder;
     bool disableFieldCT;
     std::function<void(const Cow::Array&, Cow::Array&, double)> viscousFlux = nullptr;
+    std::function<std::vector<double>(const Cow::Array&, const std::vector<double>&)> starParticleDerivatives = nullptr;
+    SourceTermsWithParticles sourceTermsWithParticles = nullptr;
 };
 
 

@@ -62,6 +62,8 @@ public:
     */
     Array generateSourceTerms (SourceTermsFunction S, const Array& P, double t, Index start={}) const;
 
+    Array generateSourceTerms (SourceTermsWithParticles S, const Array& P, double t, const std::vector<double>& particles, Index start={}) const;
+
     /**
     Return the 1, 2, or 3 dimensional measure of the given mesh locations:
     length of edges, area of faces, or volume of cells.
