@@ -643,10 +643,10 @@ static std::vector<double> starParticleDerivatives (const Cow::Array& P, const s
     {
         for (int j = 2; j < P.shape()[1] - 2; ++j)
         {
-            const double sigma = P(i, j, RHO);
+            const double sigma = P(i, j, 0, RHO);
             const double mc = sigma * dx * dy;
-            const double xc = P(i, j, XXX);
-            const double yc = P(i, j, YYY);
+            const double xc = P(i, j, 0, XXX);
+            const double yc = P(i, j, 0, YYY);
             const double x1c = xc - x1;
             const double y1c = yc - y1;
             const double x2c = xc - y2;
