@@ -268,7 +268,7 @@ void CheckpointWriter::readCheckpoint (
 
     if (file.hasGroup ("particles"))
     {
-        meshData.starParticles = file.readVectorDouble ("data");
+        meshData.starParticles = file.readVectorDouble ("particles/data");
     }
 }
 
