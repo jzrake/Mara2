@@ -1,10 +1,12 @@
 #include <cmath>
+#include <cassert>
 #include "CellCenteredFieldCT.hpp"
 #include "FieldOperator.hpp"
 #include "IntercellFluxSchemes.hpp"
 #include "MeshData.hpp"
 #include "MeshOperator.hpp"
 #include "SolutionSchemes.hpp"
+#include <cstdio>
 
 using namespace Cow;
 
@@ -225,7 +227,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
 
             assert(Hdot.size() == H.size());
 
-            for (int n = 0; n < H.size(); ++n)
+            for (std::size_t n = 0; n < H.size(); ++n)
             {
                 H[n] = H0[n] * (1 - b[rk]) + (H[n] + dt * Hdot[n]) * b[rk];
             }
