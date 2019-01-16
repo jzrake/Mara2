@@ -51,7 +51,7 @@ using namespace Cow;
 
 
 // ============================================================================
-static double SofteningRadius  =  0.2;  // r0^2, where Fg = G M m / (r^2 + r0^2)
+static double SofteningRadius  =  0.2;  // r0^2, where Fg = G M m / (r^2 + r0^2). If set to -1, use grid dx.
 static double BetaBuffer       = 1e-3;  // Orbital periods over which to relax to IC in outer buffer
 static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
 static double VacuumCleaner    = 1.0;   // alpha_mini / alpha_disk (set to a number > 1 to simulate faster-than reasonable sinks)
@@ -66,6 +66,7 @@ static double Eccentricity     = 0.0;   // Binary eccentricity e
 static double SinkRadius       = 0.2;   // Sink radius
 static double LdotEfficiency   = 1.0;   // Efficiency f to accrete L through the mini-disks (f = 1 is maximal)
 static double DomainRadius     = 8.0;
+static std::string VersionNumber     = "unknown";
 static std::string InitialDataString = "Tang17";
 static SimulationStatus status;
 
@@ -708,6 +709,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
     user["VacuumCleaner"]    = VacuumCleaner;
+    user["VersionNumber"]    = VersionNumber;
 
 
     auto cl = std::make_shared<ThinDiskNewtonianHydro>();
@@ -873,7 +875,12 @@ int BinaryTorque::run (int argc, const char* argv[])
     LdotEfficiency    = user["LdotEfficiency"];
     VacuumCleaner     = user["VacuumCleaner"];
     InitialDataString = std::string (user["InitialData"]);
+    VersionNumber     = std::string (user["VersionNumber"]);
 
+    if (SofteningRadius < 0.0)
+    {
+        SofteningRadius = 2.0 * DomainRadius / int (user["N"]);
+    }
 
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
     if (InitialDataString == "Ring")        initialData = initialDataRing;
