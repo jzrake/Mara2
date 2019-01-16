@@ -51,7 +51,7 @@ using namespace Cow;
 
 
 // ============================================================================
-static double SofteningRadius  =  0.2;  // r0^2, where Fg = G M m / (r^2 + r0^2). If set to -1, use grid dx.
+static double SofteningRadius  =  0.2;  // rs^2, where Fg = G M m / (r^2 + rs^2). If rs < 0, then rs is measured in grid cells
 static double BetaBuffer       = 1e-3;  // Orbital periods over which to relax to IC in outer buffer
 static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
 static double VacuumCleaner    = 1.0;   // alpha_mini / alpha_disk (set to a number > 1 to simulate faster-than reasonable sinks)
@@ -879,7 +879,8 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     if (SofteningRadius < 0.0)
     {
-        SofteningRadius = 2.0 * DomainRadius / int (user["N"]);
+        double ncells = -SofteningRadius;
+        SofteningRadius = ncells * 2.0 * DomainRadius / int (user["N"]);
     }
 
     if (InitialDataString == "LinearShear") initialData = initialDataLinearShear;
