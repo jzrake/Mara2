@@ -692,7 +692,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["cfl"]     = 0.3;
     user["plm"]     = 1.5;
     user["N"]       = 128;
-
+    user["tspurge"] = 0; // set to 1 if you want the time series data to be purged after each checkpoint
 
     user["SofteningRadius"]  = SofteningRadius;
     user["BetaBuffer"]       = BetaBuffer;
@@ -965,6 +965,11 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto taskCheckpoint = [&] (SimulationStatus, int rep)
     {
         writer->writeCheckpoint (rep, status, *cl, *md, *mg, *logger);
+
+        if (int (user["tspurge"]))
+        {
+            tseries->clear();
+        }
     };
 
     auto taskTimeSeries = [&] (SimulationStatus, int rep)
@@ -1011,6 +1016,11 @@ int BinaryTorque::run (int argc, const char* argv[])
     {
         writer->readCheckpoint (user["restart"], status, *cl, *md, *logger);
         scheduler->skipNext ("checkpoint");
+
+        if (int (user["tspurge"]))
+        {
+            tseries->clear();
+        }
     }
     else
     {
