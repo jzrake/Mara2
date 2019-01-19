@@ -64,6 +64,7 @@ static double BinaryMassRatio  = 1.0;   // Binary mass ratio q = m2/m1
 static double DiskMassRatio    = 0.1;   // sigma0 = DiskMassRatio * M / aBin^2, where sigma0 is used in Tang17
 static double Eccentricity     = 0.0;   // Binary eccentricity e
 static double SinkRadius       = 0.2;   // Sink radius
+static double LocalViscousSink = 0;     // Use local viscous time scale for sink
 static double LdotEfficiency   = 1.0;   // Efficiency f to accrete L through the mini-disks (f = 1 is maximal)
 static double DomainRadius     = 8.0;
 static std::string VersionNumber     = "unknown";
@@ -240,7 +241,8 @@ static double SoundSpeedSquared (double x, double y, double t)
 static double SinkKernel1 (double r)
 {
     static double GM1 = GM / (1.0 + BinaryMassRatio);
-    const  double omegaSink = std::sqrt (GM1 / std::pow (SinkRadius, 3));
+    const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
+    const  double omegaSink = std::sqrt (GM1 / std::pow (rs, 3));
     const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
     const  double tsink = tvisc / VacuumCleaner;
 
@@ -250,7 +252,8 @@ static double SinkKernel1 (double r)
 static double SinkKernel2 (double r)
 {
     static double GM2 = GM * BinaryMassRatio / (1.0 + BinaryMassRatio);
-    const  double omegaSink = std::sqrt (GM2 / std::pow (SinkRadius, 3));
+    const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
+    const  double omegaSink = std::sqrt (GM2 / std::pow (rs, 3));
     const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
     const  double tsink = tvisc / VacuumCleaner;
 
@@ -706,6 +709,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["DiskMassRatio"]    = DiskMassRatio;
     user["Eccentricity"]     = Eccentricity;
     user["SinkRadius"]       = SinkRadius;
+    user["LocalViscousSink"] = LocalViscousSink;
     user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
     user["VacuumCleaner"]    = VacuumCleaner;
@@ -872,6 +876,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     DiskMassRatio     = user["DiskMassRatio"];
     Eccentricity      = user["Eccentricity"];
     SinkRadius        = user["SinkRadius"];
+    LocalViscousSink  = user["LocalViscousSink"];
     LdotEfficiency    = user["LdotEfficiency"];
     VacuumCleaner     = user["VacuumCleaner"];
     InitialDataString = std::string (user["InitialData"]);
@@ -1065,6 +1070,7 @@ void BinaryTorqueStressCalculation::processFile(std::string fname) const
     DiskMassRatio     = user["DiskMassRatio"];
     Eccentricity      = user["Eccentricity"];
     SinkRadius        = user["SinkRadius"];
+    LocalViscousSink  = user["LocalViscousSink"];
     LdotEfficiency    = user["LdotEfficiency"];
     VacuumCleaner     = user["VacuumCleaner"];
     InitialDataString = std::string (user["InitialData"]);
