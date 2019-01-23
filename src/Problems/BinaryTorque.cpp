@@ -72,6 +72,7 @@ static std::string VersionNumber     = "unknown";
 static std::string InitialDataString = "Tang17";
 static SimulationStatus status;
 static std::array<double, 8> globalStarParticleData;
+static double vStarMax = 0.0; // is written to in the sinkParticleLocations function
 
 
 
@@ -85,6 +86,7 @@ struct SinkGeometry
     double xhat;
     double yhat;
 };
+
 
 static std::array<double, 4> SinkLocations (std::array<double, 8> T)
 {
@@ -580,7 +582,7 @@ static std::vector<double> initialStarParticleLocations()
 
 static std::vector<double> starParticleLocations (double t)
 {
-    std::cout << "starParticleLocations" << std::endl;
+    static double Tolerance = 1e-6;
 
     std::vector<double> sinkLocations =
     {
@@ -588,40 +590,53 @@ static std::vector<double> starParticleLocations (double t)
         0, 0, 0, 0, // velocities
     };
 
-    const  double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
-    static double mu = BinaryMassRatio / (1.0 + BinaryMassRatio);
-    static double Tolerance = 1e-6;
+    const double e = Eccentricity;
+    const double q = BinaryMassRatio;
+    const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
+    const double mu = q / (1.0 + q);
+    double v1, v2;
 
     if (Eccentricity > 0.0)
     {
-        // minimize f(E) = E - e * sinE - M using Newton-Rapheson
         double M = omegaBin * t; //Mean anomoly
+        // minimize f(E) = E - e * sinE - M using Newton-Rapheson
         double    E = M; // eccentric anomoly - set first guess to M
-        double fofE = E - Eccentricity * std::sin (E) - M;
+        double fofE = E - e * std::sin(E) - M;         
 
-        while (std::abs (fofE) > Tolerance)
+        while (std::abs(fofE) > Tolerance)
         {
-            double dfdE = 1.0 - Eccentricity * std::cos (E);
+            double dfdE = 1.0 - e * std::cos (E);
             E   -= fofE/dfdE;
-            fofE = E - Eccentricity * std::sin (E) - M;
+            fofE = E - e * std::sin(E) - M;
         }
+        double x = aBin * (std::cos(E) - e);
+        double y = aBin * std::sqrt(1.0 - e * e) * std::sin(E);
+        double r = std::sqrt(x*x + y*y);
+        double f = std::atan2(y,x);
 
-        double x = aBin * (std::cos (E) - Eccentricity);
-        double y = aBin * std::sqrt (1.0 - Eccentricity * Eccentricity) * std::sin (E);
-        double r = std::sqrt (x * x + y * y);
-        double f = std::atan2 (y, x);
-        sinkLocations[0] = mu * r * std::cos (f);
-        sinkLocations[1] = mu * r * std::sin (f);
-        sinkLocations[2] = mu / BinaryMassRatio * r * std::cos (f + M_PI);
-        sinkLocations[3] = mu / BinaryMassRatio * r * std::sin (f + M_PI);
+        sinkLocations[0] = mu * r * std::cos(f);
+        sinkLocations[1] = mu * r * std::sin(f);
+        sinkLocations[2] = mu / q * r * std::cos(f + M_PI);
+        sinkLocations[3] = mu / q * r * std::sin(f + M_PI);
+
+        double rdot  = omegaBin * aBin / std::sqrt(1 - e * e) * e * std::sin(f);
+        double rfdot = omegaBin * aBin / std::sqrt(1 - e * e) * (1.0 + e * std::cos(f));
+
+        v1 = mu     * std::sqrt(rdot * rdot + rfdot * rfdot);
+        v2 = mu / q * std::sqrt(rdot * rdot + rfdot * rfdot);
     }
     else
     {
-        sinkLocations[0] = mu * aBin * std::cos (omegaBin * t);
-        sinkLocations[1] = mu * aBin * std::sin (omegaBin * t);
-        sinkLocations[2] = mu / BinaryMassRatio * aBin * std::cos (omegaBin * t + M_PI);
-        sinkLocations[3] = mu / BinaryMassRatio * aBin * std::sin (omegaBin * t + M_PI);
+        sinkLocations[0] = mu     * aBin * std::cos (omegaBin * t);
+        sinkLocations[1] = mu     * aBin * std::sin (omegaBin * t);
+        sinkLocations[2] = mu / q * aBin * std::cos (omegaBin * t + M_PI);
+        sinkLocations[3] = mu / q * aBin * std::sin (omegaBin * t + M_PI);
+        v1 = mu     * aBin * omegaBin;
+        v2 = mu / q * aBin * omegaBin;
     }
+
+    vStarMax = std::max (v1, v2);
+
     return sinkLocations;
 }
 
@@ -996,7 +1011,9 @@ int BinaryTorque::run (int argc, const char* argv[])
 
     auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
-        double localDt = double (user["cfl"]) * fo->getCourantTimestep (P, L);
+        const double dtGas  = fo->getCourantTimestep (P, L);
+        const double dtStar = dx / vStarMax;
+        double localDt = double (user["cfl"]) * std::min (dtGas, dtStar);
         timestepSize = MpiCommunicator::world().minimum (localDt);
     };
 
