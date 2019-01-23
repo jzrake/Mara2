@@ -88,9 +88,11 @@ static double sinkLocationsLastArg = -1;
 static std::array<double, 4> sinkLocationsLastRes;
 
 static std::array<double, 4> SinkLocations (double t)
-{   
-
-    if (t == sinkLocationsLastArg) return sinkLocationsLastRes;
+{
+    if (t == sinkLocationsLastArg)
+    {
+        return sinkLocationsLastRes;
+    }
 
     std::array<double, 4> sinkLocations;     
     const  double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
@@ -99,24 +101,24 @@ static std::array<double, 4> SinkLocations (double t)
 
     if (Eccentricity > 0.0)
     {
-        double M = omegaBin * t; //Mean anomoly
         // minimize f(E) = E - e * sinE - M using Newton-Rapheson
+        double M = omegaBin * t; //Mean anomoly
         double    E = M; // eccentric anomoly - set first guess to M
-        double fofE = E - Eccentricity * std::sin(E) - M;         
-        while (std::abs(fofE) > Tolerance)
+        double fofE = E - Eccentricity * std::sin (E) - M;
+        while (std::abs (fofE) > Tolerance)
         {
             double dfdE = 1.0 - Eccentricity * std::cos (E);
             E   -= fofE/dfdE;
-            fofE = E - Eccentricity * std::sin(E) - M;
+            fofE = E - Eccentricity * std::sin (E) - M;
         }
-        double x = aBin * (std::cos(E) - Eccentricity);
-        double y = aBin * std::sqrt(1.0 - Eccentricity * Eccentricity) * std::sin(E);
-        double r = std::sqrt(x*x + y*y);
-        double f = std::atan2(y,x);
-        sinkLocations[0] = mu * r * std::cos(f);
-        sinkLocations[1] = mu * r * std::sin(f);        
-        sinkLocations[2] = mu / BinaryMassRatio * r * std::cos(f + M_PI);
-        sinkLocations[3] = mu / BinaryMassRatio * r * std::sin(f + M_PI);
+        double x = aBin * (std::cos (E) - Eccentricity);
+        double y = aBin * std::sqrt (1.0 - Eccentricity * Eccentricity) * std::sin (E);
+        double r = std::sqrt (x * x + y * y);
+        double f = std::atan2 (y, x);
+        sinkLocations[0] = mu * r * std::cos (f);
+        sinkLocations[1] = mu * r * std::sin (f);
+        sinkLocations[2] = mu / BinaryMassRatio * r * std::cos (f + M_PI);
+        sinkLocations[3] = mu / BinaryMassRatio * r * std::sin (f + M_PI);
     }
     else
     {
@@ -124,7 +126,7 @@ static std::array<double, 4> SinkLocations (double t)
         sinkLocations[1] = mu * aBin * std::sin (omegaBin * t);
         sinkLocations[2] = mu / BinaryMassRatio * aBin * std::cos (omegaBin * t + M_PI);
         sinkLocations[3] = mu / BinaryMassRatio * aBin * std::sin (omegaBin * t + M_PI);
-    }   
+    }
 
     sinkLocationsLastArg = t;
 
@@ -190,7 +192,6 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, doub
     static double GM2 = GM1 *  BinaryMassRatio; 
 
     auto s = SinkGeometries (x, y, t);
-
 
     a[0] += -s[0].xhat * GM1 * s[0].r * std::pow (s[0].r * s[0].r + rs * rs, -1.5);
     a[0] += -s[1].xhat * GM2 * s[1].r * std::pow (s[1].r * s[1].r + rs * rs, -1.5);
