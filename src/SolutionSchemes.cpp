@@ -88,7 +88,7 @@ void MethodOfLinesTVD::setDisableFieldCT (bool shouldDisableFieldCT)
     disableFieldCT = shouldDisableFieldCT;
 }
 
-void MethodOfLinesTVD::setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&, double)> viscousFluxToUse)
+void MethodOfLinesTVD::setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&, std::array<double, 8>)> viscousFluxToUse)
 {
     viscousFlux = viscousFluxToUse;
 }
@@ -100,9 +100,9 @@ void MethodOfLinesTVD::setStarParticleDerivatives (
     starParticleDerivatives = starParticleDerivativesToUse;
 }
 
-void MethodOfLinesTVD::setSourceTermsWithParticles (SourceTermsWithParticles sourceTermsWithParticlesToUse)
+void MethodOfLinesTVD::setStarParticleLocations (std::function<std::vector<double>(double t)> starParticleLocationsToUse)
 {
-    sourceTermsWithParticles = sourceTermsWithParticlesToUse;
+    starParticleLocations = starParticleLocationsToUse;
 }
 
 void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
@@ -148,18 +148,20 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
 
     // RK updates
     // ------------------------------------------------------------------------
-    auto U0 = fieldOperator->generateConserved (solution.P, t0);
     auto H0 = solution.starParticles;
+    auto T0 = starParticlesToAuxiliaryData (H0);
+    auto U0 = fieldOperator->generateConserved (solution.P, T0);
+    auto H = H0; // H is the star particle std::vector data
+    auto T = starParticlesToAuxiliaryData (H); // T is star particle std::array data
     auto U = U0;
     auto t = t0;
-    auto H = H0; // H is for 'holes'
 
     auto Fhat = [&] (GodunovStencil& stencil)
     {
         D.areaElement = stencil.faceNormal.cartesian();
         D.stencilData = stencil.cellData;
 
-        auto S = fluxScheme->intercellFlux (D, t);
+        auto S = fluxScheme->intercellFlux (D, T);
 
         for (int q = 0; q < nq; ++q)
         {
@@ -180,7 +182,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
 
         if (viscousFlux)
         {
-            viscousFlux (P, fluxes, t);
+            viscousFlux (P, fluxes, T);
         }
     };
 
@@ -195,16 +197,7 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
 
         if (sourceTermsFunction)
         {
-            auto S = meshOperator->generateSourceTerms (sourceTermsFunction, solution.P, t, startIndex);
-
-            for (int n = 0; n < L.size(); ++n)
-            {
-                L[n] += S[n];
-            }
-        }
-        else if (sourceTermsWithParticles)
-        {
-            auto S = meshOperator->generateSourceTerms (sourceTermsWithParticles, solution.P, t, H, startIndex);
+            auto S = meshOperator->generateSourceTerms (sourceTermsFunction, solution.P, T, startIndex);
 
             for (int n = 0; n < L.size(); ++n)
             {
@@ -217,11 +210,16 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
             U[n] = U0[n] * (1 - b[rk]) + (U[n] + dt * L[n]) * b[rk];
         }
 
-        // Update the inter-timestep time
-        t = t0 * (1 - b[rk]) + (t + dt) * b[rk];
+        // Reset the star particle positions (and optionally velocities)
+        if (starParticleLocations)
+        {
+            auto newH = starParticleLocations (t);
+            assert(newH.size() == H.size());
+            H = newH;
+        }
 
-        // Update the star particle positions
-        if (starParticleDerivatives)
+        // Use RK updates to update the star particle positions and velocities
+        else if (starParticleDerivatives)
         {
             auto Hdot = starParticleDerivatives (solution.P, H);
 
@@ -233,13 +231,17 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
             }
         }
 
-        fieldOperator->recoverPrimitive (U[interior], solution.P[interior], t);
+        fieldOperator->recoverPrimitive (U[interior], solution.P[interior], T);
+
+        // Update the inter-timestep time
+        t = t0 * (1 - b[rk]) + (t + dt) * b[rk];
+
         solution.starParticles = H;
         solution.applyBoundaryCondition (*boundaryCondition);
     }
 }
 
-Cow::Array MethodOfLinesTVD::computeAdvectiveFluxes (MeshData& solution, double t0) const
+Cow::Array MethodOfLinesTVD::computeAdvectiveFluxes (MeshData& solution, std::array<double, 8> t0) const
 {
     check_valid();
 
@@ -279,7 +281,7 @@ Cow::Array MethodOfLinesTVD::computeAdvectiveFluxes (MeshData& solution, double 
     return meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, nullptr);
 }
 
-Cow::Array MethodOfLinesTVD::computeViscousFluxes (MeshData& solution, double t0) const
+Cow::Array MethodOfLinesTVD::computeViscousFluxes (MeshData& solution, std::array<double, 8> t0) const
 {
     check_valid();
 
@@ -305,4 +307,15 @@ void MethodOfLinesTVD::check_valid() const
     if (! meshOperator)      throw std::logic_error ("No MeshOperator instance");
     if (! boundaryCondition) throw std::logic_error ("No BoundaryCondition instance");
     if (! fluxScheme)        throw std::logic_error ("No IntercellFluxScheme instance");
+}
+
+std::array<double, 8> MethodOfLinesTVD::starParticlesToAuxiliaryData (const std::vector<double>& auxiliaryData) const
+{
+    std::array<double, 8> result;
+
+    for (std::size_t n = 0; n < std::min(auxiliaryData.size(), std::size_t(8)); ++n)
+    {
+        result[n] = auxiliaryData[n];
+    }
+    return result;
 }

@@ -38,11 +38,12 @@ void FieldOperator::setConservationLaw (std::shared_ptr<ConservationLaw> cl)
     law = cl;
 }
 
-Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P, double t) const
+Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P, std::array<double, 8> t) const
 {
     int numConserved = law->getNumConserved();
     auto request = ConservationLaw::Request();
-    request.simulationTime = t;
+    request.auxiliaryData = t;
+    // request.simulationTime = t;
     // auto shape = P.shape();
     auto zoneHealth = Array (U.getArray().shape3D());
     auto inversionFailure = InversionFailure();
@@ -80,18 +81,19 @@ Array FieldOperator::recoverPrimitive (Array::Reference U, Array::Reference P, d
     return zoneHealth;
 }
 
-Array FieldOperator::recoverPrimitive (Array::Reference U, double t) const
+Array FieldOperator::recoverPrimitive (Array::Reference U, std::array<double, 8> t) const
 {
     auto P = Array (U.shape());
     recoverPrimitive (U, P, t);
     return P;
 }
 
-void FieldOperator::generateConserved (Array::Reference P, Array::Reference U, double t) const
+void FieldOperator::generateConserved (Array::Reference P, Array::Reference U, std::array<double, 8> t) const
 {
     int numConserved = law->getNumConserved();
     auto request = ConservationLaw::Request();
-    request.simulationTime = t;
+    // request.simulationTime = t;
+    request.auxiliaryData = t;
 
     // This ensures that we are stepping over the axis (3) with the field
     // components.
@@ -113,7 +115,7 @@ void FieldOperator::generateConserved (Array::Reference P, Array::Reference U, d
     }
 }
 
-Array FieldOperator::generateConserved (Array::Reference P, double t) const
+Array FieldOperator::generateConserved (Array::Reference P, std::array<double, 8> t) const
 {
     auto U = Array (P.shape());
     generateConserved (P, U, t);

@@ -215,7 +215,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
 
     // Gravitational source terms, heating, and initial data function
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [g0, q0] (double r, double q, double p, double, StateArray P)
+    auto sourceTermsFunction = [g0, q0] (double r, double q, double p, std::array<double, 8>, StateArray P)
     {
         const double dg = P[0];
         const double vr = P[1];
@@ -244,7 +244,7 @@ int ThermalConvectionProgram::run (int argc, const char* argv[])
         return S;
     };
 
-    auto initialData = [&user, g0, d0, gamma, K] (double r, double q, double p) -> std::vector<double>
+    auto initialData = [&user, d0, gamma, K] (double r, double q, double p) -> std::vector<double>
     {
         if (! user["uniform"])
         {

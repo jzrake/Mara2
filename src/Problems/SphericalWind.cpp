@@ -178,7 +178,7 @@ int SphericalWind::run (int argc, const char* argv[])
 
     // Geometrical source terms
     // ------------------------------------------------------------------------
-    auto sourceTermsFunction = [&] (double r, double q, double p, double, StateArray P)
+    auto sourceTermsFunction = [&] (double r, double q, double p, std::array<double, 8>, StateArray P)
     {
         const double gm = 4. / 3;
         const double dg = P[0];

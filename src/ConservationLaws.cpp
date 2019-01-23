@@ -152,7 +152,8 @@ ConservationLaw::Request::Request()
     areaElement[0] = 1.0;
     areaElement[1] = 0.0;
     areaElement[2] = 0.0;
-    simulationTime = 0.0;
+    auxiliaryData = {0, 0, 0, 0, 0, 0, 0, 0};
+    // simulationTime = 0.0;
 }
 
 ConservationLaw::Request ConservationLaw::Request::oriented (const UnitVector& nhat) const

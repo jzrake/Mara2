@@ -11,7 +11,7 @@ class ScalarUpwind : public IntercellFluxScheme
 {
 public:
     virtual ~ScalarUpwind() {}
-    ConservationLaw::State intercellFlux (const FaceData& faceData, double t) const override;
+    ConservationLaw::State intercellFlux (const FaceData& faceData, std::array<double, 8> t={}) const override;
     int getStencilSize() const override;
 };
 
@@ -24,7 +24,7 @@ public:
     MethodOfLines();
     virtual ~MethodOfLines() {}
     void setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse) override;
-    ConservationLaw::State intercellFlux (const FaceData& faceData, double t) const override;
+    ConservationLaw::State intercellFlux (const FaceData& faceData, std::array<double, 8> t={}) const override;
     int getStencilSize() const override;
 private:
     std::shared_ptr<RiemannSolver> riemannSolver;
@@ -40,7 +40,7 @@ public:
     virtual ~MethodOfLinesPlm() {}
     void setPlmTheta (double plmTheta) override;
     void setRiemannSolver (std::shared_ptr<RiemannSolver> solverToUse) override;
-    ConservationLaw::State intercellFlux (const FaceData& faceData, double t) const override;
+    ConservationLaw::State intercellFlux (const FaceData& faceData, std::array<double, 8> t={}) const override;
     int getStencilSize() const override;
 private:
     std::shared_ptr<RiemannSolver> riemannSolver;
@@ -55,7 +55,7 @@ class MethodOfLinesWeno : public IntercellFluxScheme
 public:
     MethodOfLinesWeno();
     virtual ~MethodOfLinesWeno() {}
-    ConservationLaw::State intercellFlux (const FaceData& faceData, double t) const override;
+    ConservationLaw::State intercellFlux (const FaceData& faceData, std::array<double, 8> t={}) const override;
     int getStencilSize() const override;
 private:
     Reconstruction weno;

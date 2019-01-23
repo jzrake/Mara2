@@ -1180,8 +1180,8 @@ SCENARIO ("Field operator should convert prim -> cons", "[FieldOperator]")
         {
             auto P = mo->generate (id, MeshLocation::cell);
             auto X = mo->cellCentroidCoordinates();
-            auto U = fo->generateConserved (P, 0.0);
-            auto Q = fo->recoverPrimitive (U, 0.0);
+            auto U = fo->generateConserved (P);
+            auto Q = fo->recoverPrimitive (U);
 
             THEN ("The conserved variables are as expected")
             {

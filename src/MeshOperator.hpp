@@ -60,9 +60,7 @@ public:
     index of the input data with respect to the left of the mesh geometry
     instance, and must be used if passing in data that has guard zones.
     */
-    Array generateSourceTerms (SourceTermsFunction S, const Array& P, double t, Index start={}) const;
-
-    Array generateSourceTerms (SourceTermsWithParticles S, const Array& P, double t, const std::vector<double>& particles, Index start={}) const;
+    Array generateSourceTerms (SourceTermsFunction S, const Array& P, std::array<double, 8> t={}, Index start={}) const;
 
     /**
     Return the 1, 2, or 3 dimensional measure of the given mesh locations:

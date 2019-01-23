@@ -64,8 +64,7 @@ protected:
 
 using StateArray = std::array<double, MARA_NUM_FIELDS>;
 using InitialDataFunction = std::function<std::vector<double> (double x, double y, double z)>;
-using SourceTermsFunction = std::function<StateArray (double x, double y, double z, double t, StateArray primitive)>;
-using SourceTermsWithParticles = std::function<StateArray (double x, double y, double z, double t, const std::vector<double>&, StateArray primitive)>;
+using SourceTermsFunction = std::function<StateArray (double x, double y, double z, std::array<double, 8> t, StateArray primitive)>;
 
 using AreaElement = std::array<double, 3>;
 using Coordinate = std::array<double, 3>;
@@ -384,8 +383,9 @@ public:
         bool getFluxes;
         bool getEigenvalues;
         std::array<double, 3> position;
+        std::array<double, 8> auxiliaryData;
         AreaElement areaElement;
-        double simulationTime;
+        // double simulationTime;
     };
 
     class StateFailure : public std::exception
@@ -527,7 +527,7 @@ public:
     };
 
     virtual void setPlmTheta (double plmTheta) {}
-    virtual ConservationLaw::State intercellFlux (const FaceData&, double t) const = 0;
+    virtual ConservationLaw::State intercellFlux (const FaceData&, std::array<double, 8> t={}) const = 0;
     virtual int getStencilSize() const = 0;
 };
 

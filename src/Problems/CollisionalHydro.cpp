@@ -258,7 +258,7 @@ void CollisionalHydroScheme::advance (MeshData& md, ParticleData& pd, double dt)
         D.areaElement = stencil.faceNormal.cartesian();
         D.stencilData = stencil.cellData;
 
-        auto S = fluxScheme->intercellFlux (D, 0.0);
+        auto S = fluxScheme->intercellFlux (D);
 
         for (int q = 0; q < nq; ++q)
         {
@@ -269,7 +269,7 @@ void CollisionalHydroScheme::advance (MeshData& md, ParticleData& pd, double dt)
 
     // Update
     // ------------------------------------------------------------------------
-    auto U0 = fieldOperator->generateConserved (md.P, 0.0);
+    auto U0 = fieldOperator->generateConserved (md.P);
     auto U = U0;
 
     auto F = meshOperator->godunov (Fhat, md.P, md.B, footprint, startIndex, nullptr);
@@ -286,7 +286,7 @@ void CollisionalHydroScheme::advance (MeshData& md, ParticleData& pd, double dt)
         U[n] += dt * L[n] + S[n];
     }
 
-    fieldOperator->recoverPrimitive (U[interior], md.P[interior], 0.0);
+    fieldOperator->recoverPrimitive (U[interior], md.P[interior]);
     md.applyBoundaryCondition (*boundaryCondition);
 }
 

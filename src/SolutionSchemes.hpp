@@ -53,21 +53,22 @@ public:
     virtual ~MethodOfLinesTVD() {}
     void setRungeKuttaOrder (int rungeKuttaOrderToUse);
     void setDisableFieldCT (bool shouldDisableFieldCT);
-    void setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&, double)> viscousFluxToUse);
+    void setViscousFluxFunction (std::function<void(const Cow::Array&, Cow::Array&, std::array<double, 8>)> viscousFluxToUse);
     void setStarParticleDerivatives (std::function<std::vector<double>(const Cow::Array&, const std::vector<double>&)> starParticleDerivativesToUse);
-    void setSourceTermsWithParticles (SourceTermsWithParticles sourceTermsWithParticlesToUse);
+    void setStarParticleLocations (std::function<std::vector<double>(double t)> starParticleLocationsToUse);
     void advance (MeshData& solution, double t0, double dt) const override;
 
-    Cow::Array computeAdvectiveFluxes (MeshData& solution, double t0) const;
-    Cow::Array computeViscousFluxes (MeshData& solution, double t0) const;
+    Cow::Array computeAdvectiveFluxes (MeshData& solution, std::array<double, 8> t0) const;
+    Cow::Array computeViscousFluxes (MeshData& solution, std::array<double, 8> t0) const;
 
 private:
     void check_valid() const;
+    std::array<double, 8> starParticlesToAuxiliaryData (const std::vector<double>& auxiliaryData) const;
     int rungeKuttaOrder;
     bool disableFieldCT;
-    std::function<void(const Cow::Array&, Cow::Array&, double)> viscousFlux = nullptr;
+    std::function<void(const Cow::Array&, Cow::Array&, std::array<double, 8>)> viscousFlux = nullptr;
     std::function<std::vector<double>(const Cow::Array&, const std::vector<double>&)> starParticleDerivatives = nullptr;
-    SourceTermsWithParticles sourceTermsWithParticles = nullptr;
+    std::function<std::vector<double>(double t)> starParticleLocations = nullptr;
 };
 
 

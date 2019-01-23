@@ -49,22 +49,22 @@ public:
     invoked. The array of health flags is returned in the PrimitiveRecovery
     struct.
     */
-    Array recoverPrimitive (Array::Reference U, Array::Reference P, double t) const;
+    Array recoverPrimitive (Array::Reference U, Array::Reference P, std::array<double, 8> t={}) const;
 
     /**
     Convenience function; Returns P rather than zone health array.
     */
-    Array recoverPrimitive (Array::Reference U, double t) const;
+    Array recoverPrimitive (Array::Reference U, std::array<double, 8> t={}) const;
 
     /**
     Convert an array of primitive variables to conserved variables.
     */
-    void generateConserved (Array::Reference P, Array::Reference U, double t) const;
+    void generateConserved (Array::Reference P, Array::Reference U, std::array<double, 8> t={}) const;
 
     /**
     Convenience function.
     */
-    Array generateConserved (Array::Reference P, double t) const;
+    Array generateConserved (Array::Reference P, std::array<double, 8> t={}) const;
 
     /**
     Determine the shortest wave-propagation time for the given patch of
