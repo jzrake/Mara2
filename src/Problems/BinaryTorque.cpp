@@ -54,7 +54,7 @@ using namespace Cow;
 static double SofteningRadius  =  0.2;  // rs^2, where Fg = G M m / (r^2 + rs^2). If rs < 0, then rs is measured in grid cells
 static double BetaBuffer       = 1e-3;  // Orbital periods over which to relax to IC in outer buffer
 static double ViscousAlpha     = 1e-1;  // Alpha viscosity parameter
-static double VacuumCleaner    = 1.0;   // alpha_mini / alpha_disk (set to a number > 1 to simulate faster-than reasonable sinks)
+static double VacuumCleaner    = 1.0;   // if >0 =alpha_mini/alpha_disk (> 1 faster-than-viscous sinks) if<0 tsink=tBinary/abs(VacuuumCleaer)
 static double MachNumber       = 10.0;  // 1/M = h/r
 static int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static int    ScaleHeightFunc  = 0;     // 0 := H ~ cylindrical, 1 := H ~ min(r1,r2), 2 := H ~ interp(r1,r2)
@@ -200,22 +200,45 @@ static double SoundSpeedSquared (double x, double y, std::array<double, 8> T)
 // These two sink kernel functions can be combined
 static double SinkKernel1 (double r)
 {
-    static double GM1 = GM / (1.0 + BinaryMassRatio);
-    const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
-    const  double omegaSink = std::sqrt (GM1 / std::pow (rs, 3));
-    const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
-    const  double tsink = tvisc / VacuumCleaner;
+    double tsink;
+
+    if (VacuumCleaner > 0)
+    {
+        static double GM1 = GM / (1.0 + BinaryMassRatio);
+        const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
+        const  double omegaSink = std::sqrt (GM1 / std::pow (rs, 3));
+        const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+        tsink = tvisc / VacuumCleaner;
+    }
+    else
+    {
+        const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
+        const double tBinary = 2.0 * M_PI / omegaBin;
+        tsink = tBinary / std::abs(VacuumCleaner);
+    }   
 
     return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
 }
 
 static double SinkKernel2 (double r)
 {
-    static double GM2 = GM * BinaryMassRatio / (1.0 + BinaryMassRatio);
-    const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
-    const  double omegaSink = std::sqrt (GM2 / std::pow (rs, 3));
-    const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
-    const  double tsink = tvisc / VacuumCleaner;
+    double tsink;
+
+    if (VacuumCleaner > 0)
+    {
+        static double GM2 = GM * BinaryMassRatio / (1.0 + BinaryMassRatio);
+        const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
+        const  double omegaSink = std::sqrt (GM2 / std::pow (rs, 3));
+        const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+        tsink = tvisc / VacuumCleaner;
+    }
+    else
+    {
+        const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
+        const double tBinary = 2.0 * M_PI / omegaBin;
+        tsink = tBinary / std::abs(VacuumCleaner);
+    }  
+
 
     return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
 }
