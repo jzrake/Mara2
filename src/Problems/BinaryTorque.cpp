@@ -1012,7 +1012,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
         const double dtGas  = fo->getCourantTimestep (P, L);
-        const double dtStar = dx / vStarMax;
+        const double dtStar = (LiveBinary > 0) ? HUGE_TIME_SCALE : dx / vStarMax;
         double localDt = double (user["cfl"]) * std::min (dtGas, dtStar);
         timestepSize = MpiCommunicator::world().minimum (localDt);
     };
