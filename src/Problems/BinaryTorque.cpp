@@ -419,7 +419,7 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     static double GM2 = GM1 *  BinaryMassRatio; 
     const  auto sinks = SinkGeometries (x, y, T);
 
-    auto D = std::vector<double> (16);
+    auto D = std::vector<double> (18);
     D[0] = dg;
     D[1] = x * py - y * px;
 
@@ -433,9 +433,13 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
+        const double deltax = x - g.x; 
+        const double deltay = y - g.y;
+        const double sdot1 = pydot * deltax - pxdot * deltay;
         D[2] = dgdot;
         D[4] = dg * (g.x * agy - g.y * agx); // Gravitational torque on BH 1 (rb \times fg)
         D[6] = Ldot1;
+        D[8] = sdot1;
     }
     if (sinks.size() >= 2)
     {
@@ -447,26 +451,30 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot2 = x * pydot - y * pxdot; // Total accretion torque from sink 2
+        const double deltax = x - g.x; 
+        const double deltay = y - g.y;
+        const double sdot2 = pydot * deltax - pxdot * deltay;
         D[3] = dgdot;
         D[5] = dg * (g.x * agy - g.y * agx); // Gravitational torque on BH 2 (rb \times fg)
         D[7] = Ldot2;
+        D[9] = sdot2;
     }
 
-    D[8]  = globalStarParticleData[0];
-    D[9]  = globalStarParticleData[1];
-    D[10] = globalStarParticleData[2];
-    D[11] = globalStarParticleData[3];
-    D[12] = globalStarParticleData[4];
-    D[13] = globalStarParticleData[5];
-    D[14] = globalStarParticleData[6];
-    D[15] = globalStarParticleData[7];
+    D[10] = globalStarParticleData[0];
+    D[11] = globalStarParticleData[1];
+    D[12] = globalStarParticleData[2];
+    D[13] = globalStarParticleData[3];
+    D[14] = globalStarParticleData[4];
+    D[15] = globalStarParticleData[5];
+    D[16] = globalStarParticleData[6];
+    D[17] = globalStarParticleData[7];
 
     return D;
 }
 
 std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
 {
-    auto N = std::vector<std::string>(16);
+    auto N = std::vector<std::string>(18);
     N[0] = "fluid_mass";
     N[1] = "fluid_angular_momentum";
     N[2] = "accretion_mdot_on_bh1";
@@ -475,14 +483,16 @@ std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
     N[5] = "gravitational_torque_on_bh2";
     N[6] = "accretion_torque_on_bh1";
     N[7] = "accretion_torque_on_bh2";
-    N[8] =  "bh1_x";
-    N[9] =  "bh1_y";
-    N[10] = "bh2_x";
-    N[11] = "bh2_y";
-    N[12] = "bh1_vx";
-    N[13] = "bh1_vy";
-    N[14] = "bh2_vx";
-    N[15] = "bh2_vy";
+    N[8] = "accretion_sdot_on_bh1";
+    N[9] = "accretion_sdot_on_bh2";    
+    N[10] =  "bh1_x";
+    N[11] =  "bh1_y";
+    N[12] = "bh2_x";
+    N[13] = "bh2_y";
+    N[14] = "bh1_vx";
+    N[15] = "bh1_vy";
+    N[16] = "bh2_vx";
+    N[17] = "bh2_vy";
     return N;
 }
 
