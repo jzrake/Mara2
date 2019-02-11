@@ -148,7 +148,7 @@ static std::array<double, 2> GravitationalAcceleration (double x, double y, std:
     std::array<double, 2> a = {{0.0, 0.0}};
     const  double rs = SofteningRadius;
     static double GM1 = GM / (1.0 + BinaryMassRatio);
-    static double GM2 = GM1 *  BinaryMassRatio; 
+    static double GM2 = GM1 *  BinaryMassRatio;
 
     auto s = SinkGeometries (x, y, T);
 
@@ -180,12 +180,14 @@ double EffectiveRadius (double x, double y, std::array<double, 8> T)
     const double dy2 = y - sinks[1].y;
     const double r1 = std::sqrt (dx1 * dx1 + dy1 * dy1);
     const double r2 = std::sqrt (dx2 * dx2 + dy2 * dy2);
+    const double r  = std::sqrt (x * x + y * y);
 
     switch (ScaleHeightFunc)
     {
-        case 0: return std::sqrt (x * x + y * y);
+        case 0: return r;
         case 1: return std::min (r1, r2);
         case 2: return (1.0 + 2.0 / (r1 / r2 + r2 / r1)) / (1.0 / r1 + 1.0 / r2);
+        case 3: return r < 2.5 * aBin ? 0.0 : r;
     }
     throw;
 }
@@ -215,7 +217,7 @@ static double SinkKernel1 (double r)
         const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
         const double tBinary = 2.0 * M_PI / omegaBin;
         tsink = tBinary / std::abs(VacuumCleaner);
-    }   
+    }
 
     return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
 }
@@ -237,8 +239,7 @@ static double SinkKernel2 (double r)
         const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
         const double tBinary = 2.0 * M_PI / omegaBin;
         tsink = tBinary / std::abs(VacuumCleaner);
-    }  
-
+    }
 
     return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
 }
@@ -416,7 +417,7 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
     const  double py = state.U[S22];
     const  double rs = SofteningRadius;
     static double GM1 = GM / (1.0 + BinaryMassRatio);
-    static double GM2 = GM1 *  BinaryMassRatio; 
+    static double GM2 = GM1 *  BinaryMassRatio;
     const  auto sinks = SinkGeometries (x, y, T);
 
     auto D = std::vector<double> (18);
@@ -433,7 +434,7 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
-        const double deltax = x - g.x; 
+        const double deltax = x - g.x;
         const double deltay = y - g.y;
         const double sdot1 = pydot * deltax - pxdot * deltay;
         D[2] = dgdot;
@@ -451,7 +452,7 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const double pxdot = px / tsink * LdotEfficiency;
         const double pydot = py / tsink * LdotEfficiency;
         const double Ldot2 = x * pydot - y * pxdot; // Total accretion torque from sink 2
-        const double deltax = x - g.x; 
+        const double deltax = x - g.x;
         const double deltay = y - g.y;
         const double sdot2 = pydot * deltax - pxdot * deltay;
         D[3] = dgdot;
@@ -484,9 +485,9 @@ std::vector<std::string> ThinDiskNewtonianHydro::getDiagnosticNames() const
     N[6] = "accretion_torque_on_bh1";
     N[7] = "accretion_torque_on_bh2";
     N[8] = "accretion_sdot_on_bh1";
-    N[9] = "accretion_sdot_on_bh2";    
-    N[10] =  "bh1_x";
-    N[11] =  "bh1_y";
+    N[9] = "accretion_sdot_on_bh2";
+    N[10] = "bh1_x";
+    N[11] = "bh1_y";
     N[12] = "bh2_x";
     N[13] = "bh2_y";
     N[14] = "bh1_vx";
@@ -634,11 +635,11 @@ static std::vector<double> starParticleLocations (double t)
         double M = omegaBin * t; //Mean anomoly
         // minimize f(E) = E - e * sinE - M using Newton-Rapheson
         double    E = M; // eccentric anomoly - set first guess to M
-        double fofE = E - e * std::sin(E) - M;         
+        double fofE = E - e * std::sin(E) - M;
 
         while (std::abs(fofE) > Tolerance)
         {
-            double dfdE = 1.0 - e * std::cos (E);
+            double dfdE = 1.0 - e * std::cos(E);
             E   -= fofE/dfdE;
             fofE = E - e * std::sin(E) - M;
         }
