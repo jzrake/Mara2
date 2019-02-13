@@ -131,9 +131,9 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, std::array<
 
 static double GravitationalPotential (double x, double y, std::array<double, 8> T)
 {
-    const  double rs = SofteningRadius;
-    static double GM1 = GM  / (1.0 + BinaryMassRatio);
-    static double GM2 = GM1 * BinaryMassRatio;
+    const double rs = SofteningRadius;
+    const double GM1 = GM  / (1.0 + BinaryMassRatio);
+    const double GM2 = GM1 * BinaryMassRatio;
 
     auto s = SinkGeometries (x, y, T);
 
@@ -146,9 +146,9 @@ static double GravitationalPotential (double x, double y, std::array<double, 8> 
 static std::array<double, 2> GravitationalAcceleration (double x, double y, std::array<double, 8> T)
 {
     std::array<double, 2> a = {{0.0, 0.0}};
-    const  double rs = SofteningRadius;
-    static double GM1 = GM / (1.0 + BinaryMassRatio);
-    static double GM2 = GM1 *  BinaryMassRatio;
+    const double rs = SofteningRadius;
+    const double GM1 = GM / (1.0 + BinaryMassRatio);
+    const double GM2 = GM1 *  BinaryMassRatio;
 
     auto s = SinkGeometries (x, y, T);
 
@@ -202,15 +202,15 @@ static double SoundSpeedSquared (double x, double y, std::array<double, 8> T)
 // These two sink kernel functions can be combined
 static double SinkKernel1 (double r)
 {
+    const double sr2 = SinkRadius * SinkRadius;
     double tsink;
-    double betasink;
 
     if (VacuumCleaner > 0)
     {
-        static double GM1 = GM / (1.0 + BinaryMassRatio);
-        const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
-        const  double omegaSink = std::sqrt (GM1 / std::pow (rs, 3));
-        const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+        const double GM1 = GM / (1.0 + BinaryMassRatio);
+        const double rs = (LocalViscousSink > 0) ? r : SinkRadius;
+        const double omegaSink = std::sqrt (GM1 / std::pow (rs, 3));
+        const double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
         tsink = tvisc / VacuumCleaner;
     }
     else
@@ -219,22 +219,20 @@ static double SinkKernel1 (double r)
         const double tBinary = 2.0 * M_PI / omegaBin;
         tsink = tBinary / std::abs(VacuumCleaner);
     }
-
-    const double sr2 = SinkRadius * SinkRadius;
-    return betasink = (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);    
+    return (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);
 }
 
 static double SinkKernel2 (double r)
 {
+    const double sr2 = SinkRadius * SinkRadius;
     double tsink;
-    double betasink;
 
     if (VacuumCleaner > 0)
     {
-        static double GM2 = GM * BinaryMassRatio / (1.0 + BinaryMassRatio);
-        const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
-        const  double omegaSink = std::sqrt (GM2 / std::pow (rs, 3));
-        const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+        const double GM2 = GM * BinaryMassRatio / (1.0 + BinaryMassRatio);
+        const double rs = (LocalViscousSink > 0) ? r : SinkRadius;
+        const double omegaSink = std::sqrt (GM2 / std::pow (rs, 3));
+        const double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
         tsink = tvisc / VacuumCleaner;
     }
     else
@@ -242,30 +240,28 @@ static double SinkKernel2 (double r)
         const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
         const double tBinary = 2.0 * M_PI / omegaBin;
         tsink = tBinary / std::abs(VacuumCleaner);
-    }  
-
-    const double sr2 = SinkRadius * SinkRadius;
-    return betasink = (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);      
+    }
+    return (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);
 }
 
 
-static double SinkTime (double x, double y, std::array<double, 8> T)
-{
-    double tmin = HUGE_TIME_SCALE;
-    auto s = SinkGeometries (x, y, T);
+// static double SinkTime (double x, double y, std::array<double, 8> T)
+// {
+//     double tmin = HUGE_TIME_SCALE;
+//     auto s = SinkGeometries (x, y, T);
 
-    if (SinkKernel1 (s[0].r) < tmin)
-    {
-        tmin = SinkKernel1 (s[0].r);
-    }
+//     if (SinkKernel1 (s[0].r) < tmin)
+//     {
+//         tmin = SinkKernel1 (s[0].r);
+//     }
 
-    if (SinkKernel2 (s[1].r) < tmin)
-    {
-        tmin = SinkKernel2 (s[1].r);
-    }
+//     if (SinkKernel2 (s[1].r) < tmin)
+//     {
+//         tmin = SinkKernel2 (s[1].r);
+//     }
 
-    return tmin;
-}
+//     return tmin;
+// }
 
 static double SinkBeta (double x, double y, std::array<double, 8> T)
 {
@@ -424,16 +420,16 @@ double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P, std::array
 
 std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state) const
 {
-    const  auto T = globalStarParticleData;
-    const  double x = state.P[XXX];
-    const  double y = state.P[YYY];
-    const  double dg = state.P[RHO];
-    const  double px = state.U[S11];
-    const  double py = state.U[S22];
-    const  double rs = SofteningRadius;
-    static double GM1 = GM / (1.0 + BinaryMassRatio);
-    static double GM2 = GM1 *  BinaryMassRatio;
-    const  auto sinks = SinkGeometries (x, y, T);
+    const auto T = globalStarParticleData;
+    const double x = state.P[XXX];
+    const double y = state.P[YYY];
+    const double dg = state.P[RHO];
+    const double px = state.U[S11];
+    const double py = state.U[S22];
+    const double rs = SofteningRadius;
+    const double GM1 = GM / (1.0 + BinaryMassRatio);
+    const double GM2 = GM1 *  BinaryMassRatio;
+    const auto sinks = SinkGeometries (x, y, T);
 
     auto D = std::vector<double> (18);
     D[0] = dg;
