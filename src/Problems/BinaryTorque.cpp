@@ -201,6 +201,7 @@ static double SoundSpeedSquared (double x, double y, std::array<double, 8> T)
 static double SinkKernel1 (double r)
 {
     double tsink;
+    double betasink;
 
     if (VacuumCleaner > 0)
     {
@@ -217,12 +218,14 @@ static double SinkKernel1 (double r)
         tsink = tBinary / std::abs(VacuumCleaner);
     }   
 
-    return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
+    const double sr2 = SinkRadius * SinkRadius;
+    return betasink = (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);    
 }
 
 static double SinkKernel2 (double r)
 {
     double tsink;
+    double betasink;
 
     if (VacuumCleaner > 0)
     {
@@ -239,9 +242,10 @@ static double SinkKernel2 (double r)
         tsink = tBinary / std::abs(VacuumCleaner);
     }  
 
-
-    return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
+    const double sr2 = SinkRadius * SinkRadius;
+    return betasink = (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);      
 }
+
 
 static double SinkTime (double x, double y, std::array<double, 8> T)
 {
@@ -259,6 +263,16 @@ static double SinkTime (double x, double y, std::array<double, 8> T)
     }
 
     return tmin;
+}
+
+static double SinkBeta (double x, double y, std::array<double, 8> T)
+{
+    auto s = SinkGeometries (x, y, T);
+
+    double const betamin1 = SinkKernel1 (s[0].r);
+    double const betamin2 = SinkKernel2 (s[1].r);
+
+    return std::max(betamin1, betamin2);
 }
 
 static double bufferZoneProfile (double r)
@@ -428,10 +442,10 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const SinkGeometry g = sinks[0];
         const double agx = g.xhat * GM1 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double agy = g.yhat * GM1 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        const double tsink = SinkKernel1 (g.r);
-        const double dgdot = dg / tsink;
-        const double pxdot = px / tsink * LdotEfficiency;
-        const double pydot = py / tsink * LdotEfficiency;
+        const double betasink = SinkKernel1 (g.r);
+        const double dgdot = dg * betasink;
+        const double pxdot = px * betasink * LdotEfficiency;
+        const double pydot = py * betasink * LdotEfficiency;
         const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
         const double deltax = x - g.x; 
         const double deltay = y - g.y;
@@ -446,10 +460,10 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const SinkGeometry g = sinks[1];
         const double agx = g.xhat * GM2 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double agy = g.yhat * GM2 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        const double tsink = SinkKernel2 (g.r);
-        const double dgdot = dg / tsink;
-        const double pxdot = px / tsink * LdotEfficiency;
-        const double pydot = py / tsink * LdotEfficiency;
+        const double betasink = SinkKernel2 (g.r);
+        const double dgdot = dg * betasink;
+        const double pxdot = px * betasink * LdotEfficiency;
+        const double pydot = py * betasink * LdotEfficiency;
         const double Ldot2 = x * pydot - y * pxdot; // Total accretion torque from sink 2
         const double deltax = x - g.x; 
         const double deltay = y - g.y;
@@ -647,8 +661,8 @@ static std::vector<double> starParticleLocations (double t)
         double r = std::sqrt(x*x + y*y);
         double f = std::atan2(y,x);
 
-        sinkLocations[0] = mu * r * std::cos(f);
-        sinkLocations[1] = mu * r * std::sin(f);
+        sinkLocations[0] = mu *     r * std::cos(f);
+        sinkLocations[1] = mu *     r * std::sin(f);
         sinkLocations[2] = mu / q * r * std::cos(f + M_PI);
         sinkLocations[3] = mu / q * r * std::sin(f + M_PI);
 
@@ -912,10 +926,10 @@ int BinaryTorque::run (int argc, const char* argv[])
 
         // Sink
         // ====================================================================
-        const double tsink = SinkTime (x, y, t);
-        S[0] -= state1.U[0] / tsink;
-        S[1] -= state1.U[1] / tsink * LdotEfficiency;
-        S[2] -= state1.U[2] / tsink * LdotEfficiency;
+        const double betasink = SinkBeta (x, y, t);
+        S[0] -= state1.U[0] * betasink;
+        S[1] -= state1.U[1] * betasink * LdotEfficiency;
+        S[2] -= state1.U[2] * betasink * LdotEfficiency;
 
         return S;
     };
