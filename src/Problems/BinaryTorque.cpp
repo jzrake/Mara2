@@ -104,7 +104,10 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, std::array<
         g.xhat = g.x / g.r;
         g.yhat = g.y / g.r;
 
-        return {g};
+        SinkGeometry h = g; // this has no consequence, but allows the return
+                            // value to be accessed as vector with two
+                            // components.
+        return {g, h};
     }
     if (NumHoles == 2)
     {
@@ -139,7 +142,6 @@ static double GravitationalPotential (double x, double y, std::array<double, 8> 
 
     double phi  = -GM1 * std::pow (s[0].r * s[0].r + rs * rs, -0.5);
            phi += -GM2 * std::pow (s[1].r * s[1].r + rs * rs, -0.5);
-
     return phi;
 }
 
