@@ -98,11 +98,11 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, std::array<
     if (NumHoles == 1)
     {
         SinkGeometry g;
-        g.x = x;
-        g.y = y;
+        g.x = 0.0;
+        g.y = 0.0;
         g.r = std::sqrt (x * x + y * y);
-        g.xhat = g.x / g.r;
-        g.yhat = g.y / g.r;
+        g.xhat = x / g.r;
+        g.yhat = y / g.r;
 
         SinkGeometry h = g; // this has no consequence, but allows the return
                             // value to be accessed as vector with two
