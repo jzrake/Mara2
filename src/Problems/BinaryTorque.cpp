@@ -252,7 +252,7 @@ static double SinkKernel2 (double r)
 static double SinkBeta (double x, double y, std::array<double, 8> T)
 {
     auto s = SinkGeometries (x, y, T);
-    double const beta2 = 0.0;
+    double beta2 = 0.0;
 
     double const beta1 = SinkKernel1 (s[0].r);
 
