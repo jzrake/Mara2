@@ -97,17 +97,21 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, std::array<
 {
     if (NumHoles == 1)
     {
-        SinkGeometry g;
-        g.x = 0.0;
-        g.y = 0.0;
-        g.r = std::sqrt (x * x + y * y);
-        g.xhat = x / g.r;
-        g.yhat = y / g.r;
+        SinkGeometry g1, g2;
 
-        SinkGeometry h = g; // this has no consequence, but allows the return
-                            // value to be accessed as vector with two
-                            // components.
-        return {g, h};
+        g1.x = 0.0;
+        g1.y = 0.0;
+        g2.x = 0.0;
+        g2.y = 0.0;
+
+        g1.r = std::sqrt ((x - g1.x) * (x - g1.x) + (y - g1.y) * (y - g1.y));
+        g2.r = std::sqrt ((x - g2.x) * (x - g2.x) + (y - g2.y) * (y - g2.y));
+        g1.xhat = (x - g1.x) / g1.r;
+        g1.yhat = (y - g1.y) / g1.r;
+        g2.xhat = (x - g2.x) / g2.r;
+        g2.yhat = (y - g2.y) / g2.r;
+
+        return {g1, g2};
     }
     if (NumHoles == 2)
     {
@@ -248,11 +252,15 @@ static double SinkKernel2 (double r)
 static double SinkBeta (double x, double y, std::array<double, 8> T)
 {
     auto s = SinkGeometries (x, y, T);
+    double const beta2 = 0.0;
 
-    double const betamin1 = SinkKernel1 (s[0].r);
-    double const betamin2 = SinkKernel2 (s[1].r);
+    double const beta1 = SinkKernel1 (s[0].r);
 
-    return std::max(betamin1, betamin2);
+    if (s.size() > 1)
+    {
+        beta2 = SinkKernel2 (s[1].r);
+    }
+    return std::max(beta1, beta2);
 }
 
 
