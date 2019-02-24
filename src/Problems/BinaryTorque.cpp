@@ -97,14 +97,21 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, std::array<
 {
     if (NumHoles == 1)
     {
-        SinkGeometry g;
-        g.x = x;
-        g.y = y;
-        g.r = std::sqrt (x * x + y * y);
-        g.xhat = g.x / g.r;
-        g.yhat = g.y / g.r;
+        SinkGeometry g1, g2;
 
-        return {g};
+        g1.x = 0.0;
+        g1.y = 0.0;
+        g2.x = 0.0;
+        g2.y = 0.0;
+
+        g1.r = std::sqrt ((x - g1.x) * (x - g1.x) + (y - g1.y) * (y - g1.y));
+        g2.r = std::sqrt ((x - g2.x) * (x - g2.x) + (y - g2.y) * (y - g2.y));
+        g1.xhat = (x - g1.x) / g1.r;
+        g1.yhat = (y - g1.y) / g1.r;
+        g2.xhat = (x - g2.x) / g2.r;
+        g2.yhat = (y - g2.y) / g2.r;
+
+        return {g1, g2};
     }
     if (NumHoles == 2)
     {
@@ -131,24 +138,23 @@ static std::vector<SinkGeometry> SinkGeometries (double x, double y, std::array<
 
 static double GravitationalPotential (double x, double y, std::array<double, 8> T)
 {
-    const  double rs = SofteningRadius;
-    static double GM1 = GM  / (1.0 + BinaryMassRatio);
-    static double GM2 = GM1 * BinaryMassRatio;
+    const double rs = SofteningRadius;
+    const double GM1 = GM  / (1.0 + BinaryMassRatio);
+    const double GM2 = GM1 * BinaryMassRatio;
 
     auto s = SinkGeometries (x, y, T);
 
     double phi  = -GM1 * std::pow (s[0].r * s[0].r + rs * rs, -0.5);
            phi += -GM2 * std::pow (s[1].r * s[1].r + rs * rs, -0.5);
-
     return phi;
 }
 
 static std::array<double, 2> GravitationalAcceleration (double x, double y, std::array<double, 8> T)
 {
     std::array<double, 2> a = {{0.0, 0.0}};
-    const  double rs = SofteningRadius;
-    static double GM1 = GM / (1.0 + BinaryMassRatio);
-    static double GM2 = GM1 *  BinaryMassRatio;
+    const double rs = SofteningRadius;
+    const double GM1 = GM / (1.0 + BinaryMassRatio);
+    const double GM2 = GM1 *  BinaryMassRatio;
 
     auto s = SinkGeometries (x, y, T);
 
@@ -199,17 +205,17 @@ static double SoundSpeedSquared (double x, double y, std::array<double, 8> T)
     return cs2;
 }
 
-// These two sink kernel functions can be combined
 static double SinkKernel1 (double r)
 {
+    const double sr2 = SinkRadius * SinkRadius;
     double tsink;
 
     if (VacuumCleaner > 0)
     {
-        static double GM1 = GM / (1.0 + BinaryMassRatio);
-        const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
-        const  double omegaSink = std::sqrt (GM1 / std::pow (rs, 3));
-        const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+        const double GM1 = GM / (1.0 + BinaryMassRatio);
+        const double rs = (LocalViscousSink > 0) ? r : SinkRadius;
+        const double omegaSink = std::sqrt (GM1 / std::pow (rs, 3));
+        const double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
         tsink = tvisc / VacuumCleaner;
     }
     else
@@ -217,21 +223,21 @@ static double SinkKernel1 (double r)
         const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
         const double tBinary = 2.0 * M_PI / omegaBin;
         tsink = tBinary / std::abs(VacuumCleaner);
-    }
-
-    return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
+    }   
+    return (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);
 }
 
 static double SinkKernel2 (double r)
 {
+    const double sr2 = SinkRadius * SinkRadius;
     double tsink;
 
     if (VacuumCleaner > 0)
     {
-        static double GM2 = GM * BinaryMassRatio / (1.0 + BinaryMassRatio);
-        const  double rs = (LocalViscousSink > 0) ? r : SinkRadius;
-        const  double omegaSink = std::sqrt (GM2 / std::pow (rs, 3));
-        const  double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
+        const double GM2 = GM * BinaryMassRatio / (1.0 + BinaryMassRatio);
+        const double rs = (LocalViscousSink > 0) ? r : SinkRadius;
+        const double omegaSink = std::sqrt (GM2 / std::pow (rs, 3));
+        const double tvisc = 2.0 / 3.0 * MachNumber * MachNumber / ViscousAlpha / omegaSink;
         tsink = tvisc / VacuumCleaner;
     }
     else
@@ -240,27 +246,41 @@ static double SinkKernel2 (double r)
         const double tBinary = 2.0 * M_PI / omegaBin;
         tsink = tBinary / std::abs(VacuumCleaner);
     }
-
-    return r < SinkRadius ? tsink : HUGE_TIME_SCALE;
+    return (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);
 }
 
-static double SinkTime (double x, double y, std::array<double, 8> T)
+static double SinkBeta (double x, double y, std::array<double, 8> T)
 {
-    double tmin = HUGE_TIME_SCALE;
     auto s = SinkGeometries (x, y, T);
+    double beta2 = 0.0;
 
-    if (SinkKernel1 (s[0].r) < tmin)
+    double const beta1 = SinkKernel1 (s[0].r);
+
+    if (s.size() > 1)
     {
-        tmin = SinkKernel1 (s[0].r);
+        beta2 = SinkKernel2 (s[1].r);
     }
-
-    if (SinkKernel2 (s[1].r) < tmin)
-    {
-        tmin = SinkKernel2 (s[1].r);
-    }
-
-    return tmin;
+    return std::max(beta1, beta2);
 }
+
+
+// static double SinkTime (double x, double y, std::array<double, 8> T)
+// {
+//     double tmin = HUGE_TIME_SCALE;
+//     auto s = SinkGeometries (x, y, T);
+
+//     if (SinkKernel1 (s[0].r) < tmin)
+//     {
+//         tmin = SinkKernel1 (s[0].r);
+//     }
+
+//     if (SinkKernel2 (s[1].r) < tmin)
+//     {
+//         tmin = SinkKernel2 (s[1].r);
+//     }
+
+//     return tmin;
+// }
 
 static double bufferZoneProfile (double r)
 {
@@ -270,9 +290,6 @@ static double bufferZoneProfile (double r)
     const double tightness = 3;
     return 1.0 + std::tanh (tightness * (r - DomainRadius));
 }
-
-
-
 
 // ============================================================================
 class ThinDiskNewtonianHydro : public ConservationLaw
@@ -288,9 +305,6 @@ public:
     std::vector<std::string> getDiagnosticNames() const override;
     double getSoundSpeedSquared (const double *P, std::array<double, 8> T) const;
 };
-
-
-
 
 // ============================================================================
 ThinDiskNewtonianHydro::ThinDiskNewtonianHydro()
@@ -409,16 +423,16 @@ double ThinDiskNewtonianHydro::getSoundSpeedSquared (const double* P, std::array
 
 std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state) const
 {
-    const  auto T = globalStarParticleData;
-    const  double x = state.P[XXX];
-    const  double y = state.P[YYY];
-    const  double dg = state.P[RHO];
-    const  double px = state.U[S11];
-    const  double py = state.U[S22];
-    const  double rs = SofteningRadius;
-    static double GM1 = GM / (1.0 + BinaryMassRatio);
-    static double GM2 = GM1 *  BinaryMassRatio;
-    const  auto sinks = SinkGeometries (x, y, T);
+    const auto T = globalStarParticleData;
+    const double x = state.P[XXX];
+    const double y = state.P[YYY];
+    const double dg = state.P[RHO];
+    const double px = state.U[S11];
+    const double py = state.U[S22];
+    const double rs = SofteningRadius;
+    const double GM1 = GM / (1.0 + BinaryMassRatio);
+    const double GM2 = GM1 *  BinaryMassRatio;
+    const auto sinks = SinkGeometries (x, y, T);
 
     auto D = std::vector<double> (18);
     D[0] = dg;
@@ -429,10 +443,10 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const SinkGeometry g = sinks[0];
         const double agx = g.xhat * GM1 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double agy = g.yhat * GM1 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        const double tsink = SinkKernel1 (g.r);
-        const double dgdot = dg / tsink;
-        const double pxdot = px / tsink * LdotEfficiency;
-        const double pydot = py / tsink * LdotEfficiency;
+        const double betasink = SinkKernel1 (g.r);
+        const double dgdot = dg * betasink;
+        const double pxdot = px * betasink * LdotEfficiency;
+        const double pydot = py * betasink * LdotEfficiency;
         const double Ldot1 = x * pydot - y * pxdot; // Total accretion torque from sink 1
         const double deltax = x - g.x;
         const double deltay = y - g.y;
@@ -447,10 +461,10 @@ std::vector<double> ThinDiskNewtonianHydro::makeDiagnostics (const State& state)
         const SinkGeometry g = sinks[1];
         const double agx = g.xhat * GM2 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
         const double agy = g.yhat * GM2 * g.r * std::pow (g.r * g.r + rs * rs, -1.5);
-        const double tsink = SinkKernel2 (g.r);
-        const double dgdot = dg / tsink;
-        const double pxdot = px / tsink * LdotEfficiency;
-        const double pydot = py / tsink * LdotEfficiency;
+        const double betasink = SinkKernel2 (g.r);
+        const double dgdot = dg * betasink;
+        const double pxdot = px * betasink * LdotEfficiency;
+        const double pydot = py * betasink * LdotEfficiency;
         const double Ldot2 = x * pydot - y * pxdot; // Total accretion torque from sink 2
         const double deltax = x - g.x;
         const double deltay = y - g.y;
@@ -648,8 +662,8 @@ static std::vector<double> starParticleLocations (double t)
         double r = std::sqrt(x*x + y*y);
         double f = std::atan2(y,x);
 
-        sinkLocations[0] = mu * r * std::cos(f);
-        sinkLocations[1] = mu * r * std::sin(f);
+        sinkLocations[0] = mu *     r * std::cos(f);
+        sinkLocations[1] = mu *     r * std::sin(f);
         sinkLocations[2] = mu / q * r * std::cos(f + M_PI);
         sinkLocations[3] = mu / q * r * std::sin(f + M_PI);
 
@@ -913,10 +927,10 @@ int BinaryTorque::run (int argc, const char* argv[])
 
         // Sink
         // ====================================================================
-        const double tsink = SinkTime (x, y, t);
-        S[0] -= state1.U[0] / tsink;
-        S[1] -= state1.U[1] / tsink * LdotEfficiency;
-        S[2] -= state1.U[2] / tsink * LdotEfficiency;
+        const double betasink = SinkBeta (x, y, t);
+        S[0] -= state1.U[0] * betasink;
+        S[1] -= state1.U[1] * betasink * LdotEfficiency;
+        S[2] -= state1.U[2] * betasink * LdotEfficiency;
 
         return S;
     };
