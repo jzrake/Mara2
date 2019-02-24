@@ -1097,7 +1097,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     scheduler->schedule (taskWriteGlobalStarParticleLocations, TaskScheduler::Recurrence (0.0, 0.0, 1), "write_global_star_particle");
     scheduler->schedule (taskCheckpoint, TaskScheduler::Recurrence (user["cpi"]), "checkpoint");
     scheduler->schedule (taskRecomputeDt, TaskScheduler::Recurrence (0.0, 0.0, 1), "compute_dt");
-    scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (0.0, 0.0, 1), "time_series");
+    scheduler->schedule (taskTimeSeries, TaskScheduler::Recurrence (user["tsi"]), "time_series");
 
     writer->setMeshDecomposition (bd);
     writer->setTimeSeriesManager (tseries);
