@@ -853,8 +853,6 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto initialDataTang17 = [&] (double x, double y, double z) -> std::vector<double>
     {
         // Initial conditions from Tang+ (2017) MNRAS 469, 4258
-        // MISSING?: radial drift velocity, pressure gradient for omegak2
-        // Check Yike/Chris Disco setup
         const auto   T          = globalStarParticleData;
         const auto   ag         = GravitationalAcceleration (x, y, T);
         const double rs         = SofteningRadius;
