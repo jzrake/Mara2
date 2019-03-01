@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include <cmath>
 #include <cassert>
 #include <iomanip>
@@ -1056,13 +1057,14 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto advance   = [&] (double dt) { return ss->advance (*md, status.simulationTime, dt); };
     auto condition = [&] () { return status.simulationTime < double (user["tfinal"]); };
     auto timestep  = [&] () { return timestepSize; };
+    auto world     = MpiCommunicator::world();
 
     auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
         const double dtGas  = fo->getCourantTimestep (P, L);
         const double dtStar = (LiveBinary > 0) ? HUGE_TIME_SCALE : dx / vStarMax;
         double localDt = double (user["cfl"]) * std::min (dtGas, dtStar);
-        timestepSize = MpiCommunicator::world().minimum (localDt);
+        timestepSize = world.minimum (localDt);
     };
 
     auto taskCheckpoint = [&] (SimulationStatus, int rep)
