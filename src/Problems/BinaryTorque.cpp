@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include <cmath>
 #include <cassert>
 #include <iomanip>
@@ -58,6 +59,7 @@ static double VacuumCleaner    = 1.0;   // if >0 =alpha_mini/alpha_disk (> 1 fas
 static double MachNumber       = 10.0;  // 1/M = h/r
 static int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static int    ScaleHeightFunc  = 0;     // 0 := H ~ cylindrical, 1 := H ~ min(r1,r2), 2 := H ~ interp(r1,r2)
+static int    SinkKernelFunc   = 1;     // 0 := tophat, 1 := Gaussian 2 := super-Gaussian
 static int    LiveBinary       = 0;     // Move the binary! (enables RK3)
 static int    LocalViscousSink = 0;     // Use local viscous time scale for sink
 static double GM               = 1.0;   // Newton G * mass of binary
@@ -223,8 +225,14 @@ static double SinkKernel1 (double r)
         const double omegaBin = aBin == 0.0 ? 0.0 : std::sqrt (GM / (aBin * aBin * aBin));
         const double tBinary = 2.0 * M_PI / omegaBin;
         tsink = tBinary / std::abs(VacuumCleaner);
-    }   
-    return (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);
+    }
+    switch (SinkKernelFunc)
+    {
+        case 0: return r < SinkRadius ? 1.0 / tsink : 0.0;
+        case 1: return (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);
+        case 2: return (1.0 / tsink) * std::exp(-0.5 * r * r * r * r / sr2 / sr2);
+        default: throw std::invalid_argument("SinkKernelFunc must be 0, 1, or 2");
+    }
 }
 
 static double SinkKernel2 (double r)
@@ -246,7 +254,13 @@ static double SinkKernel2 (double r)
         const double tBinary = 2.0 * M_PI / omegaBin;
         tsink = tBinary / std::abs(VacuumCleaner);
     }
-    return (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);
+    switch (SinkKernelFunc)
+    {
+        case 0: return r < SinkRadius ? 1.0 / tsink : 0.0;
+        case 1: return (1.0 / tsink) * std::exp(-0.5 * r * r / sr2);
+        case 2: return (1.0 / tsink) * std::exp(-0.5 * r * r * r * r / sr2 / sr2);
+        default: throw std::invalid_argument("SinkKernelFunc must be 0, 1, or 2");
+    }
 }
 
 static double SinkBeta (double x, double y, std::array<double, 8> T)
@@ -789,6 +803,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["MachNumber"]       = MachNumber;
     user["NumHoles"]         = NumHoles;
     user["ScaleHeightFunc"]  = ScaleHeightFunc;
+    user["SinkKernelFunc"]   = SinkKernelFunc;
     user["aBin"]             = aBin;
     user["BinaryMassRatio"]  = BinaryMassRatio;
     user["DiskMassRatio"]    = DiskMassRatio;
@@ -874,7 +889,6 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double vr         = -(3.0 / 2.0) * nu / (r + rs); // radial drift velocity (CHECK)
         const double vx         = vq * (-y / r) + vr * (x / r);
         const double vy         = vq * ( x / r) + vr * (y / r);
-
         return std::vector<double> {sigma, vx, vy, 0, pre, x, y};
     };
 
@@ -955,6 +969,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     MachNumber        = user["MachNumber"];
     NumHoles          = user["NumHoles"];
     ScaleHeightFunc   = user["ScaleHeightFunc"];
+    SinkKernelFunc    = user["SinkKernelFunc"];
     aBin              = user["aBin"];
     BinaryMassRatio   = user["BinaryMassRatio"];
     DiskMassRatio     = user["DiskMassRatio"];
@@ -1054,13 +1069,14 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto advance   = [&] (double dt) { return ss->advance (*md, status.simulationTime, dt); };
     auto condition = [&] () { return status.simulationTime < double (user["tfinal"]); };
     auto timestep  = [&] () { return timestepSize; };
+    auto world     = MpiCommunicator::world();
 
     auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
         const double dtGas  = fo->getCourantTimestep (P, L);
         const double dtStar = (LiveBinary > 0) ? HUGE_TIME_SCALE : dx / vStarMax;
         double localDt = double (user["cfl"]) * std::min (dtGas, dtStar);
-        timestepSize = MpiCommunicator::world().minimum (localDt);
+        timestepSize = world.minimum (localDt);
     };
 
     auto taskCheckpoint = [&] (SimulationStatus, int rep)
