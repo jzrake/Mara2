@@ -193,6 +193,15 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
         auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fluxCorrection);
         auto L = meshOperator->divergence (F, -1.0, startIndex);
 
+        if (starParticleLocations)
+        {
+            auto newH = starParticleLocations (t);
+            assert(newH.size() == H.size());
+            H = newH;
+            T = starParticlesToAuxiliaryData (newH);
+        }
+
+
         cl->addSourceTerms (solution.P, L);
 
         if (sourceTermsFunction)
@@ -209,37 +218,32 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
         {
             U[n] = U0[n] * (1 - b[rk]) + (U[n] + dt * L[n]) * b[rk];
         }
-
-        // Reset the star particle positions (and optionally velocities)
-        if (starParticleLocations)
-        {
-            auto newH = starParticleLocations (t);
-            assert(newH.size() == H.size());
-            H = newH;
-        }
-
-        // Use RK updates to update the star particle positions and velocities
-        else if (starParticleDerivatives)
-        {
-            auto Hdot = starParticleDerivatives (solution.P, H);
-
-            assert(Hdot.size() == H.size());
-
-            for (std::size_t n = 0; n < H.size(); ++n)
-            {
-                H[n] = H0[n] * (1 - b[rk]) + (H[n] + dt * Hdot[n]) * b[rk];
-            }
-        }
-
         fieldOperator->recoverPrimitive (U[interior], solution.P[interior], T);
+        solution.applyBoundaryCondition (*boundaryCondition);
+
 
         // Update the inter-timestep time
         t = t0 * (1 - b[rk]) + (t + dt) * b[rk];
-
         solution.starParticles = H;
-        solution.applyBoundaryCondition (*boundaryCondition);
     }
 }
+
+
+// Would be used for live-binary case:
+// 
+// // Use RK updates to update the star particle positions and velocities
+// if (starParticleDerivatives)
+// {
+//     auto Hdot = starParticleDerivatives (solution.P, H);
+
+//     assert(Hdot.size() == H.size());
+
+//     for (std::size_t n = 0; n < H.size(); ++n)
+//     {
+//         H[n] = H0[n] * (1 - b[rk]) + (H[n] + dt * Hdot[n]) * b[rk];
+//     }
+//     T = starParticlesToAuxiliaryData (H);
+// }
 
 Cow::Array MethodOfLinesTVD::computeAdvectiveFluxes (MeshData& solution, std::array<double, 8> t0) const
 {
