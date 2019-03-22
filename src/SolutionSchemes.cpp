@@ -190,20 +190,32 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
 
     for (int rk = 0; rk < rungeKuttaOrder; ++rk)
     {
+
+
+        // Compute intercell fluxes from primitives, then compute their
+        // divergence to get the time derivative L, of U. Then add source
+        // terms from the conservation law to L.
+        // ====================================================================
         auto F = meshOperator->godunov (Fhat, solution.P, solution.B, footprint, startIndex, fluxCorrection);
         auto L = meshOperator->divergence (F, -1.0, startIndex);
+        cl->addSourceTerms (solution.P, L);
 
+
+
+        // If we have a function to compute star particle locations, that gets
+        // called here, so that we have T(t).
+        // ====================================================================
         if (starParticleLocations)
         {
-            auto newH = starParticleLocations (t);
-            assert(newH.size() == H.size());
-            H = newH;
-            T = starParticlesToAuxiliaryData (newH);
+            H = starParticleLocations (t);
+            T = starParticlesToAuxiliaryData (H);
         }
 
 
-        cl->addSourceTerms (solution.P, L);
 
+        // If we have a source terms function, that gets called here. The
+        // source terms function is allowed to use the star particle data, T.
+        // ====================================================================
         if (sourceTermsFunction)
         {
             auto S = meshOperator->generateSourceTerms (sourceTermsFunction, solution.P, T, startIndex);
@@ -214,36 +226,56 @@ void MethodOfLinesTVD::advance (MeshData& solution, double t0, double dt) const
             }
         }
 
+
+
+        // ====================================================================
         for (int n = 0; n < L.size(); ++n)
         {
             U[n] = U0[n] * (1 - b[rk]) + (U[n] + dt * L[n]) * b[rk];
         }
-        fieldOperator->recoverPrimitive (U[interior], solution.P[interior], T);
+
+
+
+        // If we have a function to compute star particle derivatives, rather
+        // than star particle locations, then that function is called here,
+        // and we update T (the star particle data). Note that T is used
+        // above, but not below (because we cache T in Ttemp, and where the
+        // primitives are evaluated below, Ttemp is used rather than T). This
+        // is what we need, because RK should be evaluating things at the most
+        // recently cached time level.
+        // ====================================================================
+        auto Ttemp = T;
+
+        if (starParticleDerivatives)
+        {
+            auto Hdot = starParticleDerivatives (solution.P, H);
+
+            assert(Hdot.size() == H.size());
+
+            for (std::size_t n = 0; n < H.size(); ++n)
+            {
+                H[n] = H0[n] * (1 - b[rk]) + (H[n] + dt * Hdot[n]) * b[rk];
+            }
+            T = starParticlesToAuxiliaryData (H);
+        }
+
+
+
+        // ====================================================================
+        fieldOperator->recoverPrimitive (U[interior], solution.P[interior], Ttemp);
         solution.applyBoundaryCondition (*boundaryCondition);
 
 
+
         // Update the inter-timestep time
+        // ====================================================================
         t = t0 * (1 - b[rk]) + (t + dt) * b[rk];
         solution.starParticles = H;
-    }
+    } // End RK loop
 }
 
 
-// Would be used for live-binary case:
-// 
-// // Use RK updates to update the star particle positions and velocities
-// if (starParticleDerivatives)
-// {
-//     auto Hdot = starParticleDerivatives (solution.P, H);
 
-//     assert(Hdot.size() == H.size());
-
-//     for (std::size_t n = 0; n < H.size(); ++n)
-//     {
-//         H[n] = H0[n] * (1 - b[rk]) + (H[n] + dt * Hdot[n]) * b[rk];
-//     }
-//     T = starParticlesToAuxiliaryData (H);
-// }
 
 Cow::Array MethodOfLinesTVD::computeAdvectiveFluxes (MeshData& solution, std::array<double, 8> t0) const
 {

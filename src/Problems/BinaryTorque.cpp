@@ -689,12 +689,26 @@ static std::vector<double> starParticleLocations (double t)
     }
     else
     {
-        sinkLocations[0] = mu     * aBin * std::cos (omegaBin * t);
-        sinkLocations[1] = mu     * aBin * std::sin (omegaBin * t);
-        sinkLocations[2] = mu / q * aBin * std::cos (omegaBin * t + M_PI);
-        sinkLocations[3] = mu / q * aBin * std::sin (omegaBin * t + M_PI);
+        double x1 = mu     * aBin * std::cos (omegaBin * t);
+        double y1 = mu     * aBin * std::sin (omegaBin * t);
+        double x2 = mu / q * aBin * std::cos (omegaBin * t + M_PI);
+        double y2 = mu / q * aBin * std::sin (omegaBin * t + M_PI);
+        double x1hat = x1 / std::sqrt (x1 * x1 + y1 * y1);
+        double y1hat = y1 / std::sqrt (x1 * x1 + y1 * y1);
+        double x2hat = x2 / std::sqrt (x2 * x2 + y2 * y2);
+        double y2hat = y2 / std::sqrt (x2 * x2 + y2 * y2);
+
         v1 = mu     * aBin * omegaBin;
         v2 = mu / q * aBin * omegaBin;
+
+        sinkLocations[0] = x1;
+        sinkLocations[1] = y1;
+        sinkLocations[2] = x2;
+        sinkLocations[3] = y2;
+        sinkLocations[4] = v1 * x1hat;
+        sinkLocations[5] = v1 * y1hat;
+        sinkLocations[6] = v2 * x2hat;
+        sinkLocations[7] = v2 * y2hat;
     }
 
     vStarMax = std::max (v1, v2);
@@ -727,10 +741,10 @@ static std::vector<double> starParticleDerivatives (const Cow::Array& P, const s
     const double x12hat = x12 / std::sqrt (r2);
     const double y12hat = y12 / std::sqrt (r2);
 
-    const double vx1dot =  GM2 / r2 * x12hat;
-    const double vy1dot =  GM2 / r2 * y12hat;
-    const double vx2dot = -GM1 / r2 * x12hat;
-    const double vy2dot = -GM1 / r2 * y12hat;
+    const double vx1dotHole =  GM2 / r2 * x12hat;
+    const double vy1dotHole =  GM2 / r2 * y12hat;
+    const double vx2dotHole = -GM1 / r2 * x12hat;
+    const double vy2dotHole = -GM1 / r2 * y12hat;
 
     // WARNING: assuming two guard zones here:
     const double dx = P(3, 0, 0, XXX) - P(2, 0, 0, XXX);
@@ -770,11 +784,10 @@ static std::vector<double> starParticleDerivatives (const Cow::Array& P, const s
     return {
         x1dot, y1dot,
         x2dot, y2dot,
-        vx1dot + agasTotal[0], vy1dot + agasTotal[1],
-        vx2dot + agasTotal[2], vy2dot + agasTotal[3],
+        vx1dotHole + agasTotal[0], vy1dotHole + agasTotal[1],
+        vx2dotHole + agasTotal[2], vy2dotHole + agasTotal[3],
     };
 }
-
 
 
 
@@ -1076,7 +1089,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto taskRecomputeDt = [&] (SimulationStatus, int rep)
     {
         const double dtGas  = fo->getCourantTimestep (P, L);
-        const double dtStar = (LiveBinary > 0) ? HUGE_TIME_SCALE : dx / vStarMax;
+        const double dtStar = LiveBinary ? HUGE_TIME_SCALE : dx / vStarMax;
         double localDt = double (user["cfl"]) * std::min (dtGas, dtStar);
         timestepSize = world.minimum (localDt);
     };
