@@ -717,76 +717,81 @@ static std::vector<double> starParticleLocations (double t)
     return sinkLocations;
 }
 
-static std::vector<double> starParticleDerivatives (const Cow::Array& P, const std::vector<double>& starParticles)
+static auto starParticleDerivatives()
 {
-    double GM1 = GM  / (1.0 + BinaryMassRatio);
-    double GM2 = GM1 * BinaryMassRatio;
-    const double rs = SofteningRadius;
+    auto world = MpiCommunicator::world();
 
-    const double x1 = starParticles[0];
-    const double y1 = starParticles[1];
-    const double x2 = starParticles[2];
-    const double y2 = starParticles[3];
-    const double vx1 = starParticles[4];
-    const double vy1 = starParticles[5];
-    const double vx2 = starParticles[6];
-    const double vy2 = starParticles[7];
-    const double x1dot = vx1;
-    const double y1dot = vy1;
-    const double x2dot = vx2;
-    const double y2dot = vy2;
-
-    const double x12 = x2 - x1;
-    const double y12 = y2 - y1;
-    const double r2 = x12 * x12 + y12 * y12;
-    const double x12hat = x12 / std::sqrt (r2);
-    const double y12hat = y12 / std::sqrt (r2);
-
-    const double vx1dotHole =  GM2 / r2 * x12hat;
-    const double vy1dotHole =  GM2 / r2 * y12hat;
-    const double vx2dotHole = -GM1 / r2 * x12hat;
-    const double vy2dotHole = -GM1 / r2 * y12hat;
-
-    // WARNING: assuming two guard zones here:
-    const double dx = P(3, 0, 0, XXX) - P(2, 0, 0, XXX);
-    const double dy = P(0, 3, 0, YYY) - P(0, 2, 0, YYY);
-
-    double vx1dotGas = 0.0;
-    double vy1dotGas = 0.0;
-    double vx2dotGas = 0.0;
-    double vy2dotGas = 0.0;
-
-    for (int i = 2; i < P.shape()[0] - 2; ++i)
+    return [world] (const Cow::Array& P, const std::vector<double>& starParticles)
     {
-        for (int j = 2; j < P.shape()[1] - 2; ++j)
+        double GM1 = GM  / (1.0 + BinaryMassRatio);
+        double GM2 = GM1 * BinaryMassRatio;
+        const double rs = SofteningRadius;
+
+        const double x1 = starParticles[0];
+        const double y1 = starParticles[1];
+        const double x2 = starParticles[2];
+        const double y2 = starParticles[3];
+        const double vx1 = starParticles[4];
+        const double vy1 = starParticles[5];
+        const double vx2 = starParticles[6];
+        const double vy2 = starParticles[7];
+        const double x1dot = vx1;
+        const double y1dot = vy1;
+        const double x2dot = vx2;
+        const double y2dot = vy2;
+
+        const double x12 = x2 - x1;
+        const double y12 = y2 - y1;
+        const double r2 = x12 * x12 + y12 * y12;
+        const double x12hat = x12 / std::sqrt (r2);
+        const double y12hat = y12 / std::sqrt (r2);
+
+        const double vx1dotHole =  GM2 / r2 * x12hat;
+        const double vy1dotHole =  GM2 / r2 * y12hat;
+        const double vx2dotHole = -GM1 / r2 * x12hat;
+        const double vy2dotHole = -GM1 / r2 * y12hat;
+
+        // WARNING: assuming two guard zones here:
+        const double dx = P(3, 0, 0, XXX) - P(2, 0, 0, XXX);
+        const double dy = P(0, 3, 0, YYY) - P(0, 2, 0, YYY);
+
+        double vx1dotGas = 0.0;
+        double vy1dotGas = 0.0;
+        double vx2dotGas = 0.0;
+        double vy2dotGas = 0.0;
+
+        for (int i = 2; i < P.shape()[0] - 2; ++i)
         {
-            const double sigma = P(i, j, 0, RHO);
-            const double mc = sigma * dx * dy;
-            const double xc = P(i, j, 0, XXX);
-            const double yc = P(i, j, 0, YYY);
-            const double x1c = xc - x1;
-            const double y1c = yc - y1;
-            const double x2c = xc - x2;
-            const double y2c = yc - y2;
-            const double r1csqu = x1c * x1c + y1c * y1c;
-            const double r2csqu = x2c * x2c + y2c * y2c;
+            for (int j = 2; j < P.shape()[1] - 2; ++j)
+            {
+                const double sigma = P(i, j, 0, RHO);
+                const double mc = sigma * dx * dy;
+                const double xc = P(i, j, 0, XXX);
+                const double yc = P(i, j, 0, YYY);
+                const double x1c = xc - x1;
+                const double y1c = yc - y1;
+                const double x2c = xc - x2;
+                const double y2c = yc - y2;
+                const double r1csqu = x1c * x1c + y1c * y1c;
+                const double r2csqu = x2c * x2c + y2c * y2c;
 
-            vx1dotGas += mc * std::pow (r1csqu + rs * rs, -1.5) * x1c;
-            vy1dotGas += mc * std::pow (r1csqu + rs * rs, -1.5) * y1c;
-            vx2dotGas += mc * std::pow (r2csqu + rs * rs, -1.5) * x2c;
-            vy2dotGas += mc * std::pow (r2csqu + rs * rs, -1.5) * y2c;
+                vx1dotGas += mc * std::pow (r1csqu + rs * rs, -1.5) * x1c;
+                vy1dotGas += mc * std::pow (r1csqu + rs * rs, -1.5) * y1c;
+                vx2dotGas += mc * std::pow (r2csqu + rs * rs, -1.5) * x2c;
+                vy2dotGas += mc * std::pow (r2csqu + rs * rs, -1.5) * y2c;
+            }
         }
-    }
 
-    // agas is the gravitational acceleration on the star from the gas.
-    std::vector<double> agasLocal = {vx1dotGas, vy1dotGas, vx2dotGas, vy2dotGas};
-    std::vector<double> agasTotal = MpiCommunicator::world().sum (agasLocal);
+        // agas is the gravitational acceleration on the star from the gas.
+        std::vector<double> agasLocal = {vx1dotGas, vy1dotGas, vx2dotGas, vy2dotGas};
+        std::vector<double> agasTotal = world.sum (agasLocal);
 
-    return {
-        x1dot, y1dot,
-        x2dot, y2dot,
-        vx1dotHole + agasTotal[0], vy1dotHole + agasTotal[1],
-        vx2dotHole + agasTotal[2], vy2dotHole + agasTotal[3],
+        return std::vector<double> {
+            x1dot, y1dot,
+            x2dot, y2dot,
+            vx1dotHole + agasTotal[0], vy1dotHole + agasTotal[1],
+            vx2dotHole + agasTotal[2], vy2dotHole + agasTotal[3],
+        };
     };
 }
 
@@ -1103,7 +1108,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     if (LiveBinary)
     {
         ss->setRungeKuttaOrder (3);
-        ss->setStarParticleDerivatives (starParticleDerivatives);
+        ss->setStarParticleDerivatives (starParticleDerivatives());
     }
     else
     {
