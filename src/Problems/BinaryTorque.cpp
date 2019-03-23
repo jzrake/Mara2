@@ -61,6 +61,7 @@ static int    NumHoles         = 2;     // Number of Black holes 1 or 2
 static int    ScaleHeightFunc  = 0;     // 0 := H ~ cylindrical, 1 := H ~ min(r1,r2), 2 := H ~ interp(r1,r2)
 static int    SinkKernelFunc   = 1;     // 0 := tophat, 1 := Gaussian 2 := super-Gaussian
 static int    LiveBinary       = 0;     // Move the binary! (enables RK3)
+static int    CounterRotate    = 0;     // Disk counterrotates if > 0
 static int    LocalViscousSink = 0;     // Use local viscous time scale for sink
 static double GM               = 1.0;   // Newton G * mass of binary
 static double aBin             = 1.0;   // Binary separation
@@ -824,6 +825,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     user["SinkRadius"]       = SinkRadius;
     user["LocalViscousSink"] = LocalViscousSink;
     user["LiveBinary"]       = LiveBinary;
+    user["CounterRotate"]    = CounterRotate;    
     user["LdotEfficiency"]   = LdotEfficiency;
     user["InitialData"]      = InitialDataString;
     user["VacuumCleaner"]    = VacuumCleaner;
@@ -881,6 +883,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     auto initialDataTang17 = [&] (double x, double y, double z) -> std::vector<double>
     {
         // Initial conditions from Tang+ (2017) MNRAS 469, 4258
+        // Using time dependent potential of binary
         const auto   T          = globalStarParticleData;
         const auto   ag         = GravitationalAcceleration (x, y, T);
         const double rs         = SofteningRadius;
@@ -895,7 +898,37 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double sigmaDeriv = sigma0 * std::pow (r/r0 + rs/r0, -1.5) * -0.5 / r0; // neglects the cavity cutoff ^^
         const double dPdr       = cs2 * sigmaDeriv + cs2Deriv * sigma;
         const double omega2     = r < r0 ? GM / (4 * r0) : -(ag[0] * x + ag[1] * y) / r2 + dPdr / (sigma * r); // Not sure why GM / (4 * r0)... check this
-        const double vq         = r * std::sqrt (omega2); // defined to be in the inertial frame
+              double vq         = r * std::sqrt (omega2); // defined to be in the inertial frame
+        if (CounterRotate > 0)  vq *= -1.0;
+        const double pre        = cs2 * sigma;
+        const double h0         = r / MachNumber;
+        const double nu         = ViscousAlpha * std::sqrt (cs2) * h0; // ViscousAlpha * cs * h0
+        const double vr         = -(3.0 / 2.0) * nu / (r + rs); // radial drift velocity (CHECK)
+        const double vx         = vq * (-y / r) + vr * (x / r);
+        const double vy         = vq * ( x / r) + vr * (y / r);
+        return std::vector<double> {sigma, vx, vy, 0, pre, x, y};
+    };
+
+    auto initialDataTang17b = [&] (double x, double y, double z) -> std::vector<double>
+    {
+        // Initial conditions from Tang+ (2017) MNRAS 469, 4258
+        // Using time independent potential of single point mass GM
+        const double rs         = SofteningRadius;
+        const double r0         = 2.5 * aBin;
+        const double xsi        = 10.0;
+        const double sigma0     = DiskMassRatio * GM / aBin / aBin; // NOTE: there's a G here, meaning G = 1 throughout
+        const double r2         = x * x + y * y;
+        const double r          = std::sqrt (r2);
+        const double phi        = -GM * std::pow (r2 + rs * rs, -0.5);    
+        const double ag         = -GM * std::pow (r2 + rs * rs, -1.5) * r;    
+        const double cs2        = std::pow (MachNumber, -2) * -phi;
+        const double cs2Deriv   = ag * std::pow (MachNumber, -2);        
+        const double sigma      = sigma0 * std::pow (r/r0 + rs/r0, -0.5) * std::max (std::exp (-std::pow (r / r0, -xsi)), 1e-6);
+        const double sigmaDeriv = sigma0 * std::pow (r/r0 + rs/r0, -1.5) * -0.5 / r0; // neglects the cavity cutoff ^^
+        const double dPdr       = cs2 * sigmaDeriv + cs2Deriv * sigma;
+        const double omega2     = r < r0 ? GM / (4 * r0) : -ag / r + dPdr / (sigma * r);        
+              double vq         = r * std::sqrt (omega2); // defined to be in the inertial frame
+        if (CounterRotate > 0)  vq *= -1.0;
         const double pre        = cs2 * sigma;
         const double h0         = r / MachNumber;
         const double nu         = ViscousAlpha * std::sqrt (cs2) * h0; // ViscousAlpha * cs * h0
@@ -990,6 +1023,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     SinkRadius        = user["SinkRadius"];
     LocalViscousSink  = user["LocalViscousSink"];
     LiveBinary        = user["LiveBinary"];
+    CounterRotate     = user["CounterRotate"];    
     LdotEfficiency    = user["LdotEfficiency"];
     VacuumCleaner     = user["VacuumCleaner"];
     InitialDataString = std::string (user["InitialData"]);
@@ -1005,6 +1039,7 @@ int BinaryTorque::run (int argc, const char* argv[])
     if (InitialDataString == "Ring")        initialData = initialDataRing;
     // if (InitialDataString == "Zrake")       initialData = initialDataZrake;
     if (InitialDataString == "Tang17")      initialData = initialDataTang17;
+    if (InitialDataString == "Tang17b")     initialData = initialDataTang17b;
 
 
     auto logger    = std::make_shared<Logger>();
