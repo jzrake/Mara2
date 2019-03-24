@@ -940,6 +940,7 @@ int BinaryTorque::run (int argc, const char* argv[])
         const double vr         = -(3.0 / 2.0) * nu / (r + rs); // radial drift velocity (CHECK)
         const double vx         = vq * (-y / r) + vr * (x / r);
         const double vy         = vq * ( x / r) + vr * (y / r);
+//        if (r>0.95*DomainRadius) printf ("mdot= %6.2e %6.2e\n", (2.0*M_PI*r*sigma*vr),nu);
         return std::vector<double> {sigma, vx, vy, 0, pre, x, y};
     };
 
@@ -979,7 +980,17 @@ int BinaryTorque::run (int argc, const char* argv[])
 
         // Outer buffer
         // ====================================================================
-        const double vk       = std::sqrt (-GravitationalPotential (x, y, t));
+        double vk; 
+        if (InitialDataString == "Tang17b")
+        {
+            const double rs = SofteningRadius;
+
+            vk   = std::sqrt (GM / std::sqrt(r * r + rs * rs));
+        } 
+        else
+        {
+            vk   = std::sqrt (-GravitationalPotential (x, y, t));
+        }
         const double torb     = 2.0 * M_PI * r / vk;
         const double tau      = torb * BetaBuffer / bufferZoneProfile (r);
 
